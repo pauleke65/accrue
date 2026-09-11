@@ -1,0 +1,10 @@
+-Update styling to match monad
+-critria - A payments app that never mentions a blockchain to the person using it
+-criteria - Product teams who care more about a user’s first five minutes than the architecture underneath.
+- We need to create the most seamless and intuitive mobile & desktop onboarding there is.
+- Handle instant cross border payments without milestone too.
+- Best Mera-powered UX https://mera.category.xyz/
+- Best Kimi Powered apps, maybe the payer, verifier, worker could be an AI agent, not sure how it'll work
+- Maybe we also postion is as a world where AI is taking over, humans still need to earn income some how, like doing stuff only humans can do/verify
+- But we need lots, and lots of use cases.
+
