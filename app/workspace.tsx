@@ -1,0 +1,206 @@
+"use client";
+import {useWorkspace} from "./use-workspace";
+import { useCallback, useEffect, useState } from "react";
+import { Dashboard } from "./ui/dashboard";
+import { Earnings, ActivityPage, Connections } from "./ui/workspace-pages";
+import {
+  ArrowUpRight,
+  Plus,
+  ShieldCheck,
+  FolderOpen,
+  Wallet,
+  Activity,
+  Settings2,
+  Search,
+  ArrowRight,
+  RefreshCw,
+  LogOut,
+  CheckCircle2,
+} from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import type { Agreement, Action, Draft, Role } from "@/lib/domain";
+import { available, total } from "@/lib/domain";
+import Builder, { exampleDraft } from "./ui/builder";
+import Detail, { Timeline } from "./ui/detail";
+import ActionDialog, { type Intent } from "./ui/action-dialog";
+import { Choice, money, Status, date } from "./ui/shared";
+type Page = "agreements" | "earnings" | "activity" | "integrations";
+const navigation = [
+  { id: "agreements", label: "Agreements", icon: FolderOpen },
+  { id: "earnings", label: "Earnings", icon: Wallet },
+  { id: "activity", label: "Activity", icon: Activity },
+  { id: "integrations", label: "Connections", icon: Settings2 },
+] as const;
+export default function Accrue() {
+const {agreements,page,role,setRole,selected,setSelected,loading,error,setError,signedOut,creating,setCreating,busy,intent,setIntent,query,setQuery,filter,setFilter,notice,setNotice,refresh,create,active,act,navigate,visible,reserved,earned,reviews}=useWorkspace();
+  return (
+    <div className="shell">
+      <aside className="rail">
+        <a className="brand" href="/">
+          a<span>accrue</span>
+        </a>
+        <p className="eyebrow">YOUR WORKSPACE</p>
+        <nav aria-label="Main navigation">
+          {navigation.map(({ id, label, icon: Icon }) => (
+            <button
+              key={id}
+              className={page === id ? "nav-item selected" : "nav-item"}
+              onClick={() => navigate(id)}
+            >
+              <Icon size={19} />
+              {label}
+              {id === "agreements" && <span>{agreements.length}</span>}
+            </button>
+          ))}
+        </nav>
+        <div className="rail-bottom">
+          <ShieldCheck />
+          <p>
+            Good work.
+            <br />
+            Guaranteed payment.
+          </p>
+          <small>Clear terms. Verified progress.</small>
+        </div>
+        <a className="signout" href="/signout-with-chatgpt?return_to=/">
+          <LogOut size={15} />
+          Sign out
+        </a>
+      </aside>
+      <main>
+        <header className="topbar">
+          <span>
+            Workspace <span className="slash">/</span>{" "}
+            <b>{navigation.find((n) => n.id === page)?.label}</b>
+          </span>
+          <div className="header-actions">
+            <span className="badge sandbox">Sandbox · No real funds</span>
+            <Choice
+              label="Sandbox role"
+              value={role}
+              onChange={(v) => {
+                setRole(v as Role);
+                setIntent(null);
+              }}
+              items={[
+                { value: "payer", label: "Payer view" },
+                { value: "earner", label: "Worker view" },
+                { value: "verifier", label: "Verifier view" },
+              ]}
+            />
+            <span className="avatar tiny">YO</span>
+          </div>
+        </header>
+        <nav className="mobile-nav" aria-label="Mobile navigation">
+          {navigation.map((n) => (
+            <button
+              key={n.id}
+              onClick={() => navigate(n.id)}
+              className={page === n.id ? "selected" : ""}
+            >
+              {n.label}
+            </button>
+          ))}
+        </nav>
+        <div className="content">
+          {error && (
+            <div role="alert" className="error-banner">
+              {error}
+              <button className="text-button" onClick={() => void refresh()}>
+                Retry <RefreshCw size={14} />
+              </button>
+            </div>
+          )}
+          {notice && (
+            <div className="success-banner" role="status">
+              <CheckCircle2 size={17} />
+              {notice}
+              <button
+                aria-label="Dismiss notification"
+                onClick={() => setNotice("")}
+              >
+                ×
+              </button>
+            </div>
+          )}
+          {signedOut ? (
+            <section className="empty-state">
+              <ShieldCheck size={36} />
+              <h1>Your agreements, kept private.</h1>
+              <p>
+                Sign in to create a persistent sandbox workspace and explore
+                every participant’s workflow.
+              </p>
+              <a className="primary" href="/signin-with-chatgpt?return_to=/">
+                Sign in to Accrue <ArrowRight size={16} />
+              </a>
+            </section>
+          ) : loading ? (
+            <section className="empty-state" aria-live="polite">
+              <RefreshCw className="spin" />
+              <h2>Opening your workspace…</h2>
+            </section>
+          ) : active ? (
+            <Detail
+              agreement={active}
+              role={role}
+              onBack={() => setSelected(null)}
+              onIntent={setIntent}
+            />
+          ) : (
+            <>
+              {page === "agreements" && (
+                <Dashboard
+                  agreements={agreements}
+                  reserved={reserved}
+                  earned={earned}
+                  reviews={reviews}
+                  filter={filter}
+                  setFilter={setFilter}
+                  query={query}
+                  setQuery={setQuery}
+                  visible={visible}
+                  busy={busy}
+                  create={create}
+                  setError={setError}
+                  setCreating={setCreating}
+                  setSelected={setSelected}
+                />
+              )}
+              {page === "earnings" && (
+                <Earnings agreements={agreements} setSelected={setSelected} />
+              )}
+              {page === "activity" && (
+                <ActivityPage
+                  agreements={agreements}
+                  setSelected={setSelected}
+                />
+              )}
+              {page === "integrations" && <Connections />}
+            </>
+          )}
+        </div>
+      </main>
+      <Builder
+        open={creating}
+        onClose={() => setCreating(false)}
+        onCreate={async (d) => {
+          await create(d);
+        }}
+        busy={busy}
+      />
+      {active && intent && (
+        <ActionDialog
+          key={`${active.id}-${intent.type}-${intent.milestone}-${role}`}
+          agreement={active}
+          role={role}
+          intent={intent}
+          onClose={() => setIntent(null)}
+          onAction={act}
+        />
+      )}
+    </div>
+  );
+}
+
