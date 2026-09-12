@@ -11,6 +11,7 @@ These results describe the source at the sandbox-stabilisation checkpoint. They 
 | HTTP: `node tests/api-smoke.mjs` | PASS, 15 checks | Fresh against the local dev server, after every change below |
 | Full npm dependency audit | 4 moderate, 0 high | Was 14 findings (10 high, 4 moderate); see below |
 | Lint: `npm run lint` | 2 errors, 70 warnings | Both remaining errors are deliberate; see below |
+| Colour contrast (WCAG AA) | PASS, 0 failures | Measured with alpha compositing on dashboard, agreement detail and earnings after the Metropolis restyle |
 | Browser QA at 360 / 768 / 1024px | PASS, two defects found and fixed | Chromium; complete payer → worker → verifier journey driven at 360px |
 | Keyboard: focus order and visible focus | PASS | Activation by Enter/Space not exercised; see below |
 | WebMCP runtime validation | UNAVAILABLE | Feature-detected read/navigation tools present |
@@ -42,7 +43,15 @@ All interactive elements have accessible names, `lang` is set, no image lacks al
 
 Enter/Space activation was **not** verified: synthetic key events do not trigger native button activation, so the automation cannot exercise it. The controls are real `<button>` elements, for which activation is handled by the browser. A person should confirm this on a real keyboard.
 
-Not measured: screen readers, colour contrast ratios, slow-network upload behaviour, or any real mobile device.
+Not measured: screen readers, slow-network upload behaviour, or any real mobile device.
+
+## Metropolis restyle
+
+The interface follows the Monad Metropolis hackathon page: surface `#0f0f12`, raised panels `#16161a`, paper ink `#fbfaf9`, dimmed ink `#9d9db2`, hairline structure at `#ffffff17`, brand purple `#6e54ff`, square corners, mono uppercase labels at 0.18em tracking, and a pixel display face for page titles. Those colour values are Monad's own published tokens, read from the live page.
+
+The two typefaces are stand-ins: Monad's brittiSans and Metropolis Pixel are not redistributable, so the interface loads Inter for text and Silkscreen for the display role, which is the same substitution the source page's own fallback chain makes.
+
+Every text colour was re-measured against its composited background after the restyle; all three surveyed pages report zero AA failures. Status hues were lifted for the dark surface (`#6ee7a8` positive, `#e8b339` caution, `#ff7a9c` negative) and placeholder ink has its own step at `#8a8a9c`, because the faint hairline value does not clear 4.5:1 as text. Three layout regressions the mono tracking introduced — the role selector, the dashboard filter strip and the mobile navigation — were fixed and re-measured at 360px.
 
 ## Lint
 
