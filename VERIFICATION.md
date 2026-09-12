@@ -39,7 +39,7 @@ Two defects were found and fixed:
 - The agreement detail tab strip measured 367px against a 360px viewport, so the entire page scrolled horizontally at the width the layout rules name explicitly. The strip now scrolls inside its own row; every page measured 0 overflowing elements afterwards.
 - The dialog close control was a 16×16 icon, below the 24px minimum target size. It is now a 44px target.
 
-All interactive elements have accessible names, `lang` is set, no image lacks alt text, and no positive `tabindex` distorts the tab order. Focus moves into the first field when a dialog opens, the focus outline is visible (3px, offset 3px), and Escape closes a dialog.
+All interactive elements have accessible names, `lang` is set, no image lacks alt text, and no positive `tabindex` distorts the tab order. Focus moves into the first field when a dialog opens, the focus outline is visible (2px brand purple, offset 2px, after the restyle), and Escape closes a dialog.
 
 Enter/Space activation was **not** verified: synthetic key events do not trigger native button activation, so the automation cannot exercise it. The controls are real `<button>` elements, for which activation is handled by the browser. A person should confirm this on a real keyboard.
 
