@@ -55,7 +55,9 @@ export function parseAmount(input: string): BaseUnits {
   if (!/^\d+(\.\d+)?$/.test(trimmed)) throw new Error("Enter a valid amount");
   const [whole, fraction = ""] = trimmed.split(".");
   if (fraction.length > token.decimals)
-    throw new Error(`${token.symbol} supports ${token.decimals} decimal places`);
+    throw new Error(
+      `${token.symbol} supports ${token.decimals} decimal places`,
+    );
   return (
     BigInt(whole) * SCALE + BigInt(fraction.padEnd(token.decimals, "0") || "0")
   );
