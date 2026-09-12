@@ -149,6 +149,21 @@ Settled 13 September 2026 against the signed-in application platform. Full evide
 - **Product: a direct AUSD send joins milestone escrow.** The bounty's deliverable is a send/receive settled instantly, which escrow alone does not show. The notepad's instant-payment idea becomes a first-class flow. Escrow rules do not change to accommodate it.
 - **Deadline: 14 Oct 2026, 04:59 GMT+1.** Registration closes 6 Oct; submissions open 22 Sep.
 
+### Notepad reconciliation
+
+Checked 13 September 2026 against `notepad.txt`, which is preserved unchanged.
+
+| Notepad item | Status |
+|---|---|
+| Update styling to match Monad | **Done.** The interface follows the Metropolis design system |
+| Most seamless mobile and desktop onboarding | **In progress.** Mera is one passkey ceremony, no seed phrase, no extension — this is the mechanism for it |
+| Best Mera-powered UX | **Adopted.** Mera is now the account layer, and the $2,500 bounty is in scope |
+| Instant cross-border payments without milestones | **Planned and committed.** Becomes a first-class flow for the Agora bounty |
+| "A payments app that never mentions a blockchain" | **Partly.** It is the PRD's stated posture and a Track 2 example, but the interface still surfaces digests, sandbox labels and transaction detail. Needs a deliberate pass once the live flow exists |
+| Kimi / AI-agent payer, verifier or worker | **Not covered.** A $3,000-credit bounty exists. Deferred: an AI verifier contradicts the PRD's position that a named human supplies the completion judgment, so any use needs to be something other than the inspection decision |
+| Positioning: AI takes the work, humans still earn by doing and verifying what only humans can | **Not covered.** A narrative choice, not a build task. Worth considering for the submission write-up and video, where it sharpens why a human verifier is the point |
+| "Lots and lots of use cases" | **Not covered, and deliberately so for now.** The next milestone is one genuine on-network flow, not more breadth. Revisit after that lands |
+
 ### Deferred backlog
 
 1. **Native Expo application.** The Agora bounty says "mobile app" and the PWA's eligibility for that wording is unconfirmed; a native build removes the ambiguity. Deferred by decision so the live chain flow lands first.
