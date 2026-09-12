@@ -16,7 +16,11 @@ const client = publicClient();
 const checks = [];
 
 const chainId = await client.getChainId();
-assert.equal(chainId, network.chainId, "chain id must match the pinned network");
+assert.equal(
+  chainId,
+  network.chainId,
+  "chain id must match the pinned network",
+);
 checks.push(`chain id ${chainId}`);
 
 const decimals = await client.readContract({
@@ -67,9 +71,7 @@ const maxOwn = await client.readContract({
 checks.push(`faucet ceiling ${formatAmount(maxOwn)} ${token.symbol}`);
 
 // A balance read against an account that holds nothing still proves the path.
-const balance = await readBalance(
-  "0x0000000000000000000000000000000000000001",
-);
+const balance = await readBalance("0x0000000000000000000000000000000000000001");
 assert.equal(typeof balance, "bigint");
 checks.push("balance reads return base units as bigint");
 
