@@ -1,5 +1,5 @@
 "use client";
-import {useWorkspace} from "./use-workspace";
+import { useWorkspace } from "./use-workspace";
 import { useCallback, useEffect, useState } from "react";
 import { Dashboard } from "./ui/dashboard";
 import { Earnings, ActivityPage, Connections } from "./ui/workspace-pages";
@@ -16,6 +16,7 @@ import {
   RefreshCw,
   LogOut,
   CheckCircle2,
+  SendHorizontal,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -23,17 +24,50 @@ import type { Agreement, Action, Draft, Role } from "@/lib/domain";
 import { available, total } from "@/lib/domain";
 import Builder, { exampleDraft } from "./ui/builder";
 import Detail, { Timeline } from "./ui/detail";
+import { Send as SendPage } from "./ui/send";
 import ActionDialog, { type Intent } from "./ui/action-dialog";
 import { Choice, money, Status, date } from "./ui/shared";
-type Page = "agreements" | "earnings" | "activity" | "integrations";
+type Page = "agreements" | "send" | "earnings" | "activity" | "integrations";
 const navigation = [
   { id: "agreements", label: "Agreements", icon: FolderOpen },
+  { id: "send", label: "Send", icon: SendHorizontal },
   { id: "earnings", label: "Earnings", icon: Wallet },
   { id: "activity", label: "Activity", icon: Activity },
   { id: "integrations", label: "Connections", icon: Settings2 },
 ] as const;
 export default function Accrue() {
-const {agreements,page,role,setRole,selected,setSelected,loading,error,setError,signedOut,creating,setCreating,busy,intent,setIntent,query,setQuery,filter,setFilter,notice,setNotice,refresh,create,active,act,navigate,visible,reserved,earned,reviews}=useWorkspace();
+  const {
+    agreements,
+    page,
+    role,
+    setRole,
+    selected,
+    setSelected,
+    loading,
+    error,
+    setError,
+    signedOut,
+    creating,
+    setCreating,
+    busy,
+    intent,
+    setIntent,
+    query,
+    setQuery,
+    filter,
+    setFilter,
+    notice,
+    setNotice,
+    refresh,
+    create,
+    active,
+    act,
+    navigate,
+    visible,
+    reserved,
+    earned,
+    reviews,
+  } = useWorkspace();
   return (
     <div className="shell">
       <aside className="rail">
@@ -80,7 +114,13 @@ const {agreements,page,role,setRole,selected,setSelected,loading,error,setError,
             <b>{navigation.find((n) => n.id === page)?.label}</b>
           </span>
           <div className="header-actions">
-            <span className="badge sandbox">Sandbox · No real funds</span>
+            {/* The disclosure has to match the page: the send screen moves
+                real testnet tokens, while everything else is simulated. */}
+            <span className="badge sandbox">
+              {page === "send"
+                ? "Monad testnet · Test funds"
+                : "Sandbox · No real funds"}
+            </span>
             <Choice
               label="Sandbox role"
               value={role}
@@ -173,6 +213,7 @@ const {agreements,page,role,setRole,selected,setSelected,loading,error,setError,
                   setSelected={setSelected}
                 />
               )}
+              {page === "send" && <SendPage />}
               {page === "earnings" && (
                 <Earnings agreements={agreements} setSelected={setSelected} />
               )}
@@ -208,4 +249,3 @@ const {agreements,page,role,setRole,selected,setSelected,loading,error,setError,
     </div>
   );
 }
-

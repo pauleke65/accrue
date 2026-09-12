@@ -1,10 +1,10 @@
 "use client";
-import {useCallback,useEffect,useState} from "react";
-import type {Agreement,Action,Draft,Role} from "@/lib/domain";
-import type {Intent} from "./ui/action-dialog";
-export type Page="agreements"|"earnings"|"activity"|"integrations";
-export function useWorkspace(){
-
+import { useCallback, useEffect, useState } from "react";
+import type { Agreement, Action, Draft, Role } from "@/lib/domain";
+import type { Intent } from "./ui/action-dialog";
+export type Page =
+  "agreements" | "send" | "earnings" | "activity" | "integrations";
+export function useWorkspace() {
   const [agreements, setAgreements] = useState<Agreement[]>([]);
   const [page, setPage] = useState<Page>("agreements");
   const [role, setRole] = useState<Role>("payer");
@@ -189,6 +189,36 @@ export function useWorkspace(){
     (s, a) => s + a.milestones.filter((m) => m.status === "submitted").length,
     0,
   );
-return {agreements,page,role,setRole,selected,setSelected,loading,error,setError,signedOut,creating,setCreating,busy,intent,setIntent,query,setQuery,filter,setFilter,notice,setNotice,refresh,create,active,act,navigate,visible,reserved,earned,reviews};
+  return {
+    agreements,
+    page,
+    role,
+    setRole,
+    selected,
+    setSelected,
+    loading,
+    error,
+    setError,
+    signedOut,
+    creating,
+    setCreating,
+    busy,
+    intent,
+    setIntent,
+    query,
+    setQuery,
+    filter,
+    setFilter,
+    notice,
+    setNotice,
+    refresh,
+    create,
+    active,
+    act,
+    navigate,
+    visible,
+    reserved,
+    earned,
+    reviews,
+  };
 }
-
