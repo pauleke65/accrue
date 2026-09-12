@@ -1,29 +1,54 @@
-# Verification checkpoint — 11 September 2026
+# Verification checkpoint — 12 September 2026
 
-These results describe the source at the handoff checkpoint. They do not establish live-payment readiness.
+These results describe the source at the sandbox-stabilisation checkpoint. They do not establish live-payment readiness.
 
 | Check | Result | Timing / qualification |
 |---|---|---|
-| TypeScript: `npx tsc --noEmit` | PASS, exit 0 | Fresh during handoff, after module extraction |
-| Domain: `node --test tests/domain.test.mjs` | PASS, 15 tests, 0 failures | Fresh during handoff; includes 100 randomized complete journeys |
-| Contracts: `forge test -vv` | PASS, 16 tests, 0 failures | Fresh during handoff; Solidity 0.8.30; includes 256 conservation fuzz runs |
-| Application: Sites `build-site.mjs` | PASS, exit 0 | Fresh during handoff; all five build stages completed |
-| HTTP: `node tests/api-smoke.mjs` | PASS | Last run during implementation after throttling, before final UI/module extraction; not rerun in handoff |
-| Full npm dependency audit | UNRESOLVED: 14 findings, 10 high + 4 moderate | Last audit during implementation after Next 16.3.4 and compatible transitive updates |
-| Browser/mobile/keyboard QA | NOT PERFORMED | Responsive CSS is not a measured device/accessibility result |
+| TypeScript: `npx tsc --noEmit` | PASS, exit 0 | Fresh, after the dependency upgrades and UI fixes |
+| Domain: `node --test tests/domain.test.mjs` | PASS, 15 tests, 0 failures | Fresh; includes 100 randomized complete journeys |
+| Contracts: `forge test` | PASS, 16 tests, 0 failures | Fresh; Solidity 0.8.30; includes 256 conservation fuzz runs |
+| Application: Sites `build-site.mjs` | PASS, exit 0 | Fresh; all five build stages completed |
+| HTTP: `node tests/api-smoke.mjs` | PASS, 15 checks | Fresh against the local dev server, after every change below |
+| Full npm dependency audit | 4 moderate, 0 high | Was 14 findings (10 high, 4 moderate); see below |
+| Lint: `npm run lint` | 2 errors, 70 warnings | Both remaining errors are deliberate; see below |
+| Browser QA at 360 / 768 / 1024px | PASS, two defects found and fixed | Chromium; complete payer → worker → verifier journey driven at 360px |
+| Keyboard: focus order and visible focus | PASS | Activation by Enter/Space not exercised; see below |
 | WebMCP runtime validation | UNAVAILABLE | Feature-detected read/navigation tools present |
 | Real-wallet / Monad / sponsor end-to-end | NOT IMPLEMENTED OR TESTED | Website remains a sandbox; contract is separate and undeployed |
 | Private deployment | NOT COMPLETED | Site registered only; no verified hosted URL |
 
-The build emitted a non-fatal Vinext notice that it could not statically classify the root page. Contract tests emitted a non-fatal missing Etherscan configuration warning. Neither prevented the respective command from succeeding.
-
 ## HTTP smoke coverage
 
-Unauthenticated access rejection; cross-origin mutation rejection; required acceptance and funding; private R2 upload and authorized download; evidence changes/resubmission; concurrent approval conflict; atomic worker/verifier allocations; withdrawal; correction; mutual cancellation; unused-reserve refund; reload persistence.
+Unauthenticated access rejection; replayed-creation idempotency; cross-origin mutation rejection; required acceptance and funding; private R2 upload and authorized download; duplicate-upload reuse; evidence changes/resubmission; concurrent approval conflict; atomic worker/verifier allocations; withdrawal; correction; mutual cancellation; unused-reserve refund; reload persistence.
 
-## Dependency follow-up
+## Dependencies
 
-Do not dismiss the remaining findings because most appear under framework/build dependencies. Determine which code is bundled or exposed at runtime. The audit identified Cloudflare tooling, Vinext/image-size, Vite, React server components, Drizzle/esbuild, and related dependencies. Record compatibility checks and rerun the full audit and build after targeted upgrades. Do not blindly apply the suggested breaking Drizzle downgrade.
+Ten high-severity advisories were cleared by upgrading React, React DOM and react-server-dom-webpack together to 19.3.0, Next to 16.3.5, vinext to 1.0.0-beta.9, Vite to 8.3.0, `@cloudflare/vite-plugin` to 1.54.8, plugin-rsc to 0.5.34, plugin-react to 6.1.1, wrangler to 4.131.1 and workers-types to 5.20260911.1. The renderer and server-component packages were moved as a set so their versions stay matched.
+
+Four moderate findings remain, all in `drizzle-kit` → `@esbuild-kit/*` → `esbuild`. drizzle-kit 0.31.10 is the latest release and still depends on that deprecated loader, and the only fix npm offers is a breaking downgrade to 0.18.1. The advisory concerns the esbuild development server. `grep` over `dist/` confirms neither drizzle-kit nor `@esbuild-kit` appears in the built Worker bundle; the package is used only by the local `db:generate` command.
+
+Only one copy of React is installed — no nested `node_modules/*/node_modules/react` exists — and a fresh browser tab against the dev server logs no console errors. That closes the earlier open question about duplicate React/hook instances.
+
+## Browser and device QA
+
+Driven in Chromium at 360×780, 768×1024 and 1024px. A complete journey was performed at 360px: create agreement, accept as worker, accept as verifier, fund as payer, submit evidence, approve as verifier, withdraw as worker. Allocations, the earnings split and the reserved balance were correct at each step, and reload persistence was confirmed.
+
+Two defects were found and fixed:
+
+- The agreement detail tab strip measured 367px against a 360px viewport, so the entire page scrolled horizontally at the width the layout rules name explicitly. The strip now scrolls inside its own row; every page measured 0 overflowing elements afterwards.
+- The dialog close control was a 16×16 icon, below the 24px minimum target size. It is now a 44px target.
+
+All interactive elements have accessible names, `lang` is set, no image lacks alt text, and no positive `tabindex` distorts the tab order. Focus moves into the first field when a dialog opens, the focus outline is visible (3px, offset 3px), and Escape closes a dialog.
+
+Enter/Space activation was **not** verified: synthetic key events do not trigger native button activation, so the automation cannot exercise it. The controls are real `<button>` elements, for which activation is handled by the browser. A person should confirm this on a real keyboard.
+
+Not measured: screen readers, colour contrast ratios, slow-network upload behaviour, or any real mobile device.
+
+## Lint
+
+Two errors are left deliberately. `Date.now()` is read during render because that is how a milestone decides whether it has expired, and the workspace hook fetches on mount, which the effect rule flags as a synchronous setState. Both are heuristic reports against intentional patterns.
+
+Replacing the brand anchor with `next/link` was attempted and reverted: the vinext link shim resolves a second React copy through dependency optimisation and throws an invalid-hook-call that blanks the page. The rule is disabled on that one line, with the reason recorded in the source.
 
 ## Release gate
 

@@ -1,6 +1,6 @@
 # Accrue — product and engineering handoff
 
-Prepared 11 September 2026. This document describes the actual checkpoint, not the intended finished product.
+Prepared 11 September 2026, updated 12 September 2026 after the sandbox-stabilisation pass. This document describes the actual checkpoint, not the intended finished product.
 
 ## 1. Where we are
 
@@ -77,12 +77,15 @@ An agreement is a versioned JSON aggregate in D1. A mutation validates and compu
 
 ## 5. Verification checkpoint
 
-- **Domain suite:** 15 tests passed again during this handoff, after the domain/type split. Includes 100 randomized complete sandbox journeys within one test.
-- **TypeScript:** the current source passed `tsc --noEmit` during this handoff.
-- **Contracts:** a fresh handoff run passed 16 tests, including 256 fuzz cases; recorded in `VERIFICATION.md`.
-- **Local HTTP workflow:** passed after throttling was added, before the last UI/module-only extraction. It exercised sign-in gating, cross-origin rejection, R2 upload/download, evidence resubmission, concurrent approvals, allocations, withdrawal, correction, mutual cancellation, protected refund, and persistent reload.
-- **Build:** the latest source/dependency build passed during handoff; all five build stages completed. See `VERIFICATION.md`.
-- **Not verified:** actual-device/browser interaction or visual QA, WebMCP runtime, wallet onboarding, real-chain transactions, sponsorship, Envio indexing, production database behavior, or ten on-network rehearsals.
+Full results, including what was measured and what was not, are in `VERIFICATION.md`. In summary, at the 12 September checkpoint:
+
+- **Domain suite:** 15 tests passed, including 100 randomized complete sandbox journeys.
+- **Contracts:** 16 tests passed, including 256 conservation fuzz runs.
+- **TypeScript and build:** both clean.
+- **Local HTTP workflow:** 15 checks passed, rerun after every change in this pass. It now also covers replayed agreement creation and duplicate evidence upload.
+- **Dependencies:** all ten high-severity advisories cleared. Four moderate findings remain in the drizzle-kit toolchain, which is confirmed absent from the built Worker bundle.
+- **Browser QA:** a complete three-role journey was driven at 360px, plus 768px and 1024px checks. Two layout/accessibility defects were found and fixed.
+- **Not verified:** Enter/Space activation by a real keyboard, screen readers, contrast ratios, real mobile hardware, WebMCP runtime, wallet onboarding, real-chain transactions, sponsorship, Envio indexing, production database behaviour, or ten on-network rehearsals.
 
 These are engineering checks, not an independent security audit or evidence of real-world payment readiness.
 
@@ -90,12 +93,13 @@ These are engineering checks, not an independent security audit or evidence of r
 
 ### A. Stabilize and publish the sandbox
 
-1. Resolve remaining dependency advisories and test compatibility. Next was updated from 16.2.6 to 16.3.4, and compatible transitive updates were applied. The latest full audit still reported **14 findings: 10 high and 4 moderate**, concentrated in framework/build tooling and dependencies. Dev-dependency classification does not prove a package is absent from the deployed Worker bundle.
-2. Candidate fixes reported by npm include newer Vinext, Vite, Cloudflare tooling, and React server components. Upgrade deliberately; do not blindly use `npm audit fix --force`, which proposed a breaking Drizzle downgrade. Recheck React renderer/server-component version compatibility together.
-3. Rerun build, type checks, domain/contract suites, and the local API smoke test after upgrades. Inspect prior development warnings about duplicate React/hook instances; earlier warnings appeared during dependency optimization/HMR and were not independently browser-verified as resolved.
-4. Perform authorized browser/mobile/keyboard testing. The interface has responsive styles, but those are not a measured accessibility or device pass.
-5. Improve retry handling: the server supports idempotent agreement creation, but the client currently generates a fresh creation ID on each retry. Preserve a stable draft-operation ID across uncertain responses. Evidence retries may also leave bounded unattached uploads; add cleanup/reuse.
-6. Publish privately using the existing Sites registration. Registration alone is not deployment. No source push, saved version, or successful deployment was completed at this checkpoint.
+Items 1–5 are complete as of 12 September 2026. Item 6 is not.
+
+1. **Done.** Dependency advisories resolved: 14 findings (10 high, 4 moderate) reduced to 4 moderate. The React renderer and server-component packages were upgraded together to keep their versions matched. The four remaining findings are in the drizzle-kit toolchain, which has no non-breaking upstream fix and does not appear in the built Worker bundle.
+2. **Done.** Build, type checks, domain and contract suites, and the local API smoke test all rerun and passing. The earlier duplicate React/hook-instance question is settled: one React copy is installed and a fresh browser tab logs no console errors.
+3. **Done.** Browser, mobile and keyboard testing performed in Chromium at 360 / 768 / 1024px, including a complete payer → worker → verifier journey at 360px. Two defects were found and fixed: the agreement detail tab strip forced horizontal page scroll at 360px, and the dialog close control was a 16px target. Enter/Space activation could not be exercised through automation and still needs one pass on a real keyboard, as do screen readers, contrast ratios and real mobile hardware.
+4. **Done.** Retry handling closed on both sides. The workspace holds one draft operation identifier until a creation is confirmed, so a timed-out retry returns the existing agreement instead of creating a second one. Identical evidence content for the same agreement now resolves to the stored file, and the submission dialog remembers files that already reached the server, so retries no longer leave unattached uploads behind. Both paths are covered by the HTTP smoke test.
+5. **Blocked, not attempted.** Publishing to the registered Site needs the Sites host tooling and a source credential, neither of which is present in this repository or environment. `.openai/hosting.json` still names project `appgprj_6aa2f5d4901881919fe2cf457dcbb402`; reuse it rather than creating another Site. Registration is still not deployment, and no source push, saved version or successful deployment has been completed.
 
 ### B. Build the actual live product
 
@@ -126,8 +130,9 @@ Agree on a shared contract/account API before working independently. The next me
 
 - Work inside the `accrue/` repository. Node 22.13+ is required; this machine's default Node was too old. Node 24.13 was used for successful commands.
 - Read README.md and IMPLEMENTATION.md, then inspect the latest logical commits and VERIFICATION.md.
-- Dependencies are installed. Both D1 migrations were already applied to the local `.wrangler/state` database. **Do not replay them there.** A fresh checkout/database follows the README migration sequence.
-- Local test records are clearly named `[API TEST] Renovation`; uploaded evidence is synthetic. Do not copy local D1/R2 data into a production deployment.
+- Dependencies are installed. All three D1 migrations were already applied to the local `.wrangler/state` database. **Do not replay them there.** A fresh checkout/database follows the README migration sequence, which now includes `0002_robust_mathemanic.sql` (the evidence content index).
+- Local test records are clearly named `[API TEST] Renovation` or `[MOBILE QA] Lekki renovation`; uploaded evidence is synthetic. Do not copy local D1/R2 data into a production deployment.
+- Work in this pass is on the `sandbox-stabilization` branch, four commits ahead of `main`; merge it when you are satisfied with the review.
 - Preview was served at `http://localhost:5173/`; the process may need restarting. Local development sign-in uses the starter's synthetic identity. A running preview is not a hosted URL.
 - Sites registration is stored in `.openai/hosting.json`. Reuse project `appgprj_6aa2f5d4901881919fe2cf457dcbb402`; do not create another Site. Obtain a fresh source credential if necessary and never commit it.
 - Keep caches, build output, runtime database files, and secrets untracked. Downloaded research and printouts in the parent workspace are deliberately outside this app repository.
