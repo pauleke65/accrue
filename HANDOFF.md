@@ -93,7 +93,7 @@ These are engineering checks, not an independent security audit or evidence of r
 
 ### A. Stabilize and publish the sandbox
 
-Items 1–5 are complete as of 12 September 2026. Item 6 is not.
+The original items 1–5 are complete as of 12 September 2026, consolidated below. Publishing is not.
 
 1. **Done.** Dependency advisories resolved: 14 findings (10 high, 4 moderate) reduced to 4 moderate. The React renderer and server-component packages were upgraded together to keep their versions matched. The four remaining findings are in the drizzle-kit toolchain, which has no non-breaking upstream fix and does not appear in the built Worker bundle.
 2. **Done.** Build, type checks, domain and contract suites, and the local API smoke test all rerun and passing. The earlier duplicate React/hook-instance question is settled: one React copy is installed and a fresh browser tab logs no console errors.
