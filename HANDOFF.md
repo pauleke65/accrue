@@ -138,6 +138,26 @@ Agree on a shared contract/account API before working independently. The next me
 - Keep caches, build output, runtime database files, and secrets untracked. Downloaded research and printouts in the parent workspace are deliberately outside this app repository.
 - No contract deployment, public sharing, or real-money transaction has been performed. Do not imply otherwise in the UI or submission.
 
-## 9. Decisions needed before the next live-build phase
+## 9. Decisions taken for the live-build phase
 
-Choose the embedded-wallet provider, confirm access to its dashboard/credentials and sponsorship, verify the competition's network/token requirements, and decide whether the notepad's direct-payment/Mera/AI ideas belong in this submission or a later release. Until then, finish the sandbox quality checkpoint without representing it as the full live product.
+Settled 13 September 2026 against the signed-in application platform. Full evidence and sources are in `docs/RULES-AND-NETWORK.md`.
+
+- **Account layer: Mera**, not Privy or Dynamic. The $10,000 Agora cross-border bounty names Mera passkey onboarding as a requirement, and that bounty describes this product almost verbatim.
+- **Network: Monad testnet, chain 10143.** Agora publishes an AUSD testnet deployment with a faucet, confirmed on chain, so the cross-border story needs no real money.
+- **Token: AUSD** at `0xa9012a055bd4e0eDfF8Ce09f960291C09D5322dC`, 6 decimals. Raw base units, never the sandbox's cents.
+- **Surface: the responsive PWA.** A native Expo app is deferred, not cancelled — see the backlog below.
+- **Product: a direct AUSD send joins milestone escrow.** The bounty's deliverable is a send/receive settled instantly, which escrow alone does not show. The notepad's instant-payment idea becomes a first-class flow. Escrow rules do not change to accommodate it.
+- **Deadline: 14 Oct 2026, 04:59 GMT+1.** Registration closes 6 Oct; submissions open 22 Sep.
+
+### Deferred backlog
+
+1. **Native Expo application.** The Agora bounty says "mobile app" and the PWA's eligibility for that wording is unconfirmed; a native build removes the ambiguity. Deferred by decision so the live chain flow lands first.
+2. P1 time agreements, collaborator splits, CRE, fiat cash-out, AI-agent roles, additional payment templates.
+3. Privy and Dynamic bounties, unavailable once Mera is the account layer unless a genuinely separate use appears.
+
+### Still unverified
+
+- Whether a PWA satisfies the Agora bounty's "mobile app" wording. Largest eligibility risk on the largest prize; ask the organizers.
+- The official rules text: country eligibility, video length, repository visibility, award stacking.
+- What Agora's staging API offers beyond the token contract.
+- Mera SDK specifics: session scoping, PRF key derivation, browser passkey support.
