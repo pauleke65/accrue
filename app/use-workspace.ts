@@ -18,6 +18,12 @@ export function useWorkspace(){
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("all");
   const [notice, setNotice] = useState("");
+  // A creation that times out may still have been written. Reusing the same
+  // identifier lets the server return the existing agreement instead of
+  // creating a second one; it is replaced only after a confirmed success.
+  const [draftOperationId, setDraftOperationId] = useState(() =>
+    crypto.randomUUID(),
+  );
   const refresh = useCallback(async () => {
     setError("");
     try {
@@ -56,7 +62,7 @@ export function useWorkspace(){
       const response = await fetch("/api/agreements", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...draft, operationId: crypto.randomUUID() }),
+        body: JSON.stringify({ ...draft, operationId: draftOperationId }),
       });
       const data = (await response.json()) as {
         error: string;
@@ -65,6 +71,7 @@ export function useWorkspace(){
       };
       if (!response.ok) throw new Error(data.error);
       save(data.agreement);
+      setDraftOperationId(crypto.randomUUID());
       setCreating(false);
       setSelected(data.agreement.id);
       setNotice(

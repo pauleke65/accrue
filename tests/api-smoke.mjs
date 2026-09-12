@@ -30,7 +30,7 @@ const request = async (path, body, extra = {}) => {
   };
 };
 assert.equal((await fetch(base + "/api/agreements")).status, 401);
-let result = await request("/api/agreements", {
+const draft = {
   operationId: crypto.randomUUID(),
   title: "[API TEST] Renovation",
   scope: "Validate a complete persistent workflow",
@@ -53,9 +53,16 @@ let result = await request("/api/agreements", {
       approver: "verifier",
     },
   ],
-});
+};
+let result = await request("/api/agreements", draft);
 assert.equal(result.status, 201, JSON.stringify(result.data));
 let a = result.data.agreement;
+const before = await request("/api/agreements");
+const retry = await request("/api/agreements", draft);
+assert.equal(retry.status, 200, "Replayed creation must not create a second agreement");
+assert.equal(retry.data.agreement.id, a.id);
+const after = await request("/api/agreements");
+assert.equal(after.data.agreements.length, before.data.agreements.length);
 async function act(type, role, extras = {}) {
   const response = await request("/api/agreements/" + a.id, {
     type,
@@ -108,6 +115,27 @@ assert.equal(
   (await fetch(base + "/api/evidence?id=" + file.id, { headers: { cookie } }))
     .status,
   200,
+);
+const duplicate = new FormData();
+duplicate.set("agreementId", a.id);
+duplicate.set(
+  "file",
+  new File(
+    ["Synthetic inspection report: all criteria satisfied."],
+    "inspection.txt",
+    { type: "text/plain" },
+  ),
+);
+const reuploaded = await fetch(base + "/api/evidence", {
+  method: "POST",
+  headers: { cookie, origin: base },
+  body: duplicate,
+});
+assert.equal(reuploaded.status, 200);
+assert.equal(
+  (await reuploaded.json()).id,
+  file.id,
+  "Repeated upload of identical content must reuse the stored file",
 );
 await act("submit", "earner", {
   milestone: 0,
@@ -173,10 +201,12 @@ console.log(
       agreementId: a.id,
       checks: [
         "authentication",
+        "replayed creation idempotency",
         "cross-origin rejection",
         "acceptance",
         "funding",
         "R2 upload and authorized download",
+        "duplicate upload reuse",
         "resubmission",
         "concurrent approval conflict",
         "atomic allocation",

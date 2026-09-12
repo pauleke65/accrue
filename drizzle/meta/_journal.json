@@ -15,6 +15,13 @@
       "when": 1789066494947,
       "tag": "0001_striped_newton_destine",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1789246349971,
+      "tag": "0002_robust_mathemanic",
+      "breakpoints": true
     }
   ]
 }

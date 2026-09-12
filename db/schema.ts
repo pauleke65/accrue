@@ -14,13 +14,24 @@ export const agreements = sqliteTable(
   },
   (table) => [index("agreements_owner").on(table.owner)],
 );
-export const evidenceFiles = sqliteTable("evidence_files", {
-  id: text("id").primaryKey(),
-  owner: text("owner").notNull(),
-  agreementId: text("agreement_id").notNull(),
-  name: text("name").notNull(),
-  mime: text("mime").notNull(),
-  digest: text("digest").notNull(),
-  size: integer("size").notNull(),
-  createdAt: text("created_at").notNull(),
-});
+export const evidenceFiles = sqliteTable(
+  "evidence_files",
+  {
+    id: text("id").primaryKey(),
+    owner: text("owner").notNull(),
+    agreementId: text("agreement_id").notNull(),
+    name: text("name").notNull(),
+    mime: text("mime").notNull(),
+    digest: text("digest").notNull(),
+    size: integer("size").notNull(),
+    createdAt: text("created_at").notNull(),
+  },
+  (table) => [
+    index("evidence_files_content").on(
+      table.owner,
+      table.agreementId,
+      table.digest,
+      table.name,
+    ),
+  ],
+);

@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -43,6 +43,10 @@ export default function ActionDialog({
   const [error, setError] = useState("");
   const [progress, setProgress] = useState("");
   const [operationId] = useState(() => crypto.randomUUID());
+  // Files that already reached the server are remembered so retrying a failed
+  // action resumes from the first unsent file instead of re-uploading all of
+  // them. The server resolves duplicate content to one stored file as well.
+  const uploaded = useRef(new Map<File, string>());
   const milestone =
     intent.milestone === undefined
       ? null
@@ -66,6 +70,11 @@ export default function ActionDialog({
       const ids: string[] = [];
       for (let index = 0; index < files.length; index++) {
         setProgress(`Uploading file ${index + 1} of ${files.length}…`);
+        const known = uploaded.current.get(files[index]);
+        if (known) {
+          ids.push(known);
+          continue;
+        }
         const form = new FormData();
         form.set("file", files[index]);
         form.set("agreementId", agreement.id);
@@ -75,6 +84,7 @@ export default function ActionDialog({
         });
         const data = (await response.json()) as { error: string; id: string };
         if (!response.ok) throw new Error(data.error);
+        uploaded.current.set(files[index], data.id);
         ids.push(data.id);
       }
       setProgress("Saving action…");

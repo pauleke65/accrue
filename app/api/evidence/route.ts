@@ -34,6 +34,17 @@ export async function POST(request: Request) {
       );
     const bytes = await file.arrayBuffer();
     const digest = await sha256(bytes);
+    const name = file.name.slice(0, 200);
+    // An interrupted upload leaves the client unsure whether the file landed.
+    // Identical content for the same agreement resolves to the stored file so a
+    // retry reuses it instead of accumulating unattached copies in R2.
+    const stored = await database()
+      .prepare(
+        "SELECT id FROM evidence_files WHERE owner=? AND agreement_id=? AND digest=? AND name=? AND size=?",
+      )
+      .bind(owner, agreementId, digest, name, file.size)
+      .first<{ id: string }>();
+    if (stored) return Response.json({ id: stored.id, name, digest });
     const id = crypto.randomUUID();
     await bucket().put(id, bytes, { httpMetadata: { contentType: file.type } });
     try {
@@ -45,7 +56,7 @@ export async function POST(request: Request) {
           id,
           owner,
           agreementId,
-          file.name.slice(0, 200),
+          name,
           file.type,
           digest,
           file.size,
@@ -56,7 +67,7 @@ export async function POST(request: Request) {
       await bucket().delete(id);
       throw error;
     }
-    return Response.json({ id, name: file.name, digest });
+    return Response.json({ id, name, digest });
   } catch (error) {
     return failure(error);
   }

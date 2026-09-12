@@ -1,0 +1,1 @@
+CREATE INDEX `evidence_files_content` ON `evidence_files` (`owner`,`agreement_id`,`digest`,`name`);
