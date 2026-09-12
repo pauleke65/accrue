@@ -37,6 +37,11 @@ const {agreements,page,role,setRole,selected,setSelected,loading,error,setError,
   return (
     <div className="shell">
       <aside className="rail">
+        {/* A plain anchor, not next/link: the vinext link shim resolves a
+            second React copy through dependency optimization and throws an
+            invalid-hook-call at render. The rule is disabled for this line
+            rather than silenced project-wide. */}
+        {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
         <a className="brand" href="/">
           a<span>accrue</span>
         </a>

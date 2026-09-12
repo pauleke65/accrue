@@ -64,14 +64,14 @@ export default function Builder({
   onCreate: (draft: Draft) => Promise<void>;
   busy: boolean;
 }) {
-  const [draft, setDraft] = useState<Draft>({
+  const [draft, setDraft] = useState<Draft>(() => ({
     title: "",
     scope: "",
     earner: "",
     verifier: "",
     expiry: new Date(Date.now() + 30 * 86400000).toISOString(),
     milestones: [initialMilestone],
-  });
+  }));
   const [error, setError] = useState("");
   const update = (key: string, value: unknown) =>
     setDraft((d) => ({ ...d, [key]: value }));
