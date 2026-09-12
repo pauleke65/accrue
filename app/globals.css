@@ -1046,3 +1046,31 @@ a {
     font-size: 30px;
   }
 }
+
+/* The vendored dialog close control is icon-sized, which leaves a 16px hit
+   area on touch screens. Keep the icon and give the control a target that
+   satisfies the 24px minimum with room to spare on phones. */
+[data-slot="dialog-content"] > [data-slot="dialog-close"] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  top: 8px;
+  right: 8px;
+}
+
+/* The three detail tabs do not fit a 360px screen. Let the tab strip scroll
+   inside its own row instead of widening the page, which the layout rules
+   forbid at that width. */
+.detail-grid [data-slot="tabs-list"] {
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.detail-grid [data-slot="tabs-list"]::-webkit-scrollbar {
+  display: none;
+}
+.detail-grid [data-slot="tabs-trigger"] {
+  flex: 0 0 auto;
+}
