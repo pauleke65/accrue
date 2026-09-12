@@ -1,18 +1,23 @@
 # Competition rules and network facts
 
-Checked 13 September 2026. Every line below was read from the source named beside it on that date. Anything marked **GATED** could not be verified because it sits behind registration on the application platform; do not treat the surrounding public copy as a substitute for it.
+Checked 13 September 2026, then updated the same day once the application platform was signed in to. Every line was read from the source named beside it. Values that came from the platform are authoritative over the public marketing page, which differs on the closing date.
 
 ## 1. Dates and format
 
+Read from the signed-in platform dashboard, which supersedes the public page.
+
 | Item | Value | Source |
 |---|---|---|
-| Build window | 1 Sep – 13 Oct 2026 | [monad.xyz Metropolis](https://monad.xyz/developers/hackathons/metropolis) |
-| Judging | 14 – 27 Oct 2026, per track | same, FAQ |
-| Winners announced | 3 Nov 2026 | same, FAQ |
-| Format | Online, global; city activations during the window | same, FAQ |
-| **Deadline time of day and timezone** | **GATED** | Application platform |
+| Registration | Open through **6 Oct 2026** | Platform dashboard |
+| Build window | 1 Sep – 14 Oct 2026 | Platform dashboard |
+| Submissions open | **22 Sep 2026, 04:59 GMT+1** | Platform dashboard |
+| **Submissions close** | **14 Oct 2026, 04:59 GMT+1** | Platform dashboard and every bounty page |
+| Judging | 14 Oct – 3 Nov 2026 | Platform dashboard |
+| Winners | From 4 Nov 2026 | Platform dashboard |
 
-The PRD requires the exact deadline timestamp and timezone from the portal. The public page gives a date only. That is the single most important gated value: a submission freeze has to be planned against it.
+The public marketing page says the hackathon runs "1 Sep to 13 Oct". **The platform says 14 Oct at 04:59 GMT+1**, and each bounty detail page repeats that timestamp. Plan the freeze against 14 Oct 04:59 GMT+1, and note the deadline is just before 5am — an overnight cutoff, not an end-of-day one.
+
+Registration closing 6 Oct is a separate and earlier deadline. Submissions cannot be made before 22 Sep.
 
 ## 2. Eligibility and submission
 
@@ -44,83 +49,105 @@ Prize: **$30,000 per track, split evenly between 3 teams** — so $10,000 per wi
 
 ## 4. Sponsor bounties
 
-Read from the public sponsor-prize panel. The page states the full list is on the platform, so treat this as partial and the amounts as unconfirmed against any rubric.
+Read from the signed-in platform. Every bounty carries the same deadline, 14 Oct 2026 04:59 GMT+1. One primary track is chosen per project; bounties are added on top, and those marked "all tracks" pair with any.
 
-Directly relevant to Accrue:
+### The one that matches Accrue
 
-| Bounty | Amount | Relevance |
-|---|---|---|
-| **Best Cross-Border Payments App on Monad** | **$10,000** | Accrue's central pitch, almost verbatim |
-| Best Use of Dynamic | $5,000 | Wallet option A |
-| Privy! | $5,000 | Wallet option B |
-| Best Use of Envio | $1,000 | Indexer, already in the PRD |
-| Best workflow with CRE | $3,000 | Chainlink CRE, PRD P1 |
-| Best Projects using Alchemy | $1,000 in credits | RPC/account infrastructure |
-| Best Mera-Powered UX on Monad | $2,500 | Named in the notepad |
-| Mera: One Passkey, Many Keys | $2,500 | Passkey onboarding |
-| Best Builds Powered by KIMI | $3,000 in credits | Named in the notepad |
-| Best Agent Wallet Plugin | $2,500 | Notepad's AI-agent idea |
+**Best Cross-Border Payments App on Monad (Agora Payments Bounty)** — Agora, $10,000 USD, single prize, Consumer Products & Payments.
 
-Agora appears among the sponsor logos but no Agora-named bounty is visible publicly. **GATED:** whether an Agora bounty exists, and every rubric and stacking rule.
+> Build a mobile app letting users send AUSD across borders using Mera passkey onboarding and instant settlement.
 
-Note the wallet decision now has money attached on both sides ($5,000 either way), so it should be made on rubric and dashboard access, not on price.
+What it asks for, verbatim from the detail page:
 
-## 5. Network and token facts
+- A **mobile application** that lets a user send AUSD to another person or across borders
+- **Mera passkey authentication** for onboarding
+- **Instant settlement** for the transfer itself
+- Built against **Agora's public API documentation and staging environment**; internal codebase access is not provided
+- Judged on implementation quality, real-world usability, and business viability of the payments flow
+- Deliverable: a working demo showing **passkey onboarding, an AUSD balance, and a completed send/receive transaction settled instantly**
+
+This is the closest fit to Accrue's pitch anywhere in the hackathon, and it is the largest single sponsor prize available to Track 2.
+
+### Others relevant to this project
+
+| Bounty | Sponsor | Amount | Track | Requirement worth noting |
+|---|---|---|---|---|
+| Best Mera-Powered UX on Monad | Monad Foundation | $2,500 | All | Mera must be the *entire* account layer: no seed phrase, extension, or custody backend. Must pass a "stateless test" — judges clear local storage or open the app on a fresh device mid-demo and identity must reconstruct from the passkey |
+| Mera: One Passkey, Many Keys | Monad Foundation | $2,500 | All | Most creative non-wallet use of Mera's PRF-derived key material |
+| Privy! | Privy | $5,000 | All | Must go beyond authentication; login-only will not qualify |
+| Best Use of Dynamic | Dynamic | $5,000 | All | SDK for auth, embedded/agent wallets, or signing in a deployed app |
+| Best Use of Envio | Envio | $1,000 | All | HyperIndex, HyperSync or HyperRPC powering a core feature |
+| Best workflow with CRE | Chainlink | $3,000 | All | A CRE workflow used as an orchestration layer |
+| Best Projects using Alchemy | Alchemy | $1,000 credits | All | At least one Alchemy service, meaningfully integrated |
+| Best Builds Powered by KIMI | Kimi | $3,000 credits | All | Open scope |
+| Best Community Team Project | Monad Foundation | $5,000 | All | Team from a Metropolis community supporter |
+
+## 5. Decisions taken
+
+**Account layer: Mera.** The $10,000 Agora bounty names Mera passkey onboarding as a requirement, so Privy cannot satisfy it. Privy's own bounty is $5,000 and is available on any track, but choosing Privy as the account layer forfeits the larger prize that matches this product. Mera additionally opens the $2,500 Mera UX bounty, whose demands — one passkey ceremony, prompt-free signing sessions, and reconstruction from the passkey alone — are compatible with what Accrue needs anyway.
+
+**Mobile: extend the responsive PWA rather than going native.** Accrue is a responsive web app; the PRD already treats native Expo as a later option, not a demo dependency. **Open risk:** the bounty says "mobile app", and whether a PWA satisfies that has not been confirmed. Ask the organizers before relying on it.
+
+**Product: add a direct AUSD send alongside milestone escrow.** The bounty's deliverable is a completed send/receive settled instantly, which milestone escrow does not by itself demonstrate. The notepad already proposed instant cross-border payments without milestones; that flow becomes a first-class part of the product rather than a later idea. The escrow rules must not change to accommodate it — a direct send is a distinct flow.
+
+**Network: Monad testnet (10143).** AUSD exists there with a faucet, so the Agora story can be told end to end without moving real money through an unaudited contract. The Mera UX bounty explicitly accepts "testnet or mainnet".
+
+## 6. Network and token facts
 
 Verified against the official docs, then confirmed by direct `eth_call` against public RPC on 13 September 2026.
 
-### Mainnet
-
-| Item | Value |
-|---|---|
-| Chain ID | 143 (confirmed via `eth_chainId`) |
-| Currency | MON |
-| RPC | `https://rpc.monad.xyz` (QuickNode, 25 rps), plus Alchemy, Goldsky, Ankr, MF endpoints |
-| Explorers | https://monadvision.com, https://monadscan.com |
-| ERC-4337 EntryPoint | v0.6 / v0.7 / v0.8 / v0.9 all deployed — relevant to gas sponsorship |
-| Permit2 | `0x000000000022d473030f116ddee9f6b43ac78ba3` |
-| Multicall3 | `0xcA11bde05977b3631167028862bE2a173976CA11` |
-
-Tokens, decimals read on-chain:
-
-| Token | Address | Decimals |
-|---|---|---|
-| **AUSD (Agora USD)** | `0x00000000eFE302BEAA2b3e6e1b18d08D69a9012a` | **6** (confirmed) |
-| USDC | `0x754704Bc059F8C67012fEd69BC8A327a5aafb603` | 6 (confirmed) |
-| USDT0 | `0xe7cd86e13AC4309349F30B3435a9d337750fC82D` | not checked |
-
-The PRD's preferred token exists on Monad mainnet and reports 6 decimals. The sandbox uses integer cents; the contract must use raw 6-decimal base units. These are not interchangeable.
-
-### Testnet
+### Monad testnet — the target
 
 | Item | Value |
 |---|---|
 | Chain ID | 10143 (confirmed via `eth_chainId`) |
 | RPC | `https://testnet-rpc.monad.xyz`, `https://rpc-testnet.monadinfra.com`, `https://rpc.ankr.com/monad_testnet` |
-| Faucet | https://faucet.monad.xyz |
+| Gas faucet | https://faucet.monad.xyz |
 | Explorers | https://testnet.monadvision.com, https://testnet.monadscan.com |
 | Reset | Testnet was reset from genesis on 2025-12-16 |
 | ERC-4337 EntryPoint | v0.6 – v0.9 deployed |
+| Wrapped MON | `0xFb8bf4c1CC7a94c73D209a149eA2AbEa852BC541` |
 
-Testnet tokens are a short list: MON, **USDC `0x534b2f3A21130d7a60830c2Df862319e593943A3` (6 decimals, confirmed on-chain)**, WETH, WMON.
+Tokens on testnet, decimals read on-chain:
 
-**There is no AUSD on testnet.** This is the decision that shapes the demo.
-
-## 6. The open decision this creates
-
-| | Mainnet (143) | Testnet (10143) |
+| Token | Address | Decimals |
 |---|---|---|
-| AUSD available | Yes | No — USDC test token only |
-| Agora / cross-border story | Strongest | Weaker, must be told with a test token |
-| Risk | Real funds against an unaudited, unreviewed contract | None |
-| Faucet | No | Yes |
+| **AUSD (Agora)** | `0xa9012a055bd4e0eDfF8Ce09f960291C09D5322dC` | **6** (confirmed; name and symbol both "AUSD") |
+| AUSD testnet faucet contract | `0xd236c18D274E54FAccC3dd9DDA4b27965a73ee6C` | deployed, 1,200 bytes of code |
+| USDC | `0x534b2f3A21130d7a60830c2Df862319e593943A3` | 6 (confirmed) |
 
-The contract has had no independent audit. Moving real value through it to strengthen a demo is a real risk with a real downside, and the PRD's own release gate forbids treating testnet success as production readiness. A middle path exists: deploy and demo on testnet, and describe the mainnet AUSD path honestly as the production target rather than staging it with real money.
+The Agora deployments page lists the same AUSD testnet address across Arbitrum Sepolia, Avalanche Fuji, Monad Testnet and others, so it is Agora's standard testnet deployment rather than a Monad-specific one.
 
-**GATED and needed before this is settled:** whether the rules require or permit a particular network, and whether any sponsor bounty requires mainnet or a specific token.
+### Monad mainnet — the production target, not the demo
 
-## 7. What is still blocked
+| Item | Value |
+|---|---|
+| Chain ID | 143 (confirmed) |
+| RPC | `https://rpc.monad.xyz` (QuickNode, 25 rps) and four others |
+| Explorers | https://monadvision.com, https://monadscan.com |
+| **AUSD** | `0x00000000eFE302BEAA2b3e6e1b18d08D69a9012a`, 6 decimals (confirmed) |
+| USDC | `0x754704Bc059F8C67012fEd69BC8A327a5aafb603`, 6 decimals (confirmed) |
+| ERC-4337 EntryPoint | v0.6 – v0.9 |
+| Permit2 | `0x000000000022d473030f116ddee9f6b43ac78ba3` |
+| Multicall3 | `0xcA11bde05977b3631167028862bE2a173976CA11` |
 
-1. **Platform rules.** `hackathon.monad.xyz` requires sign-in with GitHub, Google or Discord before showing rules, full bounty list, or submission requirements. Registering an account or granting OAuth is the user's action, not the agent's. Needed from behind it: exact deadline and timezone, eligibility restrictions, video length, repository visibility requirement, award-stacking rules, each relevant bounty's rubric, and any network or token requirement.
-2. **Wallet provider decision** — Privy or Dynamic, plus dashboard credentials.
-3. **Deployment authorisation** — a funded deployer key and an explicit instruction to broadcast.
+### AUSD token capabilities
+
+From Agora's contract overview, AUSD is ERC-20 plus:
+
+- **EIP-712** typed structured signing
+- **ERC-1271** contract-wallet signature validation — needed because a Mera passkey account is a smart account, and the escrow must accept its signatures
+- **ERC-2612** permit, approvals by signature
+- **ERC-3009** gasless transfers — directly useful for the "instant settlement" requirement and for sponsored gas
+
+It also supports minting, burning, and **asset freezing by privileged accounts**. That last point belongs in the product's risk disclosure: the PRD already states the escrow's guarantees do not imply immunity from token issuer controls, and AUSD is a concrete example.
+
+The sandbox counts integer cents; the contract counts raw 6-decimal base units. These are not interchangeable and must not be mixed.
+
+## 7. Still unverified
+
+1. **Whether a PWA satisfies the Agora bounty's "mobile app".** The largest eligibility risk on the largest prize. Ask the organizers in Discord.
+2. **Official rules document** — eligibility restrictions by country, video length, repository visibility, and award-stacking rules. The dashboard links registration and submission steps but the rules text was not located in this pass.
+3. **Agora staging API** — the bounty says to build against Agora's public API docs and staging environment. What that API provides beyond the token contract is not yet established.
+4. **Mera SDK specifics** — session scoping, PRF key derivation, and whether it supports the browser passkey flow this PWA needs.
+5. **Deployment authorisation** — a funded testnet deployer key. Testnet MON comes from the faucet, so this costs nothing, but broadcasting still needs an explicit instruction.
