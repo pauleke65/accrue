@@ -19,6 +19,7 @@ These results describe the source at the first live-settlement checkpoint. Real 
 | Agora faucet drip | PASS | 10,000 AUSD received through the app's own code path |
 | Escrow deployment | PASS | Deployed, verified on MonadScan, token binding re-read from chain |
 | Live constants check: `node tests/chain-live.mjs` | PASS, 9 checks | Runs against the real chain; no key or funds needed |
+| **Three-account escrow journey on testnet** | **PASS** | Separate payer, worker and verifier accounts; full milestone lifecycle; see below |
 | Passkey success path | NOT TESTED | Needs a PRF-capable authenticator; the automation browser has none |
 | Gas sponsorship / Envio / bank payout | NOT IMPLEMENTED | Unchanged |
 | Private deployment | NOT COMPLETED | Site registered only; no verified hosted URL |
@@ -37,7 +38,24 @@ Deployed and exercised on Monad testnet (chain 10143) on 13 September 2026.
 | Faucet drip | `0x62244aa08741a926789d2fbd3aa7bfb11b5c4ed082e894e8101fa4ff60f5848e` |
 | AUSD transfer | `0x2e592241abc2fe17fa79734481ddd14055b616443395c7106d1bedbc1ba05586`, settled in 0.8s |
 
-The escrow holds nothing and has had no independent audit. The sandbox agreements do not use it. The live transfers above were signed with the local testnet deployer key in Node, not through the passkey interface, which remains untested on a real authenticator.
+### Three-account milestone journey
+
+`node tests/escrow-live-journey.mjs`, run on 13 September 2026 against agreement #1. Payer, worker and verifier are three separate accounts, each signing its own transactions, so the contract's authorization is exercised rather than simulated by a role switch. 128.50 AUSD was deposited, 120.00 paid to the worker and 8.50 to the verifier.
+
+What the run proves on chain, with every assertion checked to the base unit:
+
+- Three separate accounts signed their own actions.
+- The terms hash computed locally matches the one the contract derived, so a participant cannot accept terms other than those they were shown.
+- An account with no role in the agreement cannot accept it.
+- The payer cannot approve a milestone whose named approver is the verifier.
+- Approval credits worker and verifier in the same transaction.
+- A second approval does not pay twice, and earnings are unchanged by the attempt.
+- A second withdrawal does not pay twice, and balances are unchanged by the attempt.
+- Withdrawn amounts equal the agreed allocations exactly.
+
+The first run of this journey found a real defect: the milestone state constants in `lib/escrow.ts` had been written from assumption rather than from the contract, which defines three states with no distinct "changes requested" value. Corrected, and the workflow status for that case is application state rather than chain state.
+
+The escrow holds nothing further and has had no independent audit. The sandbox agreements do not use it. The live transfers above were signed with the local testnet deployer key in Node, not through the passkey interface, which remains untested on a real authenticator.
 
 ## HTTP smoke coverage
 

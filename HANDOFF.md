@@ -124,7 +124,9 @@ The original items 1–5 are complete as of 12 September 2026, consolidated belo
 
 **Builder B — product and participant experience:** real onboarding/invitations, clear role consent, private evidence membership, mobile/desktop UI, retries/recovery, notifications, receipts, demo and user testing.
 
-Agree on a shared contract/account API before working independently. The next meaningful milestone is **one genuine three-account on-network flow**, not additional breadth in the sandbox.
+Agree on a shared contract/account API before working independently.
+
+**That milestone is met.** One genuine three-account on-network flow ran on 13 September 2026: separate payer, worker and verifier accounts completed create, accept, fund, submit, approve and withdraw against the deployed escrow, with the authorization and double-spend refusals asserted rather than assumed. `tests/escrow-live-journey.mjs` reruns it; `VERIFICATION.md` records what it proves. The next milestone is that journey driven through the interface by passkey accounts rather than by keys in a script.
 
 ## 8. How to resume safely
 
