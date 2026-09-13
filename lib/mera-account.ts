@@ -15,23 +15,37 @@ import type { LocalAccount } from "viem";
  * The account layer: one passkey, no seed phrase, no extension, no custody
  * backend. A passkey's PRF output is 32 secret bytes that never leave the
  * device; the same passkey always reproduces the same bytes, so the same
- * account reconstructs on any device that holds it — nothing is stored server
+ * accounts reconstruct on any device that holds it — nothing is stored server
  * side, and clearing browser storage loses nothing but convenience.
  *
- * A signing session owns the derived key in memory for a bounded window.
- * Within that window viem signs without a further prompt; once it ends, the
- * key is gone and the next signature needs a fresh passkey ceremony.
+ * One passkey backs several accounts. Each role sits at its own BIP-32 index,
+ * so a single ceremony yields distinct payer, worker and verifier accounts
+ * with distinct addresses. That is what lets one person demonstrate all three
+ * sides of an agreement on one device without pretending a role switch is
+ * authorization: each role signs with its own key, and the contract sees three
+ * unrelated accounts.
+ *
+ * Signing sessions own the derived keys in memory for a bounded window. Within
+ * it viem signs without a further prompt; once it ends the keys are gone and
+ * the next signature needs a fresh passkey ceremony.
  */
 
-const ACCOUNT_PATH = "m/44'/60'/0'/0/0";
+export type Role = "payer" | "worker" | "verifier";
+
+export const ROLES: readonly Role[] = ["payer", "worker", "verifier"];
+
+/** Each role derives from its own account index under the standard EVM path. */
+const ROLE_INDEX: Record<Role, number> = { payer: 0, worker: 1, verifier: 2 };
+const path = (index: number) => `m/44'/60'/0'/0/${index}`;
+
 const CREDENTIAL_KEY = "accrue.passkey.credential";
 
 /** How long a signing session stays prompt-free before it must be renewed. */
 export const SESSION_MINUTES = 15;
 
-export type Connection = {
-  address: `0x${string}`;
-  account: LocalAccount;
+export type Wallet = {
+  addresses: Record<Role, `0x${string}`>;
+  accounts: Record<Role, LocalAccount>;
   /** Epoch milliseconds after which signing requires a new passkey ceremony. */
   expiresAt: number;
   end: () => void;
@@ -56,7 +70,8 @@ function relyingPartyId(): string {
 /**
  * The credential id is a convenience only: it pins a later ceremony to the
  * passkey this browser used last. Sign-in deliberately still works without it,
- * because a discoverable passkey can be offered by the authenticator itself.
+ * because a discoverable passkey can be offered by the authenticator itself —
+ * which is what lets the account survive cleared storage and a fresh device.
  */
 function rememberedCredential(): { credentialId: string } | undefined {
   try {
@@ -86,25 +101,37 @@ export function forgetCredential(): void {
   }
 }
 
-function connect(prfOutput: Uint8Array): Connection {
+function connect(prfOutput: Uint8Array): Wallet {
   const seed = mnemonicToSeedSync(entropyToMnemonic(prfOutput, wordlist));
-  const node = HDKey.fromMasterSeed(seed).derive(ACCOUNT_PATH);
-  if (node.privateKey === null)
-    throw new Error("That passkey did not produce a usable account.");
-  const session = createSecp256k1SigningSession({
-    privateKey: node.privateKey,
-  });
-  node.wipePrivateData();
-  const account = toViemAccount(session);
+  const master = HDKey.fromMasterSeed(seed);
+  const sessions: { end: () => void }[] = [];
+  const accounts = {} as Record<Role, LocalAccount>;
+  const addresses = {} as Record<Role, `0x${string}`>;
+
+  for (const role of ROLES) {
+    const node = master.derive(path(ROLE_INDEX[role]));
+    if (node.privateKey === null)
+      throw new Error("That passkey did not produce a usable account.");
+    const session = createSecp256k1SigningSession({
+      privateKey: node.privateKey,
+    });
+    node.wipePrivateData();
+    sessions.push(session);
+    const account = toViemAccount(session);
+    accounts[role] = account;
+    addresses[role] = account.address;
+  }
+  master.wipePrivateData();
+
   let ended = false;
   const end = () => {
     if (ended) return;
     ended = true;
-    session.end();
+    for (const session of sessions) session.end();
   };
   const expiresAt = Date.now() + SESSION_MINUTES * 60_000;
   window.setTimeout(end, SESSION_MINUTES * 60_000);
-  return { address: account.address, account, expiresAt, end };
+  return { addresses, accounts, expiresAt, end };
 }
 
 function translate(error: unknown): never {
@@ -121,8 +148,8 @@ function translate(error: unknown): never {
   throw error;
 }
 
-/** First visit: one passkey ceremony creates the account. */
-export async function createAccount(label: string): Promise<Connection> {
+/** First visit: one passkey ceremony creates every role's account. */
+export async function createWallet(label: string): Promise<Wallet> {
   if (!passkeysAvailable())
     throw new PasskeyUnsupportedError(
       "Passkeys need a secure connection and a supported browser.",
@@ -139,13 +166,8 @@ export async function createAccount(label: string): Promise<Connection> {
   }
 }
 
-/**
- * A later visit, on this device or any other holding the passkey. The
- * remembered credential only narrows the prompt; without it the authenticator
- * offers whatever discoverable passkey it holds for this site, which is what
- * makes the account survive cleared storage and a fresh device.
- */
-export async function signIn(): Promise<Connection> {
+/** A later visit, on this device or any other holding the passkey. */
+export async function openWallet(): Promise<Wallet> {
   if (!passkeysAvailable())
     throw new PasskeyUnsupportedError(
       "Passkeys need a secure connection and a supported browser.",

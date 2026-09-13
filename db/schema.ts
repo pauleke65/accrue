@@ -35,3 +35,24 @@ export const evidenceFiles = sqliteTable(
     ),
   ],
 );
+
+/**
+ * Human-readable payment handles. A tag resolves to an on-chain address, so
+ * nobody has to read hex to pay someone — but the transfer itself is still an
+ * ordinary on-chain transfer to the resolved address.
+ *
+ * A tag is only written after the claimant proves control of the address by
+ * signing the claim, so the directory cannot be used to point someone else's
+ * name at your account.
+ */
+export const tags = sqliteTable(
+  "tags",
+  {
+    tag: text("tag").primaryKey(),
+    address: text("address").notNull(),
+    owner: text("owner").notNull(),
+    displayName: text("display_name").notNull(),
+    createdAt: text("created_at").notNull(),
+  },
+  (table) => [index("tags_address").on(table.address)],
+);

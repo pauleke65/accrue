@@ -1,4 +1,9 @@
 import Accrue from "./workspace";
+import { WalletProvider } from "./wallet-context";
 export default function Home() {
-  return <Accrue />;
+  return (
+    <WalletProvider>
+      <Accrue />
+    </WalletProvider>
+  );
 }

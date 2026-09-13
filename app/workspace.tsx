@@ -24,7 +24,9 @@ import type { Agreement, Action, Draft, Role } from "@/lib/domain";
 import { available, total } from "@/lib/domain";
 import Builder, { exampleDraft } from "./ui/builder";
 import Detail, { Timeline } from "./ui/detail";
-import { Send as SendPage } from "./ui/send";
+import { Send as SendPage, TagClaim } from "./ui/send";
+import { useWallet } from "./wallet-context";
+import { Fingerprint } from "lucide-react";
 import ActionDialog, { type Intent } from "./ui/action-dialog";
 import { Choice, money, Status, date } from "./ui/shared";
 type Page = "agreements" | "send" | "earnings" | "activity" | "integrations";
@@ -36,6 +38,7 @@ const navigation = [
   { id: "integrations", label: "Connections", icon: Settings2 },
 ] as const;
 export default function Accrue() {
+  const wallet = useWallet();
   const {
     agreements,
     page,
@@ -121,20 +124,45 @@ export default function Accrue() {
                 ? "Monad testnet · Test funds"
                 : "Sandbox · No real funds"}
             </span>
+            {/* One selector for both worlds: it picks the sandbox view and
+                the passkey account that signs for that role. The two must not
+                drift apart, or the screen would show one role while another
+                signs. */}
             <Choice
-              label="Sandbox role"
-              value={role}
+              label="Role"
+              value={role === "earner" ? "worker" : role}
               onChange={(v) => {
-                setRole(v as Role);
+                const next = v as "payer" | "worker" | "verifier";
+                wallet.setRole(next);
+                setRole((next === "worker" ? "earner" : next) as Role);
                 setIntent(null);
               }}
               items={[
                 { value: "payer", label: "Payer view" },
-                { value: "earner", label: "Worker view" },
+                { value: "worker", label: "Worker view" },
                 { value: "verifier", label: "Verifier view" },
               ]}
             />
-            <span className="avatar tiny">YO</span>
+            {wallet.wallet ? (
+              <button
+                className="text-button"
+                onClick={wallet.disconnect}
+                title={wallet.address ?? undefined}
+              >
+                {wallet.tags[wallet.role]
+                  ? `@${wallet.tags[wallet.role]!.tag}`
+                  : "Signed in"}
+              </button>
+            ) : (
+              <button
+                className="secondary"
+                disabled={!wallet.available || wallet.connecting}
+                onClick={() => void wallet.connect("open")}
+              >
+                <Fingerprint size={15} />
+                {wallet.connecting ? "Waiting…" : "Sign in"}
+              </button>
+            )}
           </div>
         </header>
         <nav className="mobile-nav" aria-label="Mobile navigation">
@@ -213,7 +241,12 @@ export default function Accrue() {
                   setSelected={setSelected}
                 />
               )}
-              {page === "send" && <SendPage />}
+              {page === "send" && (
+                <>
+                  <SendPage />
+                  <TagClaim />
+                </>
+              )}
               {page === "earnings" && (
                 <Earnings agreements={agreements} setSelected={setSelected} />
               )}
