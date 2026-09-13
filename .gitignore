@@ -47,3 +47,6 @@ next-env.d.ts
 /contracts/out/
 /contracts/cache/
 *.tsbuildinfo
+
+# Foundry dry-run artifacts; the real broadcast receipts are kept as evidence.
+/contracts/broadcast/**/dry-run/

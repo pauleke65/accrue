@@ -33,6 +33,22 @@ export const token = {
   decimals: 6,
 } as const;
 
+/**
+ * The milestone escrow, deployed to Monad testnet on 13 September 2026 and
+ * bound at construction to the AUSD address above — the binding is immutable,
+ * and was re-read from the deployed contract to confirm it.
+ *
+ * It is unaudited prototype code holding test funds only. The sandbox
+ * agreements in this app do not use it yet.
+ */
+export const escrow = {
+  address: "0xf8c44A529cd0470597C7865d2B2473abff65d0De",
+  deploymentTx:
+    "0x6ce946bbb8c807e1b6c251869b29cf5023b9da292eff4091eedb2e1e2bcfa637",
+  deployedAtBlock: 62038044,
+  audited: false,
+} as const;
+
 export type BaseUnits = bigint;
 
 const SCALE = 10n ** BigInt(token.decimals);

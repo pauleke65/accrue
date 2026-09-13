@@ -1,6 +1,6 @@
-# Verification checkpoint — 12 September 2026
+# Verification checkpoint — 13 September 2026
 
-These results describe the source at the sandbox-stabilisation checkpoint. They do not establish live-payment readiness.
+These results describe the source at the first live-settlement checkpoint. Real transactions now run on Monad testnet. That is test money on a test network and establishes nothing about production readiness.
 
 | Check | Result | Timing / qualification |
 |---|---|---|
@@ -15,8 +15,29 @@ These results describe the source at the sandbox-stabilisation checkpoint. They 
 | Browser QA at 360 / 768 / 1024px | PASS, two defects found and fixed | Chromium; complete payer → worker → verifier journey driven at 360px |
 | Keyboard: focus order and visible focus | PASS | Activation by Enter/Space not exercised; see below |
 | WebMCP runtime validation | UNAVAILABLE | Feature-detected read/navigation tools present |
-| Real-wallet / Monad / sponsor end-to-end | NOT IMPLEMENTED OR TESTED | Website remains a sandbox; contract is separate and undeployed |
+| Live AUSD transfer on Monad testnet | PASS, settled in 0.8s | 25.50 AUSD moved between accounts; balances exact before and after |
+| Agora faucet drip | PASS | 10,000 AUSD received through the app's own code path |
+| Escrow deployment | PASS | Deployed, verified on MonadScan, token binding re-read from chain |
+| Live constants check: `node tests/chain-live.mjs` | PASS, 9 checks | Runs against the real chain; no key or funds needed |
+| Passkey success path | NOT TESTED | Needs a PRF-capable authenticator; the automation browser has none |
+| Gas sponsorship / Envio / bank payout | NOT IMPLEMENTED | Unchanged |
 | Private deployment | NOT COMPLETED | Site registered only; no verified hosted URL |
+
+## Live settlement
+
+Deployed and exercised on Monad testnet (chain 10143) on 13 September 2026.
+
+| Item | Value |
+|---|---|
+| Escrow | `0xf8c44A529cd0470597C7865d2B2473abff65d0De` |
+| Deployment transaction | `0x6ce946bbb8c807e1b6c251869b29cf5023b9da292eff4091eedb2e1e2bcfa637` |
+| Block | 62,038,044 |
+| Source | Verified on MonadScan, exact match, solc v0.8.30 |
+| Token binding | AUSD, re-read from the deployed contract rather than assumed |
+| Faucet drip | `0x62244aa08741a926789d2fbd3aa7bfb11b5c4ed082e894e8101fa4ff60f5848e` |
+| AUSD transfer | `0x2e592241abc2fe17fa79734481ddd14055b616443395c7106d1bedbc1ba05586`, settled in 0.8s |
+
+The escrow holds nothing and has had no independent audit. The sandbox agreements do not use it. The live transfers above were signed with the local testnet deployer key in Node, not through the passkey interface, which remains untested on a real authenticator.
 
 ## HTTP smoke coverage
 

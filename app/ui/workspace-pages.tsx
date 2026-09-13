@@ -16,7 +16,7 @@ import { available, total } from "@/lib/domain";
 import { money, Status } from "./shared";
 import { exampleDraft } from "./builder";
 import { Timeline } from "./detail";
-import { token, network, explorer, shortAddress } from "@/lib/chain";
+import { token, network, explorer, shortAddress, escrow } from "@/lib/chain";
 export function Earnings({
   agreements,
   setSelected,
@@ -191,8 +191,10 @@ export function Connections() {
           },
           {
             name: "Milestone escrow contract",
-            status: "Not connected",
-            text: "The Solidity escrow is written and its accounting is covered by tests, including conservation fuzzing. It has not been deployed, has had no independent audit, and holds nothing. Milestone agreements below do not use it.",
+            status: "Deployed",
+            text: `Live on ${network.name}, bound at construction to the ${token.symbol} above so it can never pay in a different token. Its accounting is covered by tests including conservation fuzzing, but it has had no independent audit and must not hold real money. The milestone agreements below do not use it yet.`,
+            link: explorer.address(escrow.address),
+            linkText: `Escrow ${shortAddress(escrow.address)}`,
           },
           {
             name: "Milestone agreements",

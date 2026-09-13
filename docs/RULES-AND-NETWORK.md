@@ -108,6 +108,12 @@ Verified against the official docs, then confirmed by direct `eth_call` against 
 | ERC-4337 EntryPoint | v0.6 – v0.9 deployed |
 | Wrapped MON | `0xFb8bf4c1CC7a94c73D209a149eA2AbEa852BC541` |
 
+Accrue's own deployment:
+
+| Item | Value |
+|---|---|
+| Escrow | `0xf8c44A529cd0470597C7865d2B2473abff65d0De`, deployed 13 Sep 2026, source verified on MonadScan |
+
 Tokens on testnet, decimals read on-chain:
 
 | Token | Address | Decimals |

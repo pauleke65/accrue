@@ -10,7 +10,7 @@
  */
 import assert from "node:assert/strict";
 import { publicClient, readBalance, erc20Abi, faucetAbi } from "../lib/ausd.ts";
-import { network, token, formatAmount } from "../lib/chain.ts";
+import { network, token, escrow, formatAmount } from "../lib/chain.ts";
 
 const client = publicClient();
 const checks = [];
@@ -74,6 +74,35 @@ checks.push(`faucet ceiling ${formatAmount(maxOwn)} ${token.symbol}`);
 const balance = await readBalance("0x0000000000000000000000000000000000000001");
 assert.equal(typeof balance, "bigint");
 checks.push("balance reads return base units as bigint");
+
+// The escrow's token binding is immutable, so a mismatch here means the
+// address in the app is not the contract that was deployed.
+const escrowCode = await client.getCode({ address: escrow.address });
+assert.ok(
+  escrowCode && escrowCode.length > 2,
+  "the escrow address must hold deployed code",
+);
+checks.push(`escrow deployed, ${(escrowCode.length - 2) / 2} bytes`);
+
+const escrowToken = await client.readContract({
+  address: escrow.address,
+  abi: [
+    {
+      type: "function",
+      name: "token",
+      stateMutability: "view",
+      inputs: [],
+      outputs: [{ type: "address" }],
+    },
+  ],
+  functionName: "token",
+});
+assert.equal(
+  escrowToken.toLowerCase(),
+  token.address.toLowerCase(),
+  "the escrow must be bound to the token this app uses",
+);
+checks.push("escrow is bound to the pinned token");
 
 const block = await client.getBlockNumber();
 checks.push(`head at block ${block}`);

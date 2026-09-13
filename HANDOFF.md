@@ -104,8 +104,8 @@ The original items 1–5 are complete as of 12 September 2026, consolidated belo
 ### B. Build the actual live product
 
 1. **Real participants and onboarding:** choose Privy OR Dynamic; configure credentials, embedded account creation, bound addresses, expiring/revocable invitations, recovery, and membership-based evidence access. A forwarded invitation must not grant payment authority.
-2. **Monad + token:** verify official network/token addresses, decimals, and permitted demo environment. Independently review the contract, deploy with explicit gas authorization, and record addresses and receipts.
-3. **Chain-backed frontend:** implement wallet-authorized contract calls, pending/rejected/failed/confirmed states, reconciliation after timeouts, and real beneficiary withdrawal. Keep sandbox state completely separate from live settlement truth.
+2. **Monad + token: done.** Network and token verified and confirmed on chain; the escrow is deployed to testnet at `0xf8c44A529cd0470597C7865d2B2473abff65d0De`, source verified on MonadScan, receipts recorded in `VERIFICATION.md`. **Independent contract review is still outstanding** and remains a gate before the contract holds anything that matters.
+3. **Chain-backed frontend: partly done.** Direct AUSD transfers are live behind a Mera passkey, with awaiting-signature, submitted, confirmed, failed and unknown states, and reconciliation rather than blind retry. Sandbox state stays separate. **Still to do:** wire milestone agreements to the deployed escrow, and real beneficiary withdrawal through it.
 4. **Sponsorship:** implement a restricted gas flow for approved actions/accounts with quotas, budget limits, and clear fallback/outage behavior.
 5. **Envio:** index the actual contract events, handle reorgs/duplicates, and reconcile against RPC before displaying consequential balances. Do not call the sandbox timeline an indexer integration.
 6. **Operational hardening:** evidence scanning and retention/deletion, notifications, observability, public-service abuse controls, account recovery tests, direct-withdrawal guidance, incident handling, and privacy/legal review.
