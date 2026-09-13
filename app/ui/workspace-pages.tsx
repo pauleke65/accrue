@@ -16,6 +16,7 @@ import { available, total } from "@/lib/domain";
 import { money, Status } from "./shared";
 import { exampleDraft } from "./builder";
 import { Timeline } from "./detail";
+import { token, network, explorer, shortAddress } from "@/lib/chain";
 export function Earnings({
   agreements,
   setSelected,
@@ -146,65 +147,101 @@ export function Connections() {
           <p className="eyebrow">BUILT FOR TRANSPARENCY</p>
           <h1>Connections & environment</h1>
           <p className="muted">
-            What is working, what is simulated, and what needs activation.
+            What is live, what is simulated, and what is not built yet.
           </p>
         </div>
       </div>
       <div className="notice">
         <ShieldCheck />
         <p>
-          This is a private, persistent product sandbox. Role switching
-          simulates participants inside your own workspace. It does not grant
-          access to other users or authorize real transactions.
+          Two things run side by side. <b>Send</b> moves real {token.symbol} on{" "}
+          {network.name}, signed by your passkey — test money, but genuine
+          transactions. <b>Agreements</b> are a simulation inside your own
+          workspace: role switching does not grant access to other users and no
+          agreement figure has touched a network.
         </p>
       </div>
       <div className="connection-grid">
         {[
           {
-            name: "Private workspace",
+            name: "Passkey accounts · Mera",
             status: "Active",
-            text: "Authenticated workspace data in D1, with private evidence files in R2. Sandbox activity is saved on the server.",
+            text: "One passkey is the whole account layer. No seed phrase, no extension, and no custody backend: the key is derived from the passkey itself, so the same account reopens on any device holding it. A signing session lasts 15 minutes, then the key is discarded.",
           },
           {
-            name: "Monad settlement",
+            name: `${token.symbol} · Agora`,
+            status: "Active",
+            text: `Direct transfers are live on ${network.name} and settle in about a second. Balances on the Send screen are read from the chain, never simulated.`,
+            link: explorer.address(token.address),
+            linkText: `Token ${shortAddress(token.address)} · ${token.decimals} decimals`,
+          },
+          {
+            name: "Test funds",
+            status: "Active",
+            text: `Agora's faucet pays 10,000 ${token.symbol} a call, once a minute. Network fees are paid in MON, which comes from the Monad faucet — an account with no MON cannot send yet.`,
+            link: network.gasFaucet,
+            linkText: "Monad gas faucet",
+          },
+          {
+            name: `Network · ${network.name}`,
+            status: "Active",
+            text: `Chain ${network.chainId}. Reads fall back across three public endpoints rather than depending on one. This is a test network: balances here are not money.`,
+            link: network.explorer,
+            linkText: "Block explorer",
+          },
+          {
+            name: "Milestone escrow contract",
             status: "Not connected",
-            text: "Contract source accompanies this app. No deployed contract, network receipt, or real funding is claimed.",
+            text: "The Solidity escrow is written and its accounting is covered by tests, including conservation fuzzing. It has not been deployed, has had no independent audit, and holds nothing. Milestone agreements below do not use it.",
           },
           {
-            name: "Agora · AUSD",
-            status: "Activation required",
-            text: "Token address and permitted network must be verified before funding is enabled. Current balances are simulated USD units.",
+            name: "Milestone agreements",
+            status: "Simulated",
+            text: "Drafting, acceptance, funding, evidence, approval, withdrawal and refunds run against a private sandbox ledger in D1. Evidence files are real and private; the money is not.",
           },
           {
-            name: "Embedded wallets",
+            name: "Gas sponsorship",
             status: "Activation required",
-            text: "Privy or Dynamic credentials, participant-bound accounts, recovery, and gas sponsorship are required for live onboarding.",
+            text: `A first-time worker or verifier still needs MON before they can transact. ${token.symbol} supports ERC-3009 gasless transfers, which is the intended route: the user signs and a relayer pays. Not built yet.`,
           },
           {
             name: "Envio event indexing",
             status: "Not connected",
-            text: "Current activity comes from the sandbox ledger. A live deployment requires event indexing and RPC reconciliation.",
+            text: "The activity record is read from the sandbox ledger and from direct chain queries. No indexer is running, and the timeline should not be described as one.",
           },
           {
             name: "Bank payouts",
             status: "Outside this release",
-            text: "Withdrawals simulate a beneficiary account transfer. They do not represent local-currency cash-out.",
+            text: `Withdrawals move ${token.symbol}, not naira. Nothing here reaches a bank account, and no local-currency cash-out is implied.`,
           },
         ].map((c) => (
           <section className="panel" key={c.name}>
             <Status value={c.status} />
             <h2>{c.name}</h2>
             <p className="muted">{c.text}</p>
+            {c.link && (
+              <a
+                className="file-link"
+                href={c.link}
+                target="_blank"
+                rel="noreferrer noopener"
+              >
+                {c.linkText}
+                <ArrowUpRight size={14} />
+              </a>
+            )}
           </section>
         ))}
       </div>
       <section className="panel">
-        <h3>Before handling real funds</h3>
+        <h3>Before handling real money</h3>
         <p className="muted">
-          Independent contract review, production identity and invitation flows,
-          token integration, gas sponsorship, monitoring, real-device testing,
-          and a completed on-network rehearsal are required. This prototype is
-          not financial production infrastructure.
+          Independent contract review, participant invitations bound to real
+          accounts, gas sponsorship, monitoring, real-device testing and a
+          completed on-network rehearsal all remain outstanding. Test-network
+          success is not evidence of production readiness, and the escrow&apos;s
+          guarantees cover its own rules only — not token issuer controls, a
+          compromised device, or anything outside this contract.
         </p>
         <a
           className="text-button"
