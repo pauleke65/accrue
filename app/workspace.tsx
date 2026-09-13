@@ -24,7 +24,7 @@ import type { Agreement, Action, Draft, Role } from "@/lib/domain";
 import { available, total } from "@/lib/domain";
 import Builder, { exampleDraft } from "./ui/builder";
 import Detail, { Timeline } from "./ui/detail";
-import { Send as SendPage, TagClaim } from "./ui/send";
+import { Send as SendPage } from "./ui/send";
 import { useWallet } from "./wallet-context";
 import { Fingerprint } from "lucide-react";
 import ActionDialog, { type Intent } from "./ui/action-dialog";
@@ -241,12 +241,7 @@ export default function Accrue() {
                   setSelected={setSelected}
                 />
               )}
-              {page === "send" && (
-                <>
-                  <SendPage />
-                  <TagClaim />
-                </>
-              )}
+              {page === "send" && <SendPage />}
               {page === "earnings" && (
                 <Earnings agreements={agreements} setSelected={setSelected} />
               )}

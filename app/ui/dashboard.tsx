@@ -135,49 +135,59 @@ export function Dashboard({
           )}
         </section>
       ) : (
-        visible.map((a) => (
-          <button
-            className="agreement-card interactive"
-            key={a.id}
-            onClick={() => setSelected(a.id)}
-          >
-            <span className="project-icon">
-              <FolderOpen size={24} />
-            </span>
-            <div>
-              <Status
-                value={
-                  a.status === "active" &&
-                  a.milestones.some((m) => m.status === "submitted")
-                    ? "submitted"
-                    : a.status
-                }
-              />
-              <h2>{a.title}</h2>
-              <p className="muted">
-                With {a.earner} · {a.milestones.length} milestones
-              </p>
-            </div>
-            <div className="project-amount">
-              {money(total(a))}
-              <small>Total commitment</small>
-            </div>
-            <footer>
-              <span>
-                <span className="mini-avatar">
-                  {(a.verifier || "YO").slice(0, 2).toUpperCase()}
-                </span>
-                {a.verifier
-                  ? `Verified by ${a.verifier}`
-                  : "Payer-approved work"}
-              </span>
-              <span className="card-progress">
-                {a.milestones.filter((m) => m.status === "approved").length} /{" "}
-                {a.milestones.length} complete <ArrowUpRight size={17} />
-              </span>
-            </footer>
-          </button>
-        ))
+        <div className="agreement-grid">
+          {visible.map((a) => {
+            const done = a.milestones.filter(
+              (m) => m.status === "approved",
+            ).length;
+            return (
+              <button
+                className="agreement-tile"
+                key={a.id}
+                onClick={() => setSelected(a.id)}
+              >
+                <div className="tile-head">
+                  <Status
+                    value={
+                      a.status === "active" &&
+                      a.milestones.some((m) => m.status === "submitted")
+                        ? "submitted"
+                        : a.status
+                    }
+                  />
+                  <span className="tile-amount">{money(total(a))}</span>
+                </div>
+                <div>
+                  <h2 className="tile-title">{a.title}</h2>
+                  <p className="tile-meta">
+                    With {a.earner} ·{" "}
+                    {a.verifier
+                      ? `verified by ${a.verifier}`
+                      : "payer-approved"}
+                  </p>
+                </div>
+                {/* Progress is the thing a payer scans a grid for. */}
+                <div
+                  className="tile-progress"
+                  role="img"
+                  aria-label={`${done} of ${a.milestones.length} milestones complete`}
+                >
+                  <span
+                    style={{
+                      width: `${(done / a.milestones.length) * 100}%`,
+                    }}
+                  />
+                </div>
+                <div className="tile-foot">
+                  <span>
+                    {done} / {a.milestones.length} milestones
+                  </span>
+                  <ArrowUpRight size={16} />
+                </div>
+              </button>
+            );
+          })}
+        </div>
       )}
       <div className="bottom-note">
         <ShieldCheck size={16} />
