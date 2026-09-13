@@ -3,10 +3,10 @@ import { useCallback, useEffect, useState } from "react";
 import type { Agreement, Action, Draft, Role } from "@/lib/domain";
 import type { Intent } from "./ui/action-dialog";
 export type Page =
-  "agreements" | "send" | "earnings" | "activity" | "integrations";
+  "jobs" | "agreements" | "send" | "earnings" | "activity" | "integrations";
 export function useWorkspace() {
   const [agreements, setAgreements] = useState<Agreement[]>([]);
-  const [page, setPage] = useState<Page>("agreements");
+  const [page, setPage] = useState<Page>("jobs");
   const [role, setRole] = useState<Role>("payer");
   const [selected, setSelected] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);

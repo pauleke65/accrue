@@ -20,6 +20,9 @@ These results describe the source at the first live-settlement checkpoint. Real 
 | Escrow deployment | PASS | Deployed, verified on MonadScan, token binding re-read from chain |
 | Live constants check: `node tests/chain-live.mjs` | PASS, 9 checks | Runs against the real chain; no key or funds needed |
 | **Three-account escrow journey on testnet** | **PASS** | Separate payer, worker and verifier accounts; full milestone lifecycle; see below |
+| **Funded job through the app's own path** | **PASS** | `tests/live-agreement-smoke.mjs`: tags, metadata API and contract together |
+| Tags: `node tests/tags-smoke.mjs` | PASS, 8 checks | Claim, resolve, forgery, replay and squatting |
+| Sponsorship: `node tests/sponsor-smoke.mjs` | PASS, 5 checks | An account with nothing can claim and transact |
 | Passkey success path | NOT TESTED | Needs a PRF-capable authenticator; the automation browser has none |
 | Gas sponsorship / Envio / bank payout | NOT IMPLEMENTED | Unchanged |
 | Private deployment | NOT COMPLETED | Site registered only; no verified hosted URL |
@@ -91,6 +94,19 @@ The interface follows the Monad Metropolis hackathon page: surface `#0f0f12`, ra
 The two typefaces are stand-ins: Monad's brittiSans and Metropolis Pixel are not redistributable, so the interface loads Inter for text and Silkscreen for the display role, which is the same substitution the source page's own fallback chain makes.
 
 Every text colour was re-measured against its composited background after the restyle; all three surveyed pages report zero AA failures. Status hues were lifted for the dark surface (`#6ee7a8` positive, `#e8b339` caution, `#ff7a9c` negative) and placeholder ink has its own step at `#8a8a9c`, because the faint hairline value does not clear 4.5:1 as text. Three layout regressions the mono tracking introduced — the role selector, the dashboard filter strip and the mobile navigation — were fixed and re-measured at 360px.
+
+## Funded jobs
+
+`node tests/live-agreement-smoke.mjs`, run 13 September 2026 against agreement #2. This is the join the product was missing: the payer names a worker and a verifier by tag, the contract holds real AUSD, the readable terms sit beside it, and each role signs its own actions.
+
+What the run proves:
+
+- A payer names people by tag rather than by address, and the tag resolves to the account that signs.
+- The scope and criteria stored by the app hash to the values the contract enforces, so the readable terms and the enforced terms are the same agreement rather than two.
+- The contract holds the deposit until the named verifier approves.
+- Approval credits worker and verifier in one transaction, and each is paid exactly what was agreed.
+
+No balance is stored by the app for these agreements. Deposit, reserve, earnings and withdrawals are read from the chain each time they are displayed, so the record cannot drift from the money.
 
 ## Lint
 

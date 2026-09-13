@@ -191,15 +191,20 @@ export function Connections() {
           },
           {
             name: "Milestone escrow contract",
-            status: "Deployed",
-            text: `Live on ${network.name}, bound at construction to the ${token.symbol} above so it can never pay in a different token. Its accounting is covered by tests including conservation fuzzing, but it has had no independent audit and must not hold real money. The milestone agreements below do not use it yet.`,
+            status: "Active",
+            text: `Funded jobs run through this contract. It is bound at construction to the ${token.symbol} above, so it can never pay in a different token, and it holds the deposit until the named verifier approves the work. Its accounting is covered by tests including conservation fuzzing, but it has had no independent audit and must not hold real money.`,
             link: explorer.address(escrow.address),
             linkText: `Escrow ${shortAddress(escrow.address)}`,
           },
           {
-            name: "Milestone agreements",
+            name: "Funded jobs",
+            status: "Active",
+            text: `Agreements under "Funded jobs" hold real ${token.symbol} in the contract. Participants are named by tag, each role signs with its own account, and every figure shown is read from the chain. The readable scope and acceptance criteria are held here, because the contract stores only their hashes — the app checks that the text still hashes to what the contract enforces.`,
+          },
+          {
+            name: "Sandbox agreements",
             status: "Simulated",
-            text: "Drafting, acceptance, funding, evidence, approval, withdrawal and refunds run against a private sandbox ledger in D1. Evidence files are real and private; the money is not.",
+            text: "The separate sandbox keeps the older simulation: drafting, acceptance, funding, evidence, approval, withdrawal and refunds against a private ledger in D1, with real private evidence files but no real money. It is useful for walking the workflow without spending anything.",
           },
           {
             name: "Gas sponsorship",

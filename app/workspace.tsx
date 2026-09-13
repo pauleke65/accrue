@@ -25,13 +25,16 @@ import { available, total } from "@/lib/domain";
 import Builder, { exampleDraft } from "./ui/builder";
 import Detail, { Timeline } from "./ui/detail";
 import { Send as SendPage } from "./ui/send";
+import { LiveAgreements } from "./ui/live-agreements";
 import { useWallet } from "./wallet-context";
 import { Fingerprint } from "lucide-react";
 import ActionDialog, { type Intent } from "./ui/action-dialog";
 import { Choice, money, Status, date } from "./ui/shared";
-type Page = "agreements" | "send" | "earnings" | "activity" | "integrations";
+type Page =
+  "jobs" | "agreements" | "send" | "earnings" | "activity" | "integrations";
 const navigation = [
-  { id: "agreements", label: "Agreements", icon: FolderOpen },
+  { id: "jobs", label: "Funded jobs", icon: ShieldCheck },
+  { id: "agreements", label: "Sandbox", icon: FolderOpen },
   { id: "send", label: "Send", icon: SendHorizontal },
   { id: "earnings", label: "Earnings", icon: Wallet },
   { id: "activity", label: "Activity", icon: Activity },
@@ -120,7 +123,7 @@ export default function Accrue() {
             {/* The disclosure has to match the page: the send screen moves
                 real testnet tokens, while everything else is simulated. */}
             <span className="badge sandbox">
-              {page === "send"
+              {page === "send" || page === "jobs"
                 ? "Monad testnet · Test funds"
                 : "Sandbox · No real funds"}
             </span>
@@ -241,6 +244,7 @@ export default function Accrue() {
                   setSelected={setSelected}
                 />
               )}
+              {page === "jobs" && <LiveAgreements />}
               {page === "send" && <SendPage />}
               {page === "earnings" && (
                 <Earnings agreements={agreements} setSelected={setSelected} />

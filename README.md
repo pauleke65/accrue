@@ -53,6 +53,7 @@ node tests/api-smoke.mjs
 node tests/tags-smoke.mjs
 node tests/sponsor-smoke.mjs   # needs a funded sponsor key
 node tests/chain-live.mjs      # read-only, no key needed
+node tests/live-agreement-smoke.mjs  # funds a real testnet job end to end
 cd contracts
 forge test -vv
 ```

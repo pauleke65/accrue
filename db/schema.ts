@@ -80,3 +80,35 @@ export const payments = sqliteTable(
   },
   (table) => [index("payments_owner").on(table.owner, table.createdAt)],
 );
+
+/**
+ * Metadata for agreements that live on chain.
+ *
+ * The contract holds the money and decides who may do what; it stores only
+ * hashes of the scope and the acceptance criteria, because names, addresses
+ * and descriptions of someone's home do not belong in public state. This table
+ * holds the readable text those hashes cover, so the app can show people what
+ * they agreed to and prove it matches what the contract recorded.
+ *
+ * No balance is stored here. Money is read from the chain, every time.
+ */
+export const liveAgreements = sqliteTable(
+  "live_agreements",
+  {
+    id: text("id").primaryKey(),
+    owner: text("owner").notNull(),
+    chainId: integer("chain_id").notNull(),
+    escrow: text("escrow").notNull(),
+    onchainId: text("onchain_id").notNull(),
+    title: text("title").notNull(),
+    scope: text("scope").notNull(),
+    payerAddress: text("payer_address").notNull(),
+    workerAddress: text("worker_address").notNull(),
+    verifierAddress: text("verifier_address").notNull(),
+    workerTag: text("worker_tag"),
+    verifierTag: text("verifier_tag"),
+    milestones: text("milestones").notNull(),
+    createdAt: text("created_at").notNull(),
+  },
+  (table) => [index("live_agreements_owner").on(table.owner, table.createdAt)],
+);
