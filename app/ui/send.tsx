@@ -57,6 +57,9 @@ export function Send() {
     try {
       const target = await destination();
       const value = parseAmount(amount);
+      // Cover the network fee before asking for a signature, so a first-time
+      // account is not stopped at the last step by a cost it cannot see.
+      if (gas !== null && gas === 0n) await w.ensureGas();
       const state = await sendAusd({
         account: w.account,
         to: target,
@@ -74,15 +77,30 @@ export function Send() {
     }
   }
 
+  /**
+   * Claiming test money must work on an account that holds nothing at all,
+   * which is the state every new account starts in. The sponsor calls the
+   * faucet and pays the fee, so this needs no MON first.
+   */
   async function drip() {
-    if (!w.account) return;
     setBusy(true);
+    setLocalError("");
     try {
-      const state = await requestFaucetDrip({
-        account: w.account,
-        report: setTransaction,
-      });
-      if (state.status !== "failed") await w.refresh();
+      await w.sponsorTokens();
+    } catch (cause) {
+      // Falling back to a direct call is only useful if this account can pay
+      // its own fee; if it cannot, the original reason is the honest one.
+      if (w.account && gas !== null && gas > 0n) {
+        const state = await requestFaucetDrip({
+          account: w.account,
+          report: setTransaction,
+        });
+        if (state.status !== "failed") await w.refresh();
+      } else {
+        setLocalError(
+          cause instanceof Error ? cause.message : "Could not get test money.",
+        );
+      }
     } finally {
       setBusy(false);
     }
@@ -152,7 +170,7 @@ export function Send() {
           </strong>
           <small>
             {noGas
-              ? "Needed before this account can send."
+              ? "Covered for you on the first payment."
               : "Covers the cost of sending."}
           </small>
         </section>
@@ -193,7 +211,7 @@ export function Send() {
           <div className="milestone-actions">
             <button
               className="primary"
-              disabled={busy || !to || !amount || noGas}
+              disabled={busy || !to || !amount}
               onClick={() => void send()}
             >
               <ArrowUpRight size={16} />

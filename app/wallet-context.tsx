@@ -47,6 +47,10 @@ type WalletState = {
   disconnect: () => void;
   refresh: () => Promise<void>;
   claimTag: (tag: string, displayName: string) => Promise<void>;
+  /** Asks the sponsor to cover this role's first network fees. */
+  ensureGas: () => Promise<void>;
+  /** Claims test tokens through the sponsor, so no gas is needed first. */
+  sponsorTokens: () => Promise<void>;
   resolveTag: (
     tag: string,
   ) => Promise<{ address: `0x${string}`; displayName: string } | null>;
@@ -207,6 +211,39 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     [role, refresh],
   );
 
+  /**
+   * A brand-new account holds no MON, so it can neither claim test tokens nor
+   * send. Rather than sending someone off to find a gas faucet, the sponsor
+   * covers the first fees. The server decides whether the grant is warranted.
+   */
+  const sponsor = useCallback(
+    async (action: "gas" | "tokens", address: `0x${string}`) => {
+      const response = await fetch("/api/sponsor", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address, action }),
+      });
+      const data = (await response.json()) as { error?: string };
+      if (!response.ok)
+        throw new Error(data.error ?? "Sponsored gas is unavailable.");
+    },
+    [],
+  );
+
+  const ensureGas = useCallback(async () => {
+    const current = walletRef.current;
+    if (!current) return;
+    await sponsor("gas", current.addresses[role]);
+    await refresh();
+  }, [role, sponsor, refresh]);
+
+  const sponsorTokens = useCallback(async () => {
+    const current = walletRef.current;
+    if (!current) return;
+    await sponsor("tokens", current.addresses[role]);
+    await refresh();
+  }, [role, sponsor, refresh]);
+
   const resolveTag = useCallback(async (tag: string) => {
     const clean = tag.toLowerCase().replace(/^@/, "").trim();
     const response = await fetch(`/api/tags?tag=${encodeURIComponent(clean)}`);
@@ -240,6 +277,8 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       disconnect,
       refresh,
       claimTag,
+      ensureGas,
+      sponsorTokens,
       resolveTag,
     }),
     [
@@ -256,6 +295,8 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       disconnect,
       refresh,
       claimTag,
+      ensureGas,
+      sponsorTokens,
       resolveTag,
     ],
   );

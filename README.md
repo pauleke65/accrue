@@ -30,12 +30,29 @@ npm run dev
 
 Visit the printed loopback URL. The local sign-in route provides a synthetic identity; hosted authentication is handled by the platform. Production deployments package and apply their own migrations.
 
+## Sponsored gas (optional, local)
+
+A new passkey account holds no MON and can do nothing until someone pays its
+first network fee. The sponsor endpoint covers that. It needs a funded testnet
+key, which is read from `.dev.vars` and never committed:
+
+```sh
+printf 'ACCRUE_SPONSOR_KEY=0x<a funded testnet key>\n' > .dev.vars
+```
+
+`node scripts/deployer.mjs` prints an address to fund at https://faucet.monad.xyz.
+Without this the app still runs; accounts must then hold their own MON.
+A deployment sets the same value with `wrangler secret put ACCRUE_SPONSOR_KEY`.
+
 ## Verify
 
 ```sh
 node --test tests/domain.test.mjs
 npx tsc --noEmit
 node tests/api-smoke.mjs
+node tests/tags-smoke.mjs
+node tests/sponsor-smoke.mjs   # needs a funded sponsor key
+node tests/chain-live.mjs      # read-only, no key needed
 cd contracts
 forge test -vv
 ```

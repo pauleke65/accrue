@@ -50,3 +50,6 @@ next-env.d.ts
 
 # Foundry dry-run artifacts; the real broadcast receipts are kept as evidence.
 /contracts/broadcast/**/dry-run/
+
+# Local worker secrets; never commit.
+.dev.vars

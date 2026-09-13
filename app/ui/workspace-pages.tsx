@@ -203,13 +203,18 @@ export function Connections() {
           },
           {
             name: "Gas sponsorship",
-            status: "Activation required",
-            text: `A first-time worker or verifier still needs MON before they can transact. ${token.symbol} supports ERC-3009 gasless transfers, which is the intended route: the user signs and a relayer pays. Not built yet.`,
+            status: "Active",
+            text: `A new account holds no MON, so the sponsor pays its first network fees and claims its test ${token.symbol} for it. The sponsor is deliberately narrow: one function on one known faucet, or a small fixed amount of test MON, to the address the signed-in person asked for. It never relays an arbitrary transaction. On a real network this would need a budget, quotas and monitoring before it could be trusted.`,
           },
           {
             name: "Envio event indexing",
             status: "Not connected",
             text: "The activity record is read from the sandbox ledger and from direct chain queries. No indexer is running, and the timeline should not be described as one.",
+          },
+          {
+            name: "Payment tags",
+            status: "Active",
+            text: "A tag resolves to an account address so nobody has to read hex to pay someone. Claiming one requires signing the claim with the account it points at. The directory itself lives in this application's database, not on chain: if the app went away the tag would stop resolving, though the account behind it would keep working.",
           },
           {
             name: "Bank payouts",
