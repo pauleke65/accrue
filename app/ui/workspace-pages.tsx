@@ -8,6 +8,7 @@ import {
   Activity,
   Search,
   ArrowRight,
+  UserCircle,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -215,6 +216,51 @@ export function Connections() {
           Track 2 · Consumer Products & Payments <ArrowUpRight size={16} />
         </a>
       </section>
+    </>
+  );
+}
+
+export function Profile({
+  profileData,
+}: {
+  profileData: { name: string | null; email: string; walletAddress: string } | null;
+}) {
+  return (
+    <>
+      <div className="page-heading">
+        <div>
+          <p className="eyebrow">YOUR ACCOUNT</p>
+          <h1>Profile</h1>
+          <p className="muted">Your identity and connected wallet on Accrue.</p>
+        </div>
+      </div>
+      {profileData ? (
+        <section className="panel" style={{ maxWidth: "600px", padding: "2rem" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+            <div>
+              <p className="muted" style={{ marginBottom: "0.5rem", fontSize: "14px", textTransform: "uppercase", letterSpacing: "0.5px" }}>Full Name</p>
+              <p style={{ fontWeight: 600, fontSize: "18px" }}>{profileData.name || "Not provided"}</p>
+            </div>
+            <hr style={{ border: "0", borderTop: "1px solid #dce5e7" }} />
+            <div>
+              <p className="muted" style={{ marginBottom: "0.5rem", fontSize: "14px", textTransform: "uppercase", letterSpacing: "0.5px" }}>Email Address</p>
+              <p style={{ fontWeight: 600, fontSize: "18px" }}>{profileData.email}</p>
+            </div>
+            <hr style={{ border: "0", borderTop: "1px solid #dce5e7" }} />
+            <div>
+              <p className="muted" style={{ marginBottom: "0.5rem", fontSize: "14px", textTransform: "uppercase", letterSpacing: "0.5px" }}>Smart Wallet Address</p>
+              <p style={{ fontWeight: 600, fontSize: "16px", fontFamily: "monospace", wordBreak: "break-all", background: "#f5f7fa", padding: "12px", borderRadius: "8px", border: "1px solid #dce5e7" }}>
+                {profileData.walletAddress}
+              </p>
+            </div>
+          </div>
+        </section>
+      ) : (
+        <div className="empty-state">
+          <UserCircle size={48} className="text-[#145e50]" />
+          <h2>Loading profile data...</h2>
+        </div>
+      )}
     </>
   );
 }

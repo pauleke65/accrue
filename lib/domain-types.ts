@@ -27,6 +27,7 @@ export type Entry = {
 };
 export type Agreement = {
   id: string;
+  payerId: string;
   version: number;
   title: string;
   scope: string;

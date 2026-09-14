@@ -8,11 +8,19 @@ export const agreements = sqliteTable(
   "agreements",
   {
     id: text("id").primaryKey(),
-    owner: text("owner").notNull(),
+    payerId: text("payer_id").notNull(),
+    earnerEmail: text("earner_email").notNull(),
+    verifierEmail: text("verifier_email"),
     version: integer("version").notNull(),
     data: text("data").notNull(),
+    status: text("status").notNull(),
+    createdAt: text("created_at").notNull(),
   },
-  (table) => [index("agreements_owner").on(table.owner)],
+  (table) => [
+    index("agreements_payer").on(table.payerId),
+    index("agreements_earner_email").on(table.earnerEmail),
+    index("agreements_verifier_email").on(table.verifierEmail),
+  ],
 );
 export const evidenceFiles = sqliteTable("evidence_files", {
   id: text("id").primaryKey(),
@@ -23,4 +31,11 @@ export const evidenceFiles = sqliteTable("evidence_files", {
   digest: text("digest").notNull(),
   size: integer("size").notNull(),
   createdAt: text("created_at").notNull(),
+});
+export const users = sqliteTable("users", {
+  id: text("id").primaryKey(),
+  email: text("email").notNull(),
+  walletAddress: text("wallet_address").notNull(),
+  name: text("name"),
+  createdAt: integer("created_at").notNull(),
 });

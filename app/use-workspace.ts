@@ -1,45 +1,80 @@
 "use client";
 import {useCallback,useEffect,useState} from "react";
+import { usePrivy } from "@privy-io/react-auth";
 import type {Agreement,Action,Draft,Role} from "@/lib/domain";
 import type {Intent} from "./ui/action-dialog";
-export type Page="agreements"|"earnings"|"activity"|"integrations";
+export type Page="agreements"|"earnings"|"activity"|"integrations"|"profile";
 export function useWorkspace(){
+  const { getAccessToken, authenticated, ready, user } = usePrivy();
 
   const [agreements, setAgreements] = useState<Agreement[]>([]);
   const [page, setPage] = useState<Page>("agreements");
-  const [role, setRole] = useState<Role>("payer");
   const [selected, setSelected] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [signedOut, setSignedOut] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [needsOnboarding, setNeedsOnboarding] = useState(false);
+  const [profileData, setProfileData] = useState<{name: string | null; email: string; walletAddress: string} | null>(null);
+
+  useEffect(() => {
+    if (authenticated && user?.email?.address && user?.wallet?.address) {
+      getAccessToken().then(token => {
+        fetch("/api/auth/sync", {
+          method: "POST",
+          headers: { 
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {})
+          },
+          body: JSON.stringify({
+            email: user.email!.address,
+            walletAddress: user.wallet!.address,
+          })
+        })
+        .then(res => res.json())
+        .then(data => {
+          if (data.user) setProfileData(data.user);
+          if (data.needsOnboarding) {
+            setNeedsOnboarding(true);
+          } else {
+            setNeedsOnboarding(false);
+          }
+        })
+        .catch(console.error);
+      });
+    }
+  }, [authenticated, user, getAccessToken]);
   const [busy, setBusy] = useState(false);
   const [intent, setIntent] = useState<Intent | null>(null);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("all");
   const [notice, setNotice] = useState("");
   const refresh = useCallback(async () => {
+    if (!ready || !authenticated) {
+      setLoading(false);
+      return;
+    }
     setError("");
     try {
-      const response = await fetch("/api/agreements");
+      const token = await getAccessToken();
+      const response = await fetch("/api/agreements", {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      });
       const data = (await response.json()) as {
         error: string;
         agreements: Agreement[];
         agreement: Agreement;
       };
       if (response.status === 401) {
-        setSignedOut(true);
         return;
       }
       if (!response.ok) throw new Error(data.error);
-      setSignedOut(false);
       setAgreements(data.agreements);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Cannot load agreements.");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [ready, authenticated, getAccessToken]);
   useEffect(() => {
     void refresh();
   }, [refresh]);
@@ -53,9 +88,13 @@ export function useWorkspace(){
   const create = async (draft: Draft) => {
     setBusy(true);
     try {
+      const token = await getAccessToken();
       const response = await fetch("/api/agreements", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
         body: JSON.stringify({ ...draft, operationId: crypto.randomUUID() }),
       });
       const data = (await response.json()) as {
@@ -78,9 +117,13 @@ export function useWorkspace(){
   const active = agreements.find((a) => a.id === selected);
   const act = async (action: Action) => {
     if (!active) return;
+    const token = await getAccessToken();
     const response = await fetch(`/api/agreements/${active.id}`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { 
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      },
       body: JSON.stringify({ ...action, version: active.version }),
     });
     const data = (await response.json()) as {
@@ -95,6 +138,21 @@ export function useWorkspace(){
     save(data.agreement);
     setNotice("Saved to your private sandbox workspace.");
   };
+
+  const completeOnboarding = async (name: string) => {
+    const token = await getAccessToken();
+    await fetch("/api/auth/onboard", {
+      method: "POST",
+      headers: { 
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      },
+      body: JSON.stringify({ name })
+    });
+    setNeedsOnboarding(false);
+    void refresh();
+  };
+
   const navigate = (value: Page) => {
     setPage(value);
     setSelected(null);
@@ -182,6 +240,6 @@ export function useWorkspace(){
     (s, a) => s + a.milestones.filter((m) => m.status === "submitted").length,
     0,
   );
-return {agreements,page,role,setRole,selected,setSelected,loading,error,setError,signedOut,creating,setCreating,busy,intent,setIntent,query,setQuery,filter,setFilter,notice,setNotice,refresh,create,active,act,navigate,visible,reserved,earned,reviews};
+return {agreements,page,selected,setSelected,loading,error,setError,ready,authenticated,creating,setCreating,busy,intent,setIntent,query,setQuery,filter,setFilter,notice,setNotice,refresh,create,active,act,navigate,visible,reserved,earned,reviews,needsOnboarding,completeOnboarding,profileData};
 }
 

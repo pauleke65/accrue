@@ -6,16 +6,33 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const owner = await authorize(request);
+    const userId = await authorize(request);
     const { id } = await params;
     const action = actionSchema.parse(await request.json());
+    
+    const user = await database()
+      .prepare("SELECT email FROM users WHERE id = ?")
+      .bind(userId)
+      .first<{ email: string }>();
+    const email = user?.email || "";
+
     const row = await database()
       .prepare(
-        "SELECT data, version FROM agreements WHERE id = ? AND owner = ?",
+        "SELECT data, version, payer_id as payerId, earner_email as earnerEmail, verifier_email as verifierEmail FROM agreements WHERE id = ? AND (payer_id = ? OR earner_email = ? OR verifier_email = ?)",
       )
-      .bind(id, owner)
-      .first<{ data: string; version: number }>();
-    if (!row) throw new HttpError(404, "Agreement not found.");
+      .bind(id, userId, email, email)
+      .first<{ data: string; version: number; payerId: string; earnerEmail: string; verifierEmail: string }>();
+      
+    if (!row) throw new HttpError(404, "Agreement not found or access denied.");
+    
+    // Verify the user is actually allowed to perform this action under the requested role
+    if (action.role === "payer" && row.payerId !== userId)
+      throw new HttpError(403, "You are not the payer of this agreement.");
+    if (action.role === "earner" && row.earnerEmail !== email)
+      throw new HttpError(403, "You are not the earner of this agreement.");
+    if (action.role === "verifier" && row.verifierEmail !== email)
+      throw new HttpError(403, "You are not the verifier of this agreement.");
+
     const agreement = JSON.parse(row.data) as Agreement;
     if (agreement.operations.includes(action.operationId))
       return Response.json({ agreement });
@@ -29,11 +46,12 @@ export async function POST(
     if (action.type === "submit") {
       const files = [];
       for (const fileId of action.files ?? []) {
+        // Files should be accessible to anyone on the agreement (or specifically the earner uploading them)
         const file = await database()
           .prepare(
-            "SELECT id,digest,name FROM evidence_files WHERE id=? AND owner=? AND agreement_id=?",
+            "SELECT id,digest,name FROM evidence_files WHERE id=? AND agreement_id=?",
           )
-          .bind(fileId, owner, id)
+          .bind(fileId, id)
           .first();
         if (!file)
           throw new HttpError(
@@ -63,9 +81,9 @@ export async function POST(
     }
     const result = await database()
       .prepare(
-        "UPDATE agreements SET data=?, version=? WHERE id=? AND owner=? AND version=?",
+        "UPDATE agreements SET data=?, version=?, status=? WHERE id=? AND version=?",
       )
-      .bind(JSON.stringify(next), next.version, id, owner, row.version)
+      .bind(JSON.stringify(next), next.version, next.status, id, row.version)
       .run();
     if (result.meta.changes !== 1)
       throw new HttpError(

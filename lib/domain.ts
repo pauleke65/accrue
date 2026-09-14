@@ -32,6 +32,7 @@ export function assertAccounting(a: Agreement) {
 export function createAgreement(
   draft: Draft,
   id: string,
+  payerId: string,
   now = new Date().toISOString(),
 ): Agreement {
   ensure(
@@ -59,6 +60,7 @@ export function createAgreement(
   return {
     ...draft,
     id,
+    payerId,
     version: 1,
     createdAt: now,
     accepted: ["payer"],

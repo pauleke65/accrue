@@ -119,7 +119,7 @@ export function Dashboard({
           <p>
             {agreements.length
               ? "Try another name or filter."
-              : "Create your first agreement, or explore a renovation example with all three sandbox roles."}
+              : "Create your first agreement, or explore a renovation example with all three roles."}
           </p>
           {!agreements.length && (
             <button

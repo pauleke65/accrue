@@ -1,4 +1,4 @@
-import { getChatGPTUser } from "@/app/chatgpt-auth";
+import { verifyPrivyToken } from "./auth";
 import { env } from "cloudflare:workers";
 export class HttpError extends Error {
   constructor(
@@ -9,9 +9,18 @@ export class HttpError extends Error {
   }
 }
 export async function authorize(request?: Request) {
-  const user = await getChatGPTUser();
-  if (!user)
+  const authHeader = request?.headers.get("Authorization");
+  if (!authHeader?.startsWith("Bearer ")) {
     throw new HttpError(401, "Sign in to access your private workspace.");
+  }
+  
+  const token = authHeader.split(" ")[1];
+  let userId: string;
+  try {
+    userId = await verifyPrivyToken(token);
+  } catch (err) {
+    throw new HttpError(401, "Invalid or expired session.");
+  }
   if (request && request.method !== "GET") {
     const origin = request.headers.get("origin");
     if (!origin || origin !== new URL(request.url).origin)
@@ -24,11 +33,11 @@ export async function authorize(request?: Request) {
     .prepare(
       "INSERT INTO request_limits(owner,window,count) VALUES(?,?,1) ON CONFLICT(owner) DO UPDATE SET count=CASE WHEN window=excluded.window THEN count+1 ELSE 1 END, window=excluded.window RETURNING count",
     )
-    .bind(user.userId, window)
+    .bind(userId, window)
     .first<{ count: number }>();
   if ((limit?.count ?? 0) > 120)
     throw new HttpError(429, "Too many requests. Wait a minute and retry.");
-  return user.userId;
+  return userId;
 }
 export function database() {
   if (!env.DB) throw new HttpError(503, "Database is not configured.");

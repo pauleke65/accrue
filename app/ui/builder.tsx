@@ -23,8 +23,8 @@ export const exampleDraft = (): Draft => ({
   title: "Lekki home renovation",
   scope:
     "Renovate the ground-floor living space. The agreed site engineer reviews the evidence against each milestone before payment is earned.",
-  earner: "Tunde Okafor",
-  verifier: "Amara Nwosu",
+  earner: "worker@example.com",
+  verifier: "verifier@example.com",
   expiry: new Date(Date.now() + 30 * 86400000).toISOString(),
   milestones: [
     {
@@ -130,20 +130,22 @@ export default function Builder({
           </label>
           <div className="form-grid">
             <label>
-              Worker / business
+              Worker email
               <Input
+                type="email"
                 required
                 value={draft.earner}
                 onChange={(e) => update("earner", e.target.value)}
-                placeholder="Full name"
+                placeholder="worker@example.com"
               />
             </label>
             <label>
-              Agreed verifier
+              Verifier email (optional)
               <Input
+                type="email"
                 value={draft.verifier}
                 onChange={(e) => update("verifier", e.target.value)}
-                placeholder="Independent reviewer"
+                placeholder="verifier@example.com"
               />
             </label>
           </div>
@@ -166,7 +168,7 @@ export default function Builder({
           </label>
           <div className="section-title">
             <h3>Milestones</h3>
-            <span className="muted">USD · sandbox units</span>
+            <span className="muted">USD</span>
           </div>
           {draft.milestones.map((m, i) => (
             <section className="builder-milestone" key={i}>
@@ -297,7 +299,7 @@ export default function Builder({
             </p>
           )}
           <button disabled={busy} className="primary wide">
-            {busy ? "Creating…" : "Create sandbox agreement"}
+            {busy ? "Creating…" : "Create agreement"}
           </button>
         </form>
       </DialogContent>

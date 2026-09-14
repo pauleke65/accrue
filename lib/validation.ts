@@ -4,8 +4,8 @@ export const draftSchema = z
   .object({
     title: words,
     scope: z.string().trim().min(10).max(4000),
-    earner: words,
-    verifier: z.string().trim().max(200),
+    earner: z.string().email("Must be a valid email address").max(200),
+    verifier: z.union([z.string().email("Must be a valid email address").max(200), z.literal("")]).optional(),
     expiry: z.string().datetime(),
     milestones: z
       .array(
@@ -23,8 +23,8 @@ export const draftSchema = z
   .refine(
     (d) =>
       !d.milestones.some((m) => m.approver === "verifier") ||
-      d.verifier.length > 0,
-    { message: "Name the agreed verifier" },
+      (d.verifier && d.verifier.length > 0),
+    { message: "An email for the agreed verifier is required if verifier approval is used." },
   );
 export const actionSchema = z.object({
   type: z.enum([
