@@ -101,22 +101,32 @@ export function LiveActivity({ onOpen }: { onOpen: (id: string) => void }) {
   // ever back off, from within the async response handling below.
   const [loading, setLoading] = useState(true);
 
-  const load = useCallback(async (cancelledRef: { current: boolean }) => {
-    try {
-      const response = await fetch("/api/escrow-activity");
-      const data = (await response.json()) as {
-        configured: boolean;
-        entries?: Entry[];
-      };
-      if (cancelledRef.current) return;
-      setConfigured(data.configured);
-      setEntries(data.entries ?? []);
-    } catch {
-      if (!cancelledRef.current) setConfigured(false);
-    } finally {
-      if (!cancelledRef.current) setLoading(false);
-    }
-  }, []);
+  const load = useCallback(
+    async (cancelledRef: { current: boolean }) => {
+      try {
+        // Same participant proof as the agreements list itself, so a real
+        // worker or verifier sees activity for jobs someone else created —
+        // see lib/live-agreements-access.ts for why this is necessary.
+        const proofs = w.wallet ? await w.proveParticipation() : [];
+        const query = proofs.length
+          ? `?proofs=${encodeURIComponent(JSON.stringify(proofs))}`
+          : "";
+        const response = await fetch(`/api/escrow-activity${query}`);
+        const data = (await response.json()) as {
+          configured: boolean;
+          entries?: Entry[];
+        };
+        if (cancelledRef.current) return;
+        setConfigured(data.configured);
+        setEntries(data.entries ?? []);
+      } catch {
+        if (!cancelledRef.current) setConfigured(false);
+      } finally {
+        if (!cancelledRef.current) setLoading(false);
+      }
+    },
+    [w],
+  );
 
   useEffect(() => {
     if (!w.wallet) return;

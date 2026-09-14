@@ -129,14 +129,22 @@ export function useLiveAgreements() {
 
   const loadTerms = useCallback(async () => {
     try {
-      const response = await fetch("/api/live-agreements");
+      // Proving control of the worker/verifier addresses surfaces agreements
+      // someone else's account created but that name one of them — without
+      // this, a genuine participant's own Funded Jobs list would be empty
+      // for work they are actually doing.
+      const proofs = w.wallet ? await w.proveParticipation() : [];
+      const query = proofs.length
+        ? `?proofs=${encodeURIComponent(JSON.stringify(proofs))}`
+        : "";
+      const response = await fetch(`/api/live-agreements${query}`);
       if (!response.ok) return;
       const data = (await response.json()) as { agreements: LiveTerms[] };
       setTerms(data.agreements);
     } catch {
       setError("Could not load your agreements.");
     }
-  }, []);
+  }, [w]);
 
   /** Reads the money from the chain for every agreement the app knows about. */
   const hydrate = useCallback(async (list: LiveTerms[]) => {

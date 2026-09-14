@@ -110,5 +110,12 @@ export const liveAgreements = sqliteTable(
     milestones: text("milestones").notNull(),
     createdAt: text("created_at").notNull(),
   },
-  (table) => [index("live_agreements_owner").on(table.owner, table.createdAt)],
+  (table) => [
+    index("live_agreements_owner").on(table.owner, table.createdAt),
+    // Lets a genuine participant — the on-chain worker or verifier, proven by
+    // a signature rather than by having created the row — be found without
+    // scanning every agreement any account has ever recorded.
+    index("live_agreements_worker").on(table.workerAddress),
+    index("live_agreements_verifier").on(table.verifierAddress),
+  ],
 );

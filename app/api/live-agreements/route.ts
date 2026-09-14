@@ -1,5 +1,9 @@
 import { authorize, database, failure, HttpError } from "@/lib/server";
 import { isAddress, getAddress } from "viem";
+import {
+  accessibleLiveAgreements,
+  parseProofsParam,
+} from "@/lib/live-agreements-access";
 
 /**
  * Readable terms for agreements whose money lives on chain.
@@ -16,21 +20,18 @@ import { isAddress, getAddress } from "viem";
 
 const HEX = /^0x[0-9a-fA-F]{64}$/;
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const owner = await authorize();
-    const rows = await database()
-      .prepare(
-        "SELECT id, chain_id, escrow, onchain_id, title, scope, payer_address," +
-          " worker_address, verifier_address, worker_tag, verifier_tag, milestones, created_at" +
-          " FROM live_agreements WHERE owner = ? ORDER BY created_at DESC LIMIT 50",
-      )
-      .bind(owner)
-      .all<Record<string, string | number>>();
+    // A participant proves control of their worker/verifier address so
+    // agreements someone else's account created are still visible to them —
+    // see lib/live-agreements-access.ts for why this exists.
+    const proofs = parseProofsParam(new URL(request.url));
+    const rows = await accessibleLiveAgreements(owner, proofs);
 
     return Response.json(
       {
-        agreements: rows.results.map((row) => ({
+        agreements: rows.map((row) => ({
           id: row.id,
           chainId: row.chain_id,
           escrow: row.escrow,

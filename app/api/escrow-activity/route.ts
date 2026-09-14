@@ -1,8 +1,12 @@
 import { env } from "cloudflare:workers";
-import { authorize, database, failure } from "@/lib/server";
+import { authorize, failure } from "@/lib/server";
 import { decodeEventLog } from "viem";
 import { escrow, network } from "@/lib/chain";
 import { escrowAbi } from "@/lib/escrow";
+import {
+  accessibleLiveAgreements,
+  parseProofsParam,
+} from "@/lib/live-agreements-access";
 
 /**
  * A real activity feed for funded jobs, read from the escrow contract's own
@@ -36,22 +40,22 @@ function apiToken(): string | null {
   return typeof value === "string" && value.length > 8 ? value : null;
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const owner = await authorize();
 
-    const rows = await database()
-      .prepare(
-        "SELECT onchain_id, title, milestones FROM live_agreements WHERE owner = ?",
-      )
-      .bind(owner)
-      .all<{ onchain_id: string; title: string; milestones: string }>();
+    // Same access rule as the agreements list itself: this account's own
+    // jobs, plus any where a proven signature names it as worker or
+    // verifier — otherwise a genuine participant's activity feed would show
+    // nothing for a job they actually did the work on.
+    const proofs = parseProofsParam(new URL(request.url));
+    const rows = await accessibleLiveAgreements(owner, proofs);
 
     const known = new Map<
       string,
       { title: string; milestones: { title: string }[] }
     >();
-    for (const row of rows.results)
+    for (const row of rows)
       known.set(row.onchain_id, {
         title: row.title,
         milestones: JSON.parse(row.milestones) as { title: string }[],

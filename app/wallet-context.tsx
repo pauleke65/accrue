@@ -19,6 +19,7 @@ import {
   type Wallet,
 } from "@/lib/mera-account";
 import { readBalance, readGasBalance, readableError } from "@/lib/ausd";
+import { participantProofMessage } from "@/lib/participant-proof";
 
 /**
  * The passkey account, shared by the whole application rather than owned by
@@ -54,6 +55,16 @@ type WalletState = {
   resolveTag: (
     tag: string,
   ) => Promise<{ address: `0x${string}`; displayName: string } | null>;
+  /**
+   * Signed proof that this passkey controls its worker and verifier
+   * addresses, so the app can show agreements someone else's account
+   * created but that name one of them. Cached for the connection's
+   * lifetime — the message never changes, so re-signing on every fetch
+   * would just be asking the same question twice.
+   */
+  proveParticipation: () => Promise<
+    { address: `0x${string}`; signature: `0x${string}` }[]
+  >;
 };
 
 const Context = createContext<WalletState | null>(null);
@@ -63,6 +74,13 @@ const emptyByRole = <T,>(value: T) =>
 
 export function WalletProvider({ children }: { children: React.ReactNode }) {
   const [wallet, setWallet] = useState<Wallet | null>(null);
+  // Keyed by payer address, which is stable for one passkey connection and
+  // changes whenever a different identity connects — a natural cache key
+  // that needs no separate invalidation logic.
+  const proofCacheRef = useRef<{
+    payer: string;
+    proofs: { address: `0x${string}`; signature: `0x${string}` }[];
+  } | null>(null);
   const [connecting, setConnecting] = useState(false);
   const [error, setError] = useState("");
   const [role, setRole] = useState<Role>("payer");
@@ -258,6 +276,26 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       : null;
   }, []);
 
+  const proveParticipation = useCallback(async () => {
+    const current = walletRef.current;
+    if (!current) return [];
+    if (proofCacheRef.current?.payer === current.addresses.payer)
+      return proofCacheRef.current.proofs;
+
+    const roles = ["worker", "verifier"] as const;
+    const proofs = await Promise.all(
+      roles.map(async (r) => {
+        const address = current.addresses[r];
+        const signature = await current.accounts[r].signMessage({
+          message: participantProofMessage(address),
+        });
+        return { address, signature };
+      }),
+    );
+    proofCacheRef.current = { payer: current.addresses.payer, proofs };
+    return proofs;
+  }, []);
+
   const value = useMemo<WalletState>(
     () => ({
       available,
@@ -280,6 +318,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       ensureGas,
       sponsorTokens,
       resolveTag,
+      proveParticipation,
     }),
     [
       available,
@@ -298,6 +337,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       ensureGas,
       sponsorTokens,
       resolveTag,
+      proveParticipation,
     ],
   );
 
