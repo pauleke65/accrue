@@ -226,8 +226,36 @@ export async function requestFaucetDrip(options: {
  * generic message that hides what happened.
  */
 export function readableError(error: unknown): string {
-  const message = error instanceof Error ? error.message : String(error);
-  if (/insufficient funds/i.test(message))
+  // viem's top-level message is often a generic transport wrapper — "Missing
+  // or invalid parameters" is what a Monad RPC node returns for a reverted
+  // eth_sendRawTransaction, whatever the actual revert reason was. The
+  // specific cause lives in `details` (and the same field on `cause`, walked
+  // here since viem sometimes nests one execution error inside another), so
+  // it has to be checked before the message that hides it.
+  const parts: string[] = [];
+  let node: unknown = error;
+  for (let depth = 0; node && depth < 6; depth++) {
+    if (typeof node === "object") {
+      const withFields = node as {
+        details?: unknown;
+        shortMessage?: unknown;
+        message?: unknown;
+        cause?: unknown;
+      };
+      if (typeof withFields.details === "string")
+        parts.push(withFields.details);
+      if (typeof withFields.shortMessage === "string")
+        parts.push(withFields.shortMessage);
+      if (typeof withFields.message === "string")
+        parts.push(withFields.message);
+      node = withFields.cause;
+    } else {
+      break;
+    }
+  }
+  const message = parts.join(" \n ") || String(error);
+
+  if (/insufficient (funds|balance)/i.test(message))
     return "This account has no MON left to pay the network fee. Top it up from the Monad faucet.";
   if (/transfer amount exceeds balance|ERC20: transfer/i.test(message))
     return "That is more AUSD than this account holds.";
@@ -235,5 +263,14 @@ export function readableError(error: unknown): string {
     return "The signature was declined.";
   if (/nonce/i.test(message))
     return "This account has another transfer in flight. Wait for it to settle, then try again.";
-  return message.split("\n")[0].slice(0, 200);
+  // The clearest single line found anywhere in the error, not necessarily
+  // the first one — the first line is frequently the least specific.
+  const lines = message
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean);
+  const specific = lines.find(
+    (l) => !/^(missing or invalid parameters|rpc request failed)\.?$/i.test(l),
+  );
+  return (specific ?? lines[0] ?? message).slice(0, 200);
 }

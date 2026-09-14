@@ -10,6 +10,7 @@ import {
   shortAddress,
   token,
   network,
+  GAS_TOPUP_THRESHOLD,
   type TransactionState,
 } from "@/lib/chain";
 import { Receipt, PaymentsTable, type PaymentRecord } from "./receipt";
@@ -53,7 +54,19 @@ export function Send() {
     const own = await fetch("/api/payments")
       .then((r) => (r.ok ? r.json() : { payments: [] }))
       .catch(() => ({ payments: [] }));
-    const mine = (own as { payments: PaymentRecord[] }).payments ?? [];
+    // /api/payments is scoped to this workspace, not to any one role: a
+    // signed-in owner drives three separate signing addresses (payer, worker,
+    // verifier), and the same table holds rows recorded from any of them
+    // across every session. Rendering it unfiltered would show one role's
+    // ledger what another role sent — the exact cross-role bleed the three
+    // separate accounts exist to prevent. Only rows this address actually
+    // sent belong in its own list.
+    const workspaceRows = (own as { payments: PaymentRecord[] }).payments ?? [];
+    const mine = w.address
+      ? workspaceRows.filter(
+          (p) => p.from.toLowerCase() === w.address!.toLowerCase(),
+        )
+      : [];
 
     if (!w.address) {
       setPayments(mine);
@@ -81,7 +94,12 @@ export function Send() {
       }
 
       // Tags the app knows about make the chain's addresses readable again.
-      const tagFor = new Map(mine.map((p) => [p.to.toLowerCase(), p.toTag]));
+      // This lookup can safely draw on every tag the workspace has recorded
+      // a destination for, regardless of which role sent it — it only maps
+      // an address to a name, never attributes a payment to the wrong role.
+      const tagFor = new Map(
+        workspaceRows.map((p) => [p.to.toLowerCase(), p.toTag]),
+      );
       const pendingByHash = new Map(mine.map((p) => [p.hash.toLowerCase(), p]));
 
       const fromChain: PaymentRecord[] = data.transfers
@@ -141,9 +159,11 @@ export function Send() {
         setResolved(`${found.displayName} · ${shortAddress(found.address)}`);
       }
       const value = parseAmount(amount);
-      // Cover the network fee before asking for a signature, so a first-time
-      // account is not stopped at the last step by a cost it cannot see.
-      if (gas !== null && gas === 0n) await w.ensureGas();
+      // Cover the network fee before asking for a signature. Match the
+      // sponsor's own idea of "enough" — an account that has some MON left
+      // from an earlier send but not enough for this one must still be
+      // topped up, not only one sitting at exactly zero.
+      if (gas !== null && gas < GAS_TOPUP_THRESHOLD) await w.ensureGas();
 
       const state = await sendAusd({
         account: w.account,
@@ -264,8 +284,8 @@ export function Send() {
             {gas === null ? "—" : (Number(gas) / 1e18).toFixed(3)}
           </strong>
           <small>
-            {gas === 0n
-              ? "Covered for you on your first payment."
+            {gas !== null && gas < GAS_TOPUP_THRESHOLD
+              ? "Covered for you when you next send."
               : "MON, covering the cost of sending."}
           </small>
         </section>

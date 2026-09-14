@@ -154,11 +154,14 @@ export function Connections() {
       <div className="notice">
         <ShieldCheck />
         <p>
-          Two things run side by side. <b>Send</b> moves real {token.symbol} on{" "}
-          {network.name}, signed by your passkey — test money, but genuine
-          transactions. <b>Agreements</b> are a simulation inside your own
-          workspace: role switching does not grant access to other users and no
-          agreement figure has touched a network.
+          Three things run side by side, and it matters which is which.{" "}
+          <b>Send</b> and <b>Funded jobs</b> both move real {token.symbol} on{" "}
+          {network.name}, signed by your passkey against the deployed escrow —
+          test money, but genuine transactions that another account can
+          independently verify. <b>Sandbox</b> is the same workflow against a
+          private ledger in your own workspace: role switching there does not
+          grant access to other users, and no sandbox figure has touched a
+          network.
         </p>
       </div>
       <div className="connection-grid">

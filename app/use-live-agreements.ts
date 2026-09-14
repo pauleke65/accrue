@@ -16,6 +16,7 @@ import {
   escrow,
   network,
   parseAmount,
+  GAS_TOPUP_THRESHOLD,
   type TransactionState,
 } from "@/lib/chain";
 import { useWallet } from "./wallet-context";
@@ -189,9 +190,14 @@ export function useLiveAgreements() {
       setBusy(true);
       setError("");
       try {
-        // Every action costs a fee, and a role's account may never have paid
-        // one before; cover it before asking for a signature.
-        if (w.gas[w.role] === 0n) await w.ensureGas();
+        // Every action costs a fee. A role's account may never have paid
+        // one before, or — just as real — may have paid several already and
+        // run low: the exact case that once produced an opaque provider
+        // error on a signer that had some MON but not quite enough for the
+        // next transaction. Match the sponsor's own idea of "enough" rather
+        // than only rescuing an account at exactly zero.
+        if (w.gas[w.role] !== null && w.gas[w.role]! < GAS_TOPUP_THRESHOLD)
+          await w.ensureGas();
         return await work(w.account);
       } catch (cause) {
         setError(cause instanceof Error ? cause.message : "That did not work.");

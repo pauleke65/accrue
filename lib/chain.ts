@@ -24,6 +24,18 @@ export const network = {
   gasFaucet: "https://faucet.monad.xyz",
 } as const;
 
+/**
+ * Below this much MON, an account cannot reliably cover the next
+ * transaction's network fee. Both the sponsor endpoint (server side, when
+ * deciding whether a top-up request is warranted) and the client (when
+ * deciding whether to ask for one before signing) check against this exact
+ * value, so the two sides cannot disagree about what "enough" means — a
+ * balance that the client considers fine but the server would have happily
+ * topped up is exactly the gap that left a real account stuck mid-flow with
+ * an opaque provider error instead of a top-up.
+ */
+export const GAS_TOPUP_THRESHOLD = 20_000_000_000_000_000n; // 0.02 MON
+
 /** Agora's testnet AUSD deployment, verified on chain: symbol AUSD, 6 decimals. */
 export const token = {
   address: "0xa9012a055bd4e0eDfF8Ce09f960291C09D5322dC",

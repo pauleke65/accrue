@@ -1,10 +1,17 @@
 import { env } from "cloudflare:workers";
 import { authorize, failure, HttpError } from "@/lib/server";
-import { isAddress, getAddress, parseEther, createWalletClient, http, fallback } from "viem";
+import {
+  isAddress,
+  getAddress,
+  parseEther,
+  createWalletClient,
+  http,
+  fallback,
+} from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { monadTestnet } from "viem/chains";
 import { publicClient, faucetAbi } from "@/lib/ausd";
-import { network, token } from "@/lib/chain";
+import { network, token, GAS_TOPUP_THRESHOLD } from "@/lib/chain";
 
 /**
  * Gas sponsorship for first-time accounts.
@@ -24,8 +31,9 @@ import { network, token } from "@/lib/chain";
 
 /** Enough test MON to cover a handful of transfers, and no more. */
 const GAS_GRANT = parseEther("0.05");
-/** Above this the account does not need help. */
-const GAS_CEILING = parseEther("0.02");
+/** Above this the account does not need help — shared with the client, so
+    the two sides agree on what "enough" means. See GAS_TOPUP_THRESHOLD. */
+const GAS_CEILING = GAS_TOPUP_THRESHOLD;
 
 function relayer() {
   const key = (env as Record<string, unknown>).ACCRUE_SPONSOR_KEY;

@@ -56,7 +56,11 @@ export function Milestones({
                 Verifier <b>{money(m.fee)}</b>
               </span>
               <span>
-                Approved by{" "}
+                {/* "Approved by" is a claim about what already happened.
+                    Everything before that state is still a future event —
+                    who WILL approve, not who did — and saying otherwise
+                    would misrepresent an unverified milestone as verified. */}
+                {m.status === "approved" ? "Approved by" : "Approver"}{" "}
                 <b>{m.approver === "payer" ? "You, the payer" : a.verifier}</b>
               </span>
             </div>
