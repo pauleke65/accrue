@@ -44,6 +44,18 @@ printf 'ACCRUE_SPONSOR_KEY=0x<a funded testnet key>\n' > .dev.vars
 Without this the app still runs; accounts must then hold their own MON.
 A deployment sets the same value with `wrangler secret put ACCRUE_SPONSOR_KEY`.
 
+## Full payment history (optional)
+
+The node caps `eth_getLogs` at a hundred blocks, so past payments cannot be
+recovered from it. Envio HyperSync answers the same question over the whole
+chain. Create a token at https://app.envio.dev/api-tokens and add it:
+
+```sh
+printf 'ENVIO_API_TOKEN=<your token>\n' >> .dev.vars
+```
+
+Without it the app falls back to the payments it recorded itself and says so.
+
 ## Verify
 
 ```sh

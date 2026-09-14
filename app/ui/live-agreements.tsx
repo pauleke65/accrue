@@ -3,6 +3,7 @@ import { useState } from "react";
 import { ArrowLeft, ArrowUpRight, Plus, ShieldCheck } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { TagField } from "./tag-field";
 import { useWallet } from "../wallet-context";
 import {
   useLiveAgreements,
@@ -487,24 +488,19 @@ function Builder({
             />
           </label>
           <div className="form-grid">
-            <label>
-              Worker&apos;s tag
-              <Input
-                value={draft.workerTag}
-                onChange={(e) => set({ workerTag: e.target.value })}
-                placeholder="@bola"
-                spellCheck={false}
-              />
-            </label>
-            <label>
-              Verifier&apos;s tag
-              <Input
-                value={draft.verifierTag}
-                onChange={(e) => set({ verifierTag: e.target.value })}
-                placeholder="@ngozi"
-                spellCheck={false}
-              />
-            </label>
+            <TagField
+              label="Who is doing the work"
+              value={draft.workerTag}
+              onChange={(workerTag) => set({ workerTag })}
+              placeholder="@bola"
+            />
+            <TagField
+              label="Who verifies it"
+              value={draft.verifierTag}
+              onChange={(verifierTag) => set({ verifierTag })}
+              placeholder="@ngozi"
+              optional
+            />
           </div>
           <label>
             Days until the agreement expires

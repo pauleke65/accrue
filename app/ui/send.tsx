@@ -13,6 +13,7 @@ import {
   type TransactionState,
 } from "@/lib/chain";
 import { Receipt, PaymentsTable, type PaymentRecord } from "./receipt";
+import { TagField } from "./tag-field";
 
 /**
  * Sending money to a person rather than to an address.
@@ -215,19 +216,30 @@ export function Send() {
           <h2>Send {token.symbol}</h2>
         </div>
         <div className="form-stack">
-          <label>
-            To
-            <Input
+          {/^0x/.test(to.trim()) ? (
+            <label>
+              To
+              <Input
+                value={to}
+                onChange={(e) => {
+                  setTo(e.target.value);
+                  setResolved(null);
+                }}
+                placeholder="@bola, or an account address"
+                spellCheck={false}
+              />
+            </label>
+          ) : (
+            <TagField
+              label="To"
               value={to}
-              onChange={(e) => {
-                setTo(e.target.value);
+              onChange={(next) => {
+                setTo(next);
                 setResolved(null);
               }}
               placeholder="@bola, or an account address"
-              spellCheck={false}
             />
-          </label>
-          {resolved && <p className="fine-print">Sending to {resolved}</p>}
+          )}
           <label>
             Amount
             <Input

@@ -212,9 +212,11 @@ export function Connections() {
             text: `A new account holds no MON, so the sponsor pays its first network fees and claims its test ${token.symbol} for it. The sponsor is deliberately narrow: one function on one known faucet, or a small fixed amount of test MON, to the address the signed-in person asked for. It never relays an arbitrary transaction. On a real network this would need a budget, quotas and monitoring before it could be trusted.`,
           },
           {
-            name: "Envio event indexing",
-            status: "Not connected",
-            text: "The activity record is read from the sandbox ledger and from direct chain queries. No indexer is running, and the timeline should not be described as one.",
+            name: "Envio HyperSync",
+            status: "Activation required",
+            text: `The plain RPC caps log queries at a hundred blocks — under two minutes of chain — so an account's past payments cannot be recovered from it. HyperSync answers the same question over the whole chain, and the integration is built and waiting on an API token. Until one is configured the payment list shows only what this app recorded itself, which is not the same as everything that happened.`,
+            link: "https://app.envio.dev/api-tokens",
+            linkText: "Create an Envio token",
           },
           {
             name: "Payment tags",

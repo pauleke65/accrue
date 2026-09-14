@@ -26,6 +26,7 @@ import Builder, { exampleDraft } from "./ui/builder";
 import Detail, { Timeline } from "./ui/detail";
 import { Send as SendPage } from "./ui/send";
 import { LiveAgreements } from "./ui/live-agreements";
+import { NetworkSwitch } from "./ui/network-switch";
 import { useWallet } from "./wallet-context";
 import { Fingerprint } from "lucide-react";
 import ActionDialog, { type Intent } from "./ui/action-dialog";
@@ -122,11 +123,11 @@ export default function Accrue() {
           <div className="header-actions">
             {/* The disclosure has to match the page: the send screen moves
                 real testnet tokens, while everything else is simulated. */}
-            <span className="badge sandbox">
-              {page === "send" || page === "jobs"
-                ? "Monad testnet · Test funds"
-                : "Sandbox · No real funds"}
-            </span>
+            {page === "send" || page === "jobs" ? (
+              <NetworkSwitch />
+            ) : (
+              <span className="badge sandbox">Sandbox · No real funds</span>
+            )}
             {/* One selector for both worlds: it picks the sandbox view and
                 the passkey account that signs for that role. The two must not
                 drift apart, or the screen would show one role while another
