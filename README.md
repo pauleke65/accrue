@@ -1,87 +1,109 @@
 # Accrue
 
-Fund the job. Agree what completion means. Pay when the work is verified.
+**Fund the job. Agree what completion means. Get paid when the work is verified.**
 
-A private, persistent payment-workflow sandbox for Monad Metropolis Track 2, with a separate tested Solidity escrow. **No real funds, wallets, or sponsor services are connected to the web app.**
+Someone abroad pays for building work at home and cannot see it. The builder
+wants to know the money exists before starting. Accrue holds the money in a
+contract, and an agreed professional — a site engineer both sides already
+trust — confirms each milestone. Approval pays the worker and the verifier in
+the same transaction, and the payer cannot reclaim what has been earned.
 
-## Explore the product
+Built for **Monad Metropolis, Track 2 — Consumer Products & Payments.**
 
-Sign in, create an agreement or choose the renovation example, and switch between Payer, Worker, and Verifier views. Accept the fixed terms, fund the agreement, submit evidence, approve work, and withdraw the earned allocations. Try requesting changes, mutual cancellation, or expiry refunds. Download receipts and inspect the activity record.
+## What is real
 
-The role switcher is an explicit simulation inside your own workspace, not live participant authentication.
+Running on **Monad testnet** with **AUSD**, Agora's dollar stablecoin.
 
-## Run locally
+| | |
+|---|---|
+| Accounts | **Mera** passkeys. One ceremony, no seed phrase, no extension, no custody backend. One passkey derives a separate account per role. |
+| Money | **AUSD** transfers settling in about a second, and an escrow contract holding deposits until work is verified. |
+| Escrow | [`0xf8c44A529cd0470597C7865d2B2473abff65d0De`](https://testnet.monadvision.com/address/0xf8c44A529cd0470597C7865d2B2473abff65d0De) — bound at construction to AUSD, so it can never pay in another token. |
+| History | **Envio** HyperSync and HyperRPC. The public RPC caps log queries at 100 blocks; Envio answers over the whole chain. |
+| Fees | Sponsored. A new account holds no MON, so the first network fee is paid for it. |
+| Names | Payment tags. You pay `@bola`, not a 42-character address. |
 
-Requires Node 22.13+ and npm; Foundry is required only for contracts.
+Test money on a test network. The contract has had no independent audit and
+must not hold real funds. The app says which parts are live, which are
+simulated, and which are not built, on its own Connections page.
+
+## Two things sit side by side
+
+**Funded jobs** is the product: real AUSD, real escrow, three roles that each
+sign for themselves. Every figure on screen is read from the contract, so the
+app cannot disagree with the money.
+
+**Sandbox** is the same workflow against a private ledger, for walking the
+process without spending anything. It is labelled as such throughout.
+
+## Run it
+
+Node 22.13+. Foundry only for the contracts.
 
 ```sh
 npm ci
 npm run build
 ```
 
-For a **fresh local database only**, apply each migration once:
+For a **fresh database only**, apply each migration once:
 
 ```sh
-node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js d1 execute DB --local --config dist/server/wrangler.json --persist-to .wrangler/state --file drizzle/0000_glorious_nuke.sql
-node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js d1 execute DB --local --config dist/server/wrangler.json --persist-to .wrangler/state --file drizzle/0001_striped_newton_destine.sql
-node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js d1 execute DB --local --config dist/server/wrangler.json --persist-to .wrangler/state --file drizzle/0002_robust_mathemanic.sql
+for m in drizzle/*.sql; do
+  node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js \
+    d1 execute DB --local --config dist/server/wrangler.json \
+    --persist-to .wrangler/state --file "$m"
+done
 npm run dev
 ```
 
-Visit the printed loopback URL. The local sign-in route provides a synthetic identity; hosted authentication is handled by the platform. Production deployments package and apply their own migrations.
+Then open the printed loopback URL and sign in with a passkey.
 
-## Sponsored gas (optional, local)
+### Optional configuration
 
-A new passkey account holds no MON and can do nothing until someone pays its
-first network fee. The sponsor endpoint covers that. It needs a funded testnet
-key, which is read from `.dev.vars` and never committed:
+Each of these degrades honestly: without it the app says what it cannot do
+rather than failing or pretending. All go in `.dev.vars`, which is gitignored.
 
-```sh
-printf 'ACCRUE_SPONSOR_KEY=0x<a funded testnet key>\n' > .dev.vars
-```
+| Variable | What it unlocks | Where from |
+|---|---|---|
+| `ACCRUE_SPONSOR_KEY` | Paying a new account's first network fee, and claiming test AUSD for it | A funded testnet key; `node scripts/deployer.mjs` prints an address, fund it at [faucet.monad.xyz](https://faucet.monad.xyz) |
+| `ENVIO_API_TOKEN` | Payment history across the whole chain | [app.envio.dev/api-tokens](https://app.envio.dev/api-tokens) |
+| `ENVIO_RPC_TOKEN` | Range reads the public RPC refuses | Same |
+| `AGORA_API_KEY` | Cash-out to a bank account via Agora routes | An Agora organisation key; also needs a verified bank account and an approved wallet entitlement |
 
-`node scripts/deployer.mjs` prints an address to fund at https://faucet.monad.xyz.
-Without this the app still runs; accounts must then hold their own MON.
-A deployment sets the same value with `wrangler secret put ACCRUE_SPONSOR_KEY`.
-
-## Full payment history (optional)
-
-The node caps `eth_getLogs` at a hundred blocks, so past payments cannot be
-recovered from it. Envio HyperSync answers the same question over the whole
-chain. Create a token at https://app.envio.dev/api-tokens and add it:
-
-```sh
-printf 'ENVIO_API_TOKEN=<your token>\n' >> .dev.vars
-```
-
-Two tokens are useful, both from https://app.envio.dev/api-tokens:
-
-```sh
-printf 'ENVIO_API_TOKEN=<hypersync token>\n' >> .dev.vars
-printf 'ENVIO_RPC_TOKEN=<hyperrpc token>\n' >> .dev.vars
-```
-
-Without them the app falls back to the payments it recorded itself and says so.
-
-Agora's supply metrics need no key. Cash-out to a bank uses the same API's
-routes and needs an organisation key (`AGORA_API_KEY`), a verified bank
-account and an approved wallet entitlement; without one the app says so
-rather than offering a redemption it cannot make.
+Agora's supply metrics need no key and always work.
 
 ## Verify
 
 ```sh
-node --test tests/domain.test.mjs
+node --test tests/domain.test.mjs tests/chain.test.mjs
 npx tsc --noEmit
-node tests/api-smoke.mjs
-node tests/tags-smoke.mjs
-node tests/sponsor-smoke.mjs   # needs a funded sponsor key
-node tests/chain-live.mjs      # read-only, no key needed
-node tests/live-agreement-smoke.mjs  # funds a real testnet job end to end
-cd contracts
-forge test -vv
+node tests/api-smoke.mjs                 # needs the dev server
+node tests/tags-smoke.mjs                # claim, resolve, forgery, replay
+node tests/sponsor-smoke.mjs             # needs a funded sponsor key
+node tests/chain-live.mjs                # read-only, no key needed
+node tests/live-agreement-smoke.mjs      # funds a real testnet job end to end
+cd contracts && forge test -vv
 ```
 
-The API smoke test needs the running local dev server and creates synthetic test records. No live network deployment is needed for the contract tests.
+[VERIFICATION.md](./VERIFICATION.md) records what has actually been run,
+including a three-account escrow journey on testnet and the transaction
+hashes it produced.
 
-See [IMPLEMENTATION.md](./IMPLEMENTATION.md) for architecture, security boundaries, deployment preparation, and the remaining live-release requirements. The contract is unaudited and must not hold real funds without independent review. Sponsor integrations, participant invitations, gas sponsorship, and chain-backed UI settlement remain activation/development gates—not completed features.
+## Reading further
+
+- [DEMO.md](./DEMO.md) — a shooting script for a three-minute walkthrough, and
+  a full feature checklist.
+- [IMPLEMENTATION.md](./IMPLEMENTATION.md) — architecture, security
+  boundaries, and what remains before this could handle real money.
+- [docs/PRODUCT-REQUIREMENTS.md](./docs/PRODUCT-REQUIREMENTS.md) — the product
+  specification this was built against.
+
+## What this does not do
+
+It does not prove physical work happened — a named person judges that, and the
+record of their attestations is a history, not a trust score. It does not reach
+a bank account. It is not audited. Payment tags resolve through Accrue's own
+directory, so a tag stops resolving if the app goes away, though the account
+behind it keeps working.
+
+The product is more convincing with those stated than without.
