@@ -54,7 +54,19 @@ chain. Create a token at https://app.envio.dev/api-tokens and add it:
 printf 'ENVIO_API_TOKEN=<your token>\n' >> .dev.vars
 ```
 
-Without it the app falls back to the payments it recorded itself and says so.
+Two tokens are useful, both from https://app.envio.dev/api-tokens:
+
+```sh
+printf 'ENVIO_API_TOKEN=<hypersync token>\n' >> .dev.vars
+printf 'ENVIO_RPC_TOKEN=<hyperrpc token>\n' >> .dev.vars
+```
+
+Without them the app falls back to the payments it recorded itself and says so.
+
+Agora's supply metrics need no key. Cash-out to a bank uses the same API's
+routes and needs an organisation key (`AGORA_API_KEY`), a verified bank
+account and an approved wallet entitlement; without one the app says so
+rather than offering a redemption it cannot make.
 
 ## Verify
 

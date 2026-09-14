@@ -35,20 +35,85 @@ export function Send() {
   const [localError, setLocalError] = useState("");
   const [payments, setPayments] = useState<PaymentRecord[]>([]);
   const [open, setOpen] = useState<PaymentRecord | null>(null);
+  const [source, setSource] = useState<"own" | "envio">("own");
 
   const balance = w.balances[w.role];
   const gas = w.gas[w.role];
 
+  /**
+   * History comes from the chain where it can.
+   *
+   * The app's own record only knows what it saw; an account that was paid
+   * somewhere else, or before this workspace existed, would show nothing. Envio
+   * answers over the whole chain, which the plain RPC cannot do at all — it
+   * caps log queries at a hundred blocks. Where the indexer is configured it
+   * leads, and the app's records fill in what is still pending.
+   */
   const loadPayments = useCallback(async () => {
-    try {
-      const response = await fetch("/api/payments");
-      if (!response.ok) return;
-      const data = (await response.json()) as { payments: PaymentRecord[] };
-      setPayments(data.payments);
-    } catch {
-      // The ledger is a convenience; failing to load it must not break paying.
+    const own = await fetch("/api/payments")
+      .then((r) => (r.ok ? r.json() : { payments: [] }))
+      .catch(() => ({ payments: [] }));
+    const mine = (own as { payments: PaymentRecord[] }).payments ?? [];
+
+    if (!w.address) {
+      setPayments(mine);
+      return;
     }
-  }, []);
+
+    try {
+      const response = await fetch(`/api/history?address=${w.address}`);
+      const data = (await response.json()) as {
+        configured?: boolean;
+        transfers?: {
+          hash: string;
+          from: string;
+          to: string;
+          amount: string;
+          at: number | null;
+          direction: string;
+          counterpartyIsEscrow: boolean;
+        }[];
+      };
+      if (!data.configured || !data.transfers) {
+        setSource("own");
+        setPayments(mine);
+        return;
+      }
+
+      // Tags the app knows about make the chain's addresses readable again.
+      const tagFor = new Map(mine.map((p) => [p.to.toLowerCase(), p.toTag]));
+      const pendingByHash = new Map(mine.map((p) => [p.hash.toLowerCase(), p]));
+
+      const fromChain: PaymentRecord[] = data.transfers
+        .filter((t) => t.direction === "out" && !t.counterpartyIsEscrow)
+        .map((t) => ({
+          hash: t.hash as `0x${string}`,
+          from: t.from,
+          to: t.to,
+          toTag: tagFor.get(t.to.toLowerCase()) ?? null,
+          amount: t.amount,
+          status: "confirmed",
+          at: t.at
+            ? new Date(t.at * 1000).toISOString()
+            : (pendingByHash.get(t.hash.toLowerCase())?.at ??
+              new Date().toISOString()),
+        }));
+
+      // Anything the app sent that the chain has not shown yet is still real.
+      const seen = new Set(fromChain.map((p) => p.hash.toLowerCase()));
+      const stillPending = mine.filter((p) => !seen.has(p.hash.toLowerCase()));
+
+      setSource("envio");
+      setPayments(
+        [...fromChain, ...stillPending].sort((a, b) =>
+          a.at < b.at ? 1 : a.at > b.at ? -1 : 0,
+        ),
+      );
+    } catch {
+      setSource("own");
+      setPayments(mine);
+    }
+  }, [w.address]);
 
   useEffect(() => {
     void loadPayments();
@@ -286,9 +351,9 @@ export function Send() {
         </div>
         <PaymentsTable payments={payments} onOpen={setOpen} />
         <p className="fine-print">
-          Payments sent through this workspace. The network caps history
-          lookups, so this is Accrue&apos;s own record, with each entry checked
-          against the network.
+          {source === "envio"
+            ? "Read from the chain with Envio, so this covers payments made anywhere — not only the ones sent from here."
+            : "Accrue's own record of what it sent. The network caps history lookups at a hundred blocks, so without an indexer this cannot cover payments made elsewhere."}
         </p>
       </section>
 

@@ -1835,10 +1835,6 @@ h3 {
   flex-direction: column;
   gap: 8px;
 }
-.tag-field-optional {
-  color: var(--m-ink-faint);
-  font-weight: 400;
-}
 /* Reserves its own line so the form does not shift when an answer arrives. */
 .tag-resolution {
   display: flex;
@@ -1936,4 +1932,46 @@ h3 {
   font-family: var(--m-mono);
   font-size: 10px;
   font-weight: 500;
+}
+
+/* --------------------------------------------------------- signing session */
+
+.session-badge {
+  border: 1px solid var(--m-hairline);
+  border-left: 2px solid var(--m-positive);
+  background: var(--m-raised);
+  padding: 12px 14px;
+  margin-top: auto;
+}
+.session-badge.is-ending {
+  border-left-color: var(--m-caution);
+}
+.session-badge.is-expired {
+  border-left-color: var(--m-ink-faint);
+}
+.session-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--m-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--m-positive);
+}
+.is-ending .session-head {
+  color: var(--m-caution);
+}
+.is-expired .session-head {
+  color: var(--m-ink-dim);
+}
+.session-badge p {
+  font-size: 11px;
+  line-height: 1.55;
+  color: var(--m-ink-dim);
+  margin-top: 7px;
+}
+.session-badge .text-button {
+  font-size: 11px;
+  margin-top: 9px;
 }

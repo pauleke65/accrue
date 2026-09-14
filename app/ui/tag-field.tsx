@@ -75,7 +75,6 @@ export function TagField({
   return (
     <label className="tag-field">
       {label}
-      {optional && <span className="tag-field-optional"> · optional</span>}
       <Input
         value={value}
         onChange={(e) => onChange(e.target.value)}

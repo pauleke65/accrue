@@ -212,11 +212,16 @@ export function Connections() {
             text: `A new account holds no MON, so the sponsor pays its first network fees and claims its test ${token.symbol} for it. The sponsor is deliberately narrow: one function on one known faucet, or a small fixed amount of test MON, to the address the signed-in person asked for. It never relays an arbitrary transaction. On a real network this would need a budget, quotas and monitoring before it could be trusted.`,
           },
           {
-            name: "Envio HyperSync",
-            status: "Activation required",
-            text: `The plain RPC caps log queries at a hundred blocks — under two minutes of chain — so an account's past payments cannot be recovered from it. HyperSync answers the same question over the whole chain, and the integration is built and waiting on an API token. Until one is configured the payment list shows only what this app recorded itself, which is not the same as everything that happened.`,
-            link: "https://app.envio.dev/api-tokens",
-            linkText: "Create an Envio token",
+            name: "Envio HyperSync & HyperRPC",
+            status: "Active",
+            text: `The plain RPC caps log queries at a hundred blocks — under two minutes of chain — so an account's past payments cannot be recovered from it at all. HyperSync answers the same question over the whole chain and is what the payment list is built on, which is why it covers payments made anywhere rather than only the ones sent from here. HyperRPC serves the same purpose for range reads: a million-block query it answers happily is one the public endpoint refuses outright.`,
+          },
+          {
+            name: "Agora public API",
+            status: "Active",
+            text: `Supply figures come from Agora's own public API, which needs no key: ${token.symbol} is a real stablecoin with real reserves, and Monad carries the second-largest supply of it after Ethereum. Cash-out to a bank runs through the same API's routes, which needs an organisation key and a verified bank account — built, and reported as unconfigured rather than pretended.`,
+            link: "https://docs.agora.finance/api",
+            linkText: "Agora API documentation",
           },
           {
             name: "Payment tags",

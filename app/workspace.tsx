@@ -27,6 +27,7 @@ import Detail, { Timeline } from "./ui/detail";
 import { Send as SendPage } from "./ui/send";
 import { LiveAgreements } from "./ui/live-agreements";
 import { NetworkSwitch } from "./ui/network-switch";
+import { SessionBadge } from "./ui/session-badge";
 import { useWallet } from "./wallet-context";
 import { Fingerprint } from "lucide-react";
 import ActionDialog, { type Intent } from "./ui/action-dialog";
@@ -100,6 +101,7 @@ export default function Accrue() {
             </button>
           ))}
         </nav>
+        <SessionBadge />
         <div className="rail-bottom">
           <ShieldCheck />
           <p>
