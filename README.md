@@ -72,6 +72,10 @@ rather than failing or pretending. All go in `.dev.vars`, which is gitignored.
 
 Agora's supply metrics need no key and always work.
 
+[.env.example](./.env.example) documents each one. `node scripts/print-env.mjs`
+shows what this machine has set, masked; add `--reveal` to print the values
+for a secrets manager.
+
 ## Verify
 
 ```sh
