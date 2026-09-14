@@ -56,7 +56,7 @@ function stable(iso: string): string {
   return `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}, ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())} UTC`;
 }
 
-function When({ iso }: { iso: string }) {
+export function When({ iso }: { iso: string }) {
   const [text, setText] = useState(() => stable(iso));
   useEffect(() => {
     setText(

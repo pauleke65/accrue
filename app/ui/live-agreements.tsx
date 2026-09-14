@@ -39,10 +39,20 @@ const emptyDraft: Draft = {
   milestones: [{ title: "", criteria: "", amount: "", fee: "" }],
 };
 
-export function LiveAgreements() {
+export function LiveAgreements({
+  openId,
+  onOpenChange,
+}: {
+  /** Lets another page (Earnings, Activity) deep-link into a specific job.
+      Falls back to component-local state when the caller does not care. */
+  openId?: string | null;
+  onOpenChange?: (id: string | null) => void;
+} = {}) {
   const w = useWallet();
   const live = useLiveAgreements();
-  const [open, setOpen] = useState<string | null>(null);
+  const [localOpen, setLocalOpen] = useState<string | null>(null);
+  const open = openId !== undefined ? openId : localOpen;
+  const setOpen = onOpenChange ?? setLocalOpen;
   const [creating, setCreating] = useState(false);
 
   if (!w.wallet)

@@ -1,39 +1,33 @@
 "use client";
 import { useWorkspace } from "./use-workspace";
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import { Dashboard } from "./ui/dashboard";
-import { Earnings, ActivityPage, Connections } from "./ui/workspace-pages";
+import { Connections } from "./ui/workspace-pages";
 import {
-  ArrowUpRight,
-  Plus,
   ShieldCheck,
   FolderOpen,
   Wallet,
   Activity,
   Settings2,
-  Search,
   ArrowRight,
   RefreshCw,
   LogOut,
   CheckCircle2,
   SendHorizontal,
 } from "lucide-react";
-import { Input } from "@/components/ui/input";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import type { Agreement, Action, Draft, Role } from "@/lib/domain";
-import { available, total } from "@/lib/domain";
-import Builder, { exampleDraft } from "./ui/builder";
-import Detail, { Timeline } from "./ui/detail";
+import type { Role } from "@/lib/domain";
+import Builder from "./ui/builder";
+import Detail from "./ui/detail";
 import { Send as SendPage } from "./ui/send";
 import { LiveAgreements } from "./ui/live-agreements";
+import { LiveEarnings } from "./ui/live-earnings";
+import { LiveActivity } from "./ui/live-activity";
 import { NetworkSwitch } from "./ui/network-switch";
 import { SessionBadge } from "./ui/session-badge";
 import { useWallet } from "./wallet-context";
 import { Fingerprint } from "lucide-react";
-import ActionDialog, { type Intent } from "./ui/action-dialog";
-import { Choice, money, Status, date } from "./ui/shared";
-type Page =
-  "jobs" | "agreements" | "send" | "earnings" | "activity" | "integrations";
+import ActionDialog from "./ui/action-dialog";
+import { Choice } from "./ui/shared";
 const navigation = [
   { id: "jobs", label: "Funded jobs", icon: ShieldCheck },
   { id: "agreements", label: "Sandbox", icon: FolderOpen },
@@ -44,12 +38,14 @@ const navigation = [
 ] as const;
 export default function Accrue() {
   const wallet = useWallet();
+  // Lets Earnings and Activity deep-link into a specific funded job, the
+  // same way sandbox's own `selected` lets its own pages do.
+  const [openJob, setOpenJob] = useState<string | null>(null);
   const {
     agreements,
     page,
     role,
     setRole,
-    selected,
     setSelected,
     loading,
     error,
@@ -247,15 +243,24 @@ export default function Accrue() {
                   setSelected={setSelected}
                 />
               )}
-              {page === "jobs" && <LiveAgreements />}
+              {page === "jobs" && (
+                <LiveAgreements openId={openJob} onOpenChange={setOpenJob} />
+              )}
               {page === "send" && <SendPage />}
               {page === "earnings" && (
-                <Earnings agreements={agreements} setSelected={setSelected} />
+                <LiveEarnings
+                  onOpen={(id) => {
+                    navigate("jobs");
+                    setOpenJob(id);
+                  }}
+                />
               )}
               {page === "activity" && (
-                <ActivityPage
-                  agreements={agreements}
-                  setSelected={setSelected}
+                <LiveActivity
+                  onOpen={(id) => {
+                    navigate("jobs");
+                    setOpenJob(id);
+                  }}
                 />
               )}
               {page === "integrations" && <Connections />}
