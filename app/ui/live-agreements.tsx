@@ -57,7 +57,9 @@ export function LiveAgreements() {
 
   const selected = live.agreements.find((a) => a.id === open) ?? null;
 
-  if (creating)
+  // Derived rather than stored: switching role mid-draft closes the builder
+  // without a state write during render.
+  if (creating && w.role === "payer")
     return (
       <Builder
         busy={live.busy}
@@ -86,9 +88,14 @@ export function LiveAgreements() {
             confirms the work. Nobody, including us, can move it another way.
           </p>
         </div>
-        <button className="primary" onClick={() => setCreating(true)}>
-          <Plus size={16} /> Fund a job
-        </button>
+        {/* Creating a job means committing the money for it, so only the
+            payer can start one. The other roles are invited into a job; they
+            do not open one. */}
+        {w.role === "payer" && (
+          <button className="primary" onClick={() => setCreating(true)}>
+            <Plus size={16} /> Fund a job
+          </button>
+        )}
       </div>
 
       {live.error && (
@@ -105,14 +112,21 @@ export function LiveAgreements() {
       {!live.loading && !live.agreements.length ? (
         <div className="empty-state">
           <ShieldCheck />
-          <h2>No funded jobs yet.</h2>
+          <h2>
+            {w.role === "payer"
+              ? "No funded jobs yet."
+              : `Nothing to ${w.role === "worker" ? "work on" : "verify"} yet.`}
+          </h2>
           <p>
-            Fund one and the {token.symbol} sits in the contract until the work
-            is verified.
+            {w.role === "payer"
+              ? `Fund one and the ${token.symbol} sits in the contract until the work is verified.`
+              : "A job appears here once someone funds one and names you in it."}
           </p>
-          <button className="secondary" onClick={() => setCreating(true)}>
-            Fund a job <ArrowUpRight size={15} />
-          </button>
+          {w.role === "payer" && (
+            <button className="secondary" onClick={() => setCreating(true)}>
+              Fund a job <ArrowUpRight size={15} />
+            </button>
+          )}
         </div>
       ) : (
         <div className="agreement-grid">
