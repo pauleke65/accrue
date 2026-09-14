@@ -6,7 +6,7 @@ import {
   approveDeposit,
   readAgreement,
   readMilestones,
-  readNextId,
+  readCreatedId,
   readAllowance,
   hashText,
   MilestoneState,
@@ -88,9 +88,31 @@ export function roleOf(
 }
 
 const ACCEPT_BIT: Record<Role, number> = { payer: 1, worker: 2, verifier: 4 };
+const ZERO_ADDRESS = `0x${"0".repeat(40)}` as const;
 
 export function hasAccepted(agreement: LiveAgreement, role: Role): boolean {
   return (agreement.chain.acceptances & ACCEPT_BIT[role]) !== 0;
+}
+
+/**
+ * Which acceptances the contract actually requires before it will fund —
+ * mirrors `requiredMask` in AccrueEscrow.sol exactly. A job with no verifier
+ * never asks the verifier bit to be set; one with a verifier needs all three.
+ * Getting this wrong client-side does not change what the contract enforces,
+ * but it does decide whether the person clicking Fund finds out from a clear
+ * message or from a reverted transaction.
+ */
+export function requiredAcceptances(agreement: LiveAgreement): Role[] {
+  const roles: Role[] = ["payer", "worker"];
+  if (agreement.chain.verifier.toLowerCase() !== ZERO_ADDRESS)
+    roles.push("verifier");
+  return roles;
+}
+
+export function readyToFund(agreement: LiveAgreement): boolean {
+  return requiredAcceptances(agreement).every((role) =>
+    hasAccepted(agreement, role),
+  );
 }
 
 export function useLiveAgreements() {
@@ -210,7 +232,6 @@ export function useLiveAgreements() {
           criteriaHash: hashText(m.criteria),
         }));
 
-        const expected = await readNextId();
         const state = await callEscrow({
           account,
           functionName: "create",
@@ -223,8 +244,13 @@ export function useLiveAgreements() {
           ],
           report: setProgress,
         });
-        if (state.status !== "confirmed")
+        if (state.status !== "confirmed" || !state.hash)
           throw new Error(state.error ?? "The agreement was not created.");
+
+        // The id the transaction actually produced, not a guess made before
+        // it was submitted — see readCreatedId for why that distinction
+        // matters on a contract other things can also be writing to.
+        const createdId = await readCreatedId(state.hash);
 
         await fetch("/api/live-agreements", {
           method: "POST",
@@ -232,7 +258,7 @@ export function useLiveAgreements() {
           body: JSON.stringify({
             chainId: network.chainId,
             escrow: escrow.address,
-            onchainId: expected.toString(),
+            onchainId: createdId.toString(),
             title: draft.title,
             scope: draft.scope,
             payer: account.address,
@@ -250,7 +276,7 @@ export function useLiveAgreements() {
           }),
         });
         await refresh();
-        return expected;
+        return createdId;
       });
     },
     [run, w, refresh],
@@ -276,6 +302,16 @@ export function useLiveAgreements() {
   const fund = useCallback(
     async (agreement: LiveAgreement) =>
       run(async (account) => {
+        // The contract requires every named party to have accepted before it
+        // will fund, and checking that here means a stale click fails with a
+        // sentence rather than a reverted transaction and a raw RPC message.
+        const missing = requiredAcceptances(agreement).filter(
+          (role) => !hasAccepted(agreement, role),
+        );
+        if (missing.length)
+          throw new Error(
+            `Waiting on ${missing.join(" and ")} to accept before this can be funded.`,
+          );
         const deposit = agreement.chain.deposit;
         const allowance = await readAllowance(account.address);
         if (allowance < deposit)

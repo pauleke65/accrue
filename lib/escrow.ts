@@ -1,4 +1,10 @@
-import { keccak256, encodeAbiParameters, type Account, type Hash } from "viem";
+import {
+  keccak256,
+  encodeAbiParameters,
+  decodeEventLog,
+  type Account,
+  type Hash,
+} from "viem";
 import abi from "./abi/escrow.json" with { type: "json" };
 import { chain, escrow, token, type TransactionState } from "./chain.ts";
 import { publicClient, walletClient, erc20Abi, readableError } from "./ausd.ts";
@@ -134,6 +140,41 @@ export async function readNextId(): Promise<bigint> {
   }) as Promise<bigint>;
 }
 
+/**
+ * The id a confirmed `create` call actually assigned, read from the
+ * `AgreementCreated` event the transaction emitted.
+ *
+ * `nextId` is a live counter shared by every agreement on this contract. Read
+ * it before submitting a create and assume the result is yours, and a second
+ * create landing first — another workspace, a concurrent script, even a
+ * double-click — hands you the wrong id: the app then funds, approves and
+ * withdraws against an agreement that is not the one it thinks it is. The
+ * event is the contract's own record of what id this specific transaction
+ * produced, so it cannot be wrong the way a prediction can.
+ */
+export async function readCreatedId(hash: Hash): Promise<bigint> {
+  const receipt = await publicClient().getTransactionReceipt({ hash });
+  for (const log of receipt.logs) {
+    if (log.address.toLowerCase() !== escrow.address.toLowerCase()) continue;
+    try {
+      const decoded = decodeEventLog({
+        abi: escrowAbi,
+        data: log.data,
+        topics: log.topics,
+      });
+      if (decoded.eventName === "AgreementCreated") {
+        const args = decoded.args as unknown as { id: bigint };
+        return args.id;
+      }
+    } catch {
+      // Not every log on this contract is AgreementCreated; skip and keep looking.
+    }
+  }
+  throw new Error(
+    "The agreement was created, but its id could not be read back from the transaction.",
+  );
+}
+
 type Report = (state: TransactionState) => void;
 
 /**
@@ -204,28 +245,42 @@ export async function approveDeposit(options: {
   account: Account;
   amount: bigint;
   report?: Report;
-}) {
+}): Promise<TransactionState & { hash?: Hash }> {
   const { account, amount, report } = options;
   report?.({ status: "awaiting-signature" });
-  const hash = await walletClient(account).writeContract({
-    address: token.address,
-    abi: [
-      {
-        type: "function",
-        name: "approve",
-        stateMutability: "nonpayable",
-        inputs: [
-          { name: "spender", type: "address" },
-          { name: "value", type: "uint256" },
-        ],
-        outputs: [{ type: "bool" }],
-      },
-    ] as const,
-    functionName: "approve",
-    args: [escrow.address, amount],
-    chain,
-    account,
-  });
+  let hash: Hash;
+  try {
+    hash = await walletClient(account).writeContract({
+      address: token.address,
+      abi: [
+        {
+          type: "function",
+          name: "approve",
+          stateMutability: "nonpayable",
+          inputs: [
+            { name: "spender", type: "address" },
+            { name: "value", type: "uint256" },
+          ],
+          outputs: [{ type: "bool" }],
+        },
+      ] as const,
+      functionName: "approve",
+      args: [escrow.address, amount],
+      chain,
+      account,
+    });
+  } catch (error) {
+    // Without this, a raw provider message — sometimes as opaque as "Missing
+    // or invalid parameters" — reached the screen verbatim. callEscrow
+    // already translated its own failures this way; this step was the one
+    // gap in that pattern.
+    const state: TransactionState = {
+      status: "failed",
+      error: readableError(error),
+    };
+    report?.(state);
+    return state;
+  }
   report?.({ status: "submitted", hash });
   const receipt = await publicClient().waitForTransactionReceipt({ hash });
   const state: TransactionState =

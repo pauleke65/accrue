@@ -9,6 +9,8 @@ import {
   useLiveAgreements,
   roleOf,
   hasAccepted,
+  readyToFund,
+  requiredAcceptances,
   type Draft,
   type LiveAgreement,
 } from "../use-live-agreements";
@@ -306,11 +308,27 @@ function Detail({
             {acting === "payer" && (
               <button
                 className="secondary"
-                disabled={live.busy}
+                disabled={live.busy || !readyToFund(agreement)}
+                title={
+                  readyToFund(agreement)
+                    ? undefined
+                    : `Waiting on ${requiredAcceptances(agreement)
+                        .filter((role) => !hasAccepted(agreement, role))
+                        .join(" and ")} to accept first.`
+                }
                 onClick={() => void live.fund(agreement)}
               >
                 Fund {formatAmount(a.deposit)} {token.symbol}
               </button>
+            )}
+            {acting === "payer" && !readyToFund(agreement) && (
+              <p className="fine-print" style={{ width: "100%" }}>
+                Waiting on{" "}
+                {requiredAcceptances(agreement)
+                  .filter((role) => !hasAccepted(agreement, role))
+                  .join(" and ")}{" "}
+                to accept before this can be funded.
+              </p>
             )}
           </div>
         </section>

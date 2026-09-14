@@ -20,7 +20,7 @@ import {
   approveDeposit,
   readAgreement,
   readMilestones,
-  readNextId,
+  readCreatedId,
   hashText,
   termsHash,
   MilestoneState,
@@ -132,14 +132,16 @@ const milestones = [
   },
 ];
 
-const expectedId = await readNextId();
 let state = await callEscrow({
   account: payer,
   functionName: "create",
   args: [worker.address, verifier.address, expiry, scopeHash, milestones],
 });
 assert.equal(state.status, "confirmed", "create must confirm");
-const id = expectedId;
+// Read the id this transaction actually produced rather than a nextId read
+// taken before submission — the contract is shared, so that guess can
+// already be stale by the time the transaction lands.
+const id = await readCreatedId(state.hash);
 log("created agreement", `#${id} · ${explorer.tx(state.hash)}`);
 
 let onChain = await readAgreement(id);

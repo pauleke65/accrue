@@ -26,7 +26,7 @@ import {
   callEscrow,
   approveDeposit,
   readAgreement,
-  readNextId,
+  readCreatedId,
   hashText,
 } from "../lib/escrow.ts";
 import { escrow, network, parseAmount, formatAmount } from "../lib/chain.ts";
@@ -105,7 +105,10 @@ console.log("\nStaging the demo on " + network.name + "\n");
 for (const address of fundAddresses) {
   await api("/api/sponsor", { address, action: "gas" });
   await api("/api/sponsor", { address, action: "tokens" });
-  say("your account funded", `${address.slice(0, 10)}… ${formatAmount(await readBalance(address))} AUSD`);
+  say(
+    "your account funded",
+    `${address.slice(0, 10)}… ${formatAmount(await readBalance(address))} AUSD`,
+  );
 }
 if (fundAddresses.length)
   console.log(
@@ -123,7 +126,10 @@ for (const [name, account] of [
     await api("/api/sponsor", { address: account.address, action: "gas" });
   if ((await readBalance(account.address)) < parseAmount("100"))
     await api("/api/sponsor", { address: account.address, action: "tokens" });
-  say(`${name} ready`, `${formatAmount(await readBalance(account.address))} AUSD`);
+  say(
+    `${name} ready`,
+    `${formatAmount(await readBalance(account.address))} AUSD`,
+  );
 }
 
 /* ------------------------------------------------------------------------- tags */
@@ -155,7 +161,6 @@ const scope =
   "Renovate the ground floor of the Lekki house. Materials included; furniture excluded.";
 
 async function stage({ title, milestones, upTo }) {
-  const id = await readNextId();
   const onChain = milestones.map((m) => ({
     workerAmount: parseAmount(m.amount),
     verifierFee: parseAmount(m.fee),
@@ -179,6 +184,12 @@ async function stage({ title, milestones, upTo }) {
     ],
   });
   if (state.status !== "confirmed") throw new Error("create failed");
+
+  // The id assigned by this transaction, not a guess made before it was
+  // submitted. On a shared testnet contract other things create agreements
+  // too, so a pre-read nextId can already be wrong by the time this
+  // transaction lands.
+  const id = await readCreatedId(state.hash);
 
   await api("/api/live-agreements", {
     chainId: network.chainId,
@@ -278,7 +289,8 @@ await stage({
   milestones: [
     {
       title: "Strip and replace sheeting",
-      criteria: "Old sheeting removed, replaced, no daylight visible from inside.",
+      criteria:
+        "Old sheeting removed, replaced, no daylight visible from inside.",
       amount: "80.00",
       fee: "6.00",
     },

@@ -20,7 +20,7 @@ import {
   approveDeposit,
   readAgreement,
   readMilestones,
-  readNextId,
+  readCreatedId,
   hashText,
   MilestoneState,
 } from "../lib/escrow.ts";
@@ -112,19 +112,16 @@ const milestones = [
 ];
 const expiry = BigInt(Math.floor(Date.now() / 1000) + 3 * 86_400);
 
-const id = await readNextId();
 let state = await callEscrow({
   account: payer,
   functionName: "create",
-  args: [
-    worker.address,
-    verifier.address,
-    expiry,
-    hashText(scope),
-    milestones,
-  ],
+  args: [worker.address, verifier.address, expiry, hashText(scope), milestones],
 });
 assert.equal(state.status, "confirmed", "create must confirm");
+// Read the id this transaction actually produced rather than guessing from a
+// nextId call made before it was submitted — the contract is shared, so a
+// guess can already be stale by the time the transaction lands.
+const id = await readCreatedId(state.hash);
 log("created on chain", `agreement #${id}`);
 
 // The readable terms are recorded beside the contract, which keeps only hashes.
