@@ -144,7 +144,13 @@ export function useLiveAgreements() {
     } catch {
       setError("Could not load your agreements.");
     }
-  }, [w]);
+    // Deliberately narrower than [w]: the whole wallet context value changes
+    // on every balance/gas poll and every second of the session countdown,
+    // none of which should refetch this list. Only a different signed-in
+    // wallet (or proveParticipation's own identity, which is itself stable)
+    // should. Depending on [w] here previously refired this on every such
+    // tick, hammering the endpoint until the server's rate limit tripped.
+  }, [w.wallet, w.proveParticipation]);
 
   /** Reads the money from the chain for every agreement the app knows about. */
   const hydrate = useCallback(async (list: LiveTerms[]) => {

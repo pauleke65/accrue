@@ -125,7 +125,11 @@ export function LiveActivity({ onOpen }: { onOpen: (id: string) => void }) {
         if (!cancelledRef.current) setLoading(false);
       }
     },
-    [w],
+    // Deliberately narrower than [w] — see the identical note in
+    // use-live-agreements.ts. The whole wallet context value changes on
+    // every balance/gas poll and every second of the session countdown;
+    // depending on it here retriggered the effect below on each tick.
+    [w.wallet, w.proveParticipation],
   );
 
   useEffect(() => {
