@@ -759,6 +759,15 @@ h3 {
   letter-spacing: normal;
   text-transform: none;
 }
+/* The shadcn Input/Textarea primitives carry Tailwind's own
+   aria-invalid:border-destructive utility, but this project's Tailwind
+   build does not emit it — nothing here depends on that utility compiling. */
+.form-stack input[aria-invalid="true"],
+.form-stack textarea[aria-invalid="true"],
+.builder-milestone input[aria-invalid="true"],
+.builder-milestone textarea[aria-invalid="true"] {
+  border-color: var(--m-negative);
+}
 .form-stack input::placeholder,
 .form-stack textarea::placeholder,
 .builder-milestone input::placeholder,
@@ -1087,12 +1096,34 @@ h3 {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 21px;
-  height: 21px;
+  width: 25px;
+  height: 25px;
   background: var(--m-hairline);
   color: var(--m-purple-300);
-  border-radius: 0;
+  border-radius: 50%;
   z-index: 1;
+  flex-shrink: 0;
+}
+.timeline-dot.tone-positive {
+  background: var(--m-positive-bg);
+  color: var(--m-positive);
+}
+.timeline-dot.tone-caution {
+  background: var(--m-caution-bg);
+  color: var(--m-caution);
+}
+.timeline-dot.tone-negative {
+  background: var(--m-negative-bg);
+  color: var(--m-negative);
+}
+.timeline-card {
+  border: 1px solid var(--m-hairline);
+  background: var(--m-raised);
+  padding: 16px 18px;
+  transition: border-color 0.15s;
+}
+.timeline-card:hover {
+  border-color: var(--m-hairline-strong);
 }
 .timeline-entry .text-button {
   font-size: 11px;
@@ -1232,6 +1263,9 @@ h3 {
   }
   h1 {
     font-size: 26px;
+  }
+  .agreement-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 @media (max-width: 650px) {
@@ -1731,7 +1765,7 @@ h3 {
 
 .agreement-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 16px;
   margin-top: 18px;
 }
@@ -1849,6 +1883,14 @@ h3 {
 }
 .tag-resolution.is-missing {
   color: var(--m-caution);
+}
+.tag-resolution.is-invalid {
+  color: var(--m-negative);
+}
+.field-error {
+  font-size: 12px;
+  color: var(--m-negative);
+  margin-top: -2px;
 }
 
 /* --------------------------------------------------------- network switch */

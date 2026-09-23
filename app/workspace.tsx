@@ -1,11 +1,9 @@
 "use client";
 import { useWorkspace } from "./use-workspace";
 import { useState } from "react";
-import { Dashboard } from "./ui/dashboard";
 import { Connections } from "./ui/workspace-pages";
 import {
   ShieldCheck,
-  FolderOpen,
   Wallet,
   Activity,
   Settings2,
@@ -15,9 +13,6 @@ import {
   CheckCircle2,
   SendHorizontal,
 } from "lucide-react";
-import type { Role } from "@/lib/domain";
-import Builder from "./ui/builder";
-import Detail from "./ui/detail";
 import { Send as SendPage } from "./ui/send";
 import { LiveAgreements } from "./ui/live-agreements";
 import { LiveEarnings } from "./ui/live-earnings";
@@ -26,11 +21,9 @@ import { NetworkSwitch } from "./ui/network-switch";
 import { SessionBadge } from "./ui/session-badge";
 import { useWallet } from "./wallet-context";
 import { Fingerprint } from "lucide-react";
-import ActionDialog from "./ui/action-dialog";
 import { Choice } from "./ui/shared";
 const navigation = [
-  { id: "jobs", label: "Funded jobs", icon: ShieldCheck },
-  { id: "agreements", label: "Sandbox", icon: FolderOpen },
+  { id: "jobs", label: "Agreements", icon: ShieldCheck },
   { id: "send", label: "Send", icon: SendHorizontal },
   { id: "earnings", label: "Earnings", icon: Wallet },
   { id: "activity", label: "Activity", icon: Activity },
@@ -42,35 +35,14 @@ export default function Accrue() {
   // same way sandbox's own `selected` lets its own pages do.
   const [openJob, setOpenJob] = useState<string | null>(null);
   const {
-    agreements,
     page,
-    role,
-    setRole,
-    setSelected,
     loading,
     error,
-    setError,
     signedOut,
-    creating,
-    setCreating,
-    busy,
-    intent,
-    setIntent,
-    query,
-    setQuery,
-    filter,
-    setFilter,
     notice,
     setNotice,
     refresh,
-    create,
-    active,
-    act,
     navigate,
-    visible,
-    reserved,
-    earned,
-    reviews,
   } = useWorkspace();
   return (
     <div className="shell">
@@ -93,7 +65,6 @@ export default function Accrue() {
             >
               <Icon size={19} />
               {label}
-              {id === "agreements" && <span>{agreements.length}</span>}
             </button>
           ))}
         </nav>
@@ -107,10 +78,6 @@ export default function Accrue() {
           </p>
           <small>Clear terms. Verified progress.</small>
         </div>
-        <a className="signout" href="/signout-with-chatgpt?return_to=/">
-          <LogOut size={15} />
-          Sign out
-        </a>
       </aside>
       <main>
         <header className="topbar">
@@ -120,25 +87,15 @@ export default function Accrue() {
           </span>
           <div className="header-actions">
             {/* The disclosure has to match the page: the send screen moves
-                real testnet tokens, while everything else is simulated. */}
+                real testnet tokens, while everything else reads the chain
+                without moving anything. */}
             {page === "send" || page === "jobs" ? (
               <NetworkSwitch />
-            ) : (
-              <span className="badge sandbox">Sandbox · No real funds</span>
-            )}
-            {/* One selector for both worlds: it picks the sandbox view and
-                the passkey account that signs for that role. The two must not
-                drift apart, or the screen would show one role while another
-                signs. */}
+            ) : null}
             <Choice
               label="Role"
-              value={role === "earner" ? "worker" : role}
-              onChange={(v) => {
-                const next = v as "payer" | "worker" | "verifier";
-                wallet.setRole(next);
-                setRole((next === "worker" ? "earner" : next) as Role);
-                setIntent(null);
-              }}
+              value={wallet.role}
+              onChange={(v) => wallet.setRole(v as "payer" | "worker" | "verifier")}
               items={[
                 { value: "payer", label: "Payer view" },
                 { value: "worker", label: "Worker view" },
@@ -164,6 +121,16 @@ export default function Accrue() {
                 <Fingerprint size={15} />
                 {wallet.connecting ? "Waiting…" : "Sign in"}
               </button>
+            )}
+            {!signedOut && (
+              <a
+                className="icon-button"
+                href="/signout-with-chatgpt?return_to=/"
+                aria-label="Sign out"
+                title="Sign out"
+              >
+                <LogOut size={17} />
+              </a>
             )}
           </div>
         </header>
@@ -203,10 +170,7 @@ export default function Accrue() {
             <section className="empty-state">
               <ShieldCheck size={36} />
               <h1>Your agreements, kept private.</h1>
-              <p>
-                Sign in to create a persistent sandbox workspace and explore
-                every participant’s workflow.
-              </p>
+              <p>Sign in to fund jobs, send money, and track your earnings.</p>
               <a className="primary" href="/signin-with-chatgpt?return_to=/">
                 Sign in to Accrue <ArrowRight size={16} />
               </a>
@@ -216,33 +180,8 @@ export default function Accrue() {
               <RefreshCw className="spin" />
               <h2>Opening your workspace…</h2>
             </section>
-          ) : active ? (
-            <Detail
-              agreement={active}
-              role={role}
-              onBack={() => setSelected(null)}
-              onIntent={setIntent}
-            />
           ) : (
             <>
-              {page === "agreements" && (
-                <Dashboard
-                  agreements={agreements}
-                  reserved={reserved}
-                  earned={earned}
-                  reviews={reviews}
-                  filter={filter}
-                  setFilter={setFilter}
-                  query={query}
-                  setQuery={setQuery}
-                  visible={visible}
-                  busy={busy}
-                  create={create}
-                  setError={setError}
-                  setCreating={setCreating}
-                  setSelected={setSelected}
-                />
-              )}
               {page === "jobs" && (
                 <LiveAgreements openId={openJob} onOpenChange={setOpenJob} />
               )}
@@ -268,24 +207,6 @@ export default function Accrue() {
           )}
         </div>
       </main>
-      <Builder
-        open={creating}
-        onClose={() => setCreating(false)}
-        onCreate={async (d) => {
-          await create(d);
-        }}
-        busy={busy}
-      />
-      {active && intent && (
-        <ActionDialog
-          key={`${active.id}-${intent.type}-${intent.milestone}-${role}`}
-          agreement={active}
-          role={role}
-          intent={intent}
-          onClose={() => setIntent(null)}
-          onAction={act}
-        />
-      )}
     </div>
   );
 }

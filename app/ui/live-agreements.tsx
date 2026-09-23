@@ -1,9 +1,19 @@
 "use client";
 import { useState } from "react";
-import { ArrowLeft, ArrowUpRight, Plus, ShieldCheck } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowUpRight,
+  FolderOpen,
+  Plus,
+  Search,
+  ShieldCheck,
+  Trash2,
+} from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TagField } from "./tag-field";
+import { useTagGate } from "./tag-gate";
 import { useWallet } from "../wallet-context";
 import {
   useLiveAgreements,
@@ -49,11 +59,18 @@ export function LiveAgreements({
   onOpenChange?: (id: string | null) => void;
 } = {}) {
   const w = useWallet();
+  const gate = useTagGate();
   const live = useLiveAgreements();
   const [localOpen, setLocalOpen] = useState<string | null>(null);
   const open = openId !== undefined ? openId : localOpen;
   const setOpen = onOpenChange ?? setLocalOpen;
   const [creating, setCreating] = useState(false);
+  const [filter, setFilter] = useState("all");
+  const [query, setQuery] = useState("");
+
+  const startCreating = () => {
+    if (gate.requireTag()) setCreating(true);
+  };
 
   if (!w.wallet)
     return (
@@ -76,6 +93,7 @@ export function LiveAgreements({
       <Builder
         busy={live.busy}
         error={live.error}
+        onDismissError={() => live.setError("")}
         onCancel={() => setCreating(false)}
         onCreate={async (draft) => {
           const id = await live.create(draft);
@@ -89,12 +107,34 @@ export function LiveAgreements({
       <Detail agreement={selected} live={live} onBack={() => setOpen(null)} />
     );
 
+  const reserved = live.agreements.reduce((s, a) => s + a.chain.reserved, 0n);
+  const earned = live.agreements.reduce(
+    (s, a) => s + a.chain.workerEarned + a.chain.verifierEarned,
+    0n,
+  );
+  const awaiting = live.agreements.reduce(
+    (s, a) => s + a.states.filter((state) => state === 1).length,
+    0,
+  );
+
+  const bucket = (a: LiveAgreement): "active" | "complete" =>
+    status(a) === "Complete" ? "complete" : "active";
+  const visible = live.agreements.filter(
+    (a) =>
+      (filter === "all" || bucket(a) === filter) &&
+      `${a.title} ${a.workerTag ?? ""} ${a.verifierTag ?? ""}`
+        .toLowerCase()
+        .includes(query.toLowerCase()),
+  );
+
   return (
     <>
       <div className="page-heading">
         <div>
-          <p className="eyebrow">Funded work</p>
-          <h1>Jobs held in escrow.</h1>
+          <p className="eyebrow">PAY WITH CONFIDENCE</p>
+          <h1>
+            Your agreements<span className="heading-dot">.</span>
+          </h1>
           <p className="muted">
             {token.symbol} is held by the contract until the agreed verifier
             confirms the work. Nobody, including us, can move it another way.
@@ -104,8 +144,8 @@ export function LiveAgreements({
             payer can start one. The other roles are invited into a job; they
             do not open one. */}
         {w.role === "payer" && (
-          <button className="primary" onClick={() => setCreating(true)}>
-            <Plus size={16} /> Fund a job
+          <button className="primary" onClick={startCreating}>
+            <Plus size={16} /> New agreement
           </button>
         )}
       </div>
@@ -118,6 +158,34 @@ export function LiveAgreements({
           </button>
         </div>
       )}
+
+      <div className="metrics">
+        <section className="metric featured">
+          <div className="section-title">
+            <span>Reserved for work</span>
+            <ShieldCheck size={20} />
+          </div>
+          <strong>{formatAmount(reserved)}</strong>
+          <small>
+            Across{" "}
+            {live.agreements.filter((a) => a.chain.reserved > 0n).length}{" "}
+            funded agreements
+          </small>
+        </section>
+        <section className="metric">
+          <span>Earned by your team</span>
+          <strong>{formatAmount(earned)}</strong>
+          <small>Protected once work is verified</small>
+        </section>
+        <section className="metric">
+          <span>Awaiting verification</span>
+          <strong>{String(awaiting).padStart(2, "0")}</strong>
+          <small>
+            {awaiting === 1 ? "One milestone" : `${awaiting} milestones`}{" "}
+            ready for review
+          </small>
+        </section>
+      </div>
 
       {live.loading && <p className="muted">Reading the network…</p>}
 
@@ -135,53 +203,88 @@ export function LiveAgreements({
               : "A job appears here once someone funds one and names you in it."}
           </p>
           {w.role === "payer" && (
-            <button className="secondary" onClick={() => setCreating(true)}>
+            <button className="secondary" onClick={startCreating}>
               Fund a job <ArrowUpRight size={15} />
             </button>
           )}
         </div>
       ) : (
-        <div className="agreement-grid">
-          {live.agreements.map((a) => {
-            const done = a.states.filter((s) => s === 2).length;
-            return (
-              <button
-                className="agreement-tile"
-                key={a.id}
-                onClick={() => setOpen(a.id)}
-              >
-                <div className="tile-head">
-                  <span className="badge">{status(a)}</span>
-                  <span className="tile-amount">
-                    {formatAmount(a.chain.deposit)}
-                  </span>
-                </div>
-                <div>
-                  <h2 className="tile-title">{a.title}</h2>
-                  <p className="tile-meta">
-                    {a.workerTag ? `@${a.workerTag}` : shortAddress(a.worker)}
-                    {a.verifierTag ? ` · verified by @${a.verifierTag}` : ""}
-                  </p>
-                </div>
-                <div
-                  className="tile-progress"
-                  role="img"
-                  aria-label={`${done} of ${a.milestones.length} milestones complete`}
-                >
-                  <span
-                    style={{ width: `${(done / a.milestones.length) * 100}%` }}
-                  />
-                </div>
-                <div className="tile-foot">
-                  <span>
-                    {done} / {a.milestones.length} milestones
-                  </span>
-                  <ArrowUpRight size={16} />
-                </div>
-              </button>
-            );
-          })}
-        </div>
+        <>
+          <div className="list-toolbar">
+            <Tabs value={filter} onValueChange={setFilter}>
+              <TabsList variant="line">
+                <TabsTrigger value="all">All agreements</TabsTrigger>
+                <TabsTrigger value="active">In progress</TabsTrigger>
+                <TabsTrigger value="complete">Completed</TabsTrigger>
+              </TabsList>
+            </Tabs>
+            <div className="search">
+              <Search size={16} />
+              <Input
+                aria-label="Search agreements"
+                placeholder="Search agreements…"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+            </div>
+          </div>
+
+          {visible.length === 0 ? (
+            <div className="empty-state">
+              <FolderOpen size={34} />
+              <h2>No matching agreements</h2>
+              <p>Try another name or filter.</p>
+            </div>
+          ) : (
+            <div className="agreement-grid">
+              {visible.map((a) => {
+                const done = a.states.filter((s) => s === 2).length;
+                return (
+                  <button
+                    className="agreement-tile"
+                    key={a.id}
+                    onClick={() => setOpen(a.id)}
+                  >
+                    <div className="tile-head">
+                      <span className="badge">{status(a)}</span>
+                      <span className="tile-amount">
+                        {formatAmount(a.chain.deposit)}
+                      </span>
+                    </div>
+                    <div>
+                      <h2 className="tile-title">{a.title}</h2>
+                      <p className="tile-meta">
+                        {a.workerTag
+                          ? `@${a.workerTag}`
+                          : shortAddress(a.worker)}
+                        {a.verifierTag
+                          ? ` · verified by @${a.verifierTag}`
+                          : ""}
+                      </p>
+                    </div>
+                    <div
+                      className="tile-progress"
+                      role="img"
+                      aria-label={`${done} of ${a.milestones.length} milestones complete`}
+                    >
+                      <span
+                        style={{
+                          width: `${(done / a.milestones.length) * 100}%`,
+                        }}
+                      />
+                    </div>
+                    <div className="tile-foot">
+                      <span>
+                        {done} / {a.milestones.length} milestones
+                      </span>
+                      <ArrowUpRight size={16} />
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </>
       )}
 
       <div className="bottom-note">
@@ -465,13 +568,19 @@ function Builder({
   onCancel,
   busy,
   error,
+  onDismissError,
 }: {
   onCreate: (draft: Draft) => Promise<void>;
   onCancel: () => void;
   busy: boolean;
   error: string;
+  onDismissError: () => void;
 }) {
   const [draft, setDraft] = useState<Draft>(emptyDraft);
+  // Set only once someone tries to submit an incomplete form: highlighting
+  // every required field red before it has even been touched would just be
+  // noise, not help.
+  const [showErrors, setShowErrors] = useState(false);
   const set = (patch: Partial<Draft>) => setDraft({ ...draft, ...patch });
   const setMilestone = (
     index: number,
@@ -482,11 +591,28 @@ function Builder({
         i === index ? { ...m, ...patch } : m,
       ),
     });
+  const removeMilestone = (index: number) =>
+    set({ milestones: draft.milestones.filter((_, i) => i !== index) });
 
   const total = draft.milestones.reduce(
     (sum, m) => sum + (Number(m.amount) || 0) + (Number(m.fee) || 0),
     0,
   );
+
+  const titleValid = draft.title.trim().length > 0;
+  const scopeValid = draft.scope.trim().length >= 10;
+  const workerValid = draft.workerTag.trim().length > 0;
+  const milestonesValid = draft.milestones.map((m) => ({
+    title: m.title.trim().length > 0,
+    criteria: m.criteria.trim().length >= 10,
+    amount: Boolean(m.amount),
+  }));
+  const formValid =
+    titleValid &&
+    scopeValid &&
+    workerValid &&
+    milestonesValid.every((v) => v.title && v.criteria && v.amount);
+  const invalid = (ok: boolean) => showErrors && !ok;
 
   return (
     <>
@@ -508,6 +634,9 @@ function Builder({
       {error && (
         <div role="alert" className="error-banner">
           {error}
+          <button className="text-button" onClick={onDismissError}>
+            Dismiss
+          </button>
         </div>
       )}
 
@@ -519,7 +648,11 @@ function Builder({
               value={draft.title}
               onChange={(e) => set({ title: e.target.value })}
               placeholder="Lekki home renovation"
+              aria-invalid={invalid(titleValid)}
             />
+            {invalid(titleValid) && (
+              <p className="field-error">A job title is required.</p>
+            )}
           </label>
           <label>
             What is included
@@ -527,7 +660,13 @@ function Builder({
               value={draft.scope}
               onChange={(e) => set({ scope: e.target.value })}
               placeholder="Ground-floor living space. Excludes furniture."
+              aria-invalid={invalid(scopeValid)}
             />
+            {invalid(scopeValid) && (
+              <p className="field-error">
+                Describe the scope in at least 10 characters.
+              </p>
+            )}
           </label>
           <div className="form-grid">
             <TagField
@@ -535,6 +674,7 @@ function Builder({
               value={draft.workerTag}
               onChange={(workerTag) => set({ workerTag })}
               placeholder="@bola"
+              invalid={invalid(workerValid)}
             />
             <TagField
               label="Who verifies it"
@@ -557,7 +697,17 @@ function Builder({
 
       {draft.milestones.map((m, index) => (
         <section className="panel" key={index}>
-          <p className="mono-label">Milestone {index + 1}</p>
+          <div className="section-title" style={{ marginBottom: 12 }}>
+            <p className="mono-label">Milestone {index + 1}</p>
+            {draft.milestones.length > 1 && (
+              <button
+                className="text-button"
+                onClick={() => removeMilestone(index)}
+              >
+                <Trash2 size={13} /> Remove
+              </button>
+            )}
+          </div>
           <div className="form-stack">
             <label>
               Title
@@ -565,7 +715,11 @@ function Builder({
                 value={m.title}
                 onChange={(e) => setMilestone(index, { title: e.target.value })}
                 placeholder="Foundation"
+                aria-invalid={invalid(milestonesValid[index].title)}
               />
+              {invalid(milestonesValid[index].title) && (
+                <p className="field-error">A milestone title is required.</p>
+              )}
             </label>
             <label>
               What counts as done
@@ -575,7 +729,13 @@ function Builder({
                   setMilestone(index, { criteria: e.target.value })
                 }
                 placeholder="Foundation poured, cured 72 hours, level within 5mm."
+                aria-invalid={invalid(milestonesValid[index].criteria)}
               />
+              {invalid(milestonesValid[index].criteria) && (
+                <p className="field-error">
+                  Describe what counts as done in at least 10 characters.
+                </p>
+              )}
             </label>
             <div className="form-grid">
               <label>
@@ -587,7 +747,11 @@ function Builder({
                   }
                   inputMode="decimal"
                   placeholder="1000.00"
+                  aria-invalid={invalid(milestonesValid[index].amount)}
                 />
+                {invalid(milestonesValid[index].amount) && (
+                  <p className="field-error">An amount is required.</p>
+                )}
               </label>
               <label>
                 Verifier&apos;s fee ({token.symbol})
@@ -625,23 +789,21 @@ function Builder({
             You will commit {total.toFixed(2)} {token.symbol}
           </h3>
           <p>
-            Creating the agreement records it on the network. Funding moves the
-            money after everyone has accepted.
+            {showErrors && !formValid
+              ? "Fill in the highlighted fields before creating this agreement."
+              : "Creating the agreement records it on the network. Funding moves the money after everyone has accepted."}
           </p>
         </div>
         <button
           className="primary"
-          disabled={
-            busy ||
-            !draft.title.trim() ||
-            draft.scope.trim().length < 10 ||
-            !draft.workerTag.trim() ||
-            draft.milestones.some(
-              (m) =>
-                !m.title.trim() || m.criteria.trim().length < 10 || !m.amount,
-            )
-          }
-          onClick={() => void onCreate(draft)}
+          disabled={busy}
+          onClick={() => {
+            if (!formValid) {
+              setShowErrors(true);
+              return;
+            }
+            void onCreate(draft);
+          }}
         >
           {busy ? "Creating…" : "Create agreement"}
         </button>

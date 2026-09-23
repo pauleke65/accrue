@@ -53,16 +53,30 @@ type Entry = {
 };
 
 const ICON: Record<Entry["kind"], React.ReactNode> = {
-  created: <FileText size={12} />,
-  accepted: <Handshake size={12} />,
-  funded: <Wallet size={12} />,
-  evidence: <FileText size={12} />,
-  changes: <PenLine size={12} />,
-  approved: <Check size={12} />,
-  withdrawn: <Banknote size={12} />,
-  "cancel-consent": <ShieldAlert size={12} />,
-  refunded: <Undo2 size={12} />,
-  correction: <PenLine size={12} />,
+  created: <FileText size={13} />,
+  accepted: <Handshake size={13} />,
+  funded: <Wallet size={13} />,
+  evidence: <FileText size={13} />,
+  changes: <PenLine size={13} />,
+  approved: <Check size={13} />,
+  withdrawn: <Banknote size={13} />,
+  "cancel-consent": <ShieldAlert size={13} />,
+  refunded: <Undo2 size={13} />,
+  correction: <PenLine size={13} />,
+};
+
+/** A quick visual read of what kind of event this was, at a glance. */
+const TONE: Record<Entry["kind"], "" | "tone-positive" | "tone-caution" | "tone-negative"> = {
+  created: "",
+  accepted: "",
+  funded: "tone-positive",
+  evidence: "",
+  changes: "tone-caution",
+  approved: "tone-positive",
+  withdrawn: "tone-positive",
+  "cancel-consent": "tone-negative",
+  refunded: "tone-caution",
+  correction: "tone-caution",
 };
 
 function describe(e: Entry): string {
@@ -162,6 +176,9 @@ export function LiveActivity({ onOpen }: { onOpen: (id: string) => void }) {
 
   const approvals = entries.filter((e) => e.kind === "approved").length;
   const corrections = entries.filter((e) => e.kind === "correction").length;
+  const moved = entries
+    .filter((e) => e.kind === "funded")
+    .reduce((sum, e) => sum + BigInt(e.amount ?? "0"), 0n);
 
   return (
     <>
@@ -176,12 +193,27 @@ export function LiveActivity({ onOpen }: { onOpen: (id: string) => void }) {
         </div>
       </div>
 
-      <div className="notice">
-        <p>
-          {approvals} attestation{approvals === 1 ? "" : "s"} · {corrections}{" "}
-          correction{corrections === 1 ? "" : "s"}. This is a count of on-chain
-          activity, not a trust score or proof of professional credentials.
-        </p>
+      <div className="metrics">
+        <section className="metric featured">
+          <div className="section-title">
+            <span>Attestations</span>
+            <ShieldCheck size={17} />
+          </div>
+          <strong>{String(approvals).padStart(2, "0")}</strong>
+          <small>Milestones approved on chain</small>
+        </section>
+        <section className="metric">
+          <span>Deposited</span>
+          <strong>{formatAmount(moved)}</strong>
+          <small>{token.symbol} moved into escrow, all time</small>
+        </section>
+        <section className="metric">
+          <span>Corrections</span>
+          <strong>{String(corrections).padStart(2, "0")}</strong>
+          <small>
+            A count of activity, not a trust score or proof of credentials.
+          </small>
+        </section>
       </div>
 
       {configured === false && (
@@ -200,8 +232,10 @@ export function LiveActivity({ onOpen }: { onOpen: (id: string) => void }) {
         <div className="timeline">
           {entries.map((e) => (
             <div className="timeline-entry" key={`${e.hash}-${e.logIndex}`}>
-              <span className="timeline-dot">{ICON[e.kind]}</span>
-              <div>
+              <span className={`timeline-dot ${TONE[e.kind]}`}>
+                {ICON[e.kind]}
+              </span>
+              <div className="timeline-card">
                 <div className="section-title">
                   <b>{describe(e)}</b>
                   {e.kind === "approved" && (

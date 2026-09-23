@@ -20,6 +20,7 @@ export function TagField({
   onResolved,
   placeholder = "@bola",
   optional = false,
+  invalid = false,
 }: {
   label: string;
   value: string;
@@ -29,6 +30,8 @@ export function TagField({
   ) => void;
   placeholder?: string;
   optional?: boolean;
+  /** Highlights the field red, e.g. after a submit attempt left it empty. */
+  invalid?: boolean;
 }) {
   const w = useWallet();
   const [state, setState] = useState<
@@ -82,11 +85,14 @@ export function TagField({
         spellCheck={false}
         autoComplete="off"
         aria-describedby={`${label}-resolution`}
+        aria-invalid={invalid}
       />
       {/* Always rendered so the row does not jump as the answer arrives. */}
       <span
         id={`${label}-resolution`}
-        className={`tag-resolution is-${state.kind}`}
+        className={`tag-resolution is-${state.kind}${
+          invalid && state.kind === "empty" ? " is-invalid" : ""
+        }`}
         role="status"
         aria-live="polite"
       >
@@ -106,7 +112,12 @@ export function TagField({
             <UserX size={13} /> Nobody here goes by @{tag} yet.
           </>
         )}
-        {state.kind === "empty" && (optional ? "Leave blank for none." : " ")}
+        {state.kind === "empty" &&
+          (optional
+            ? "Leave blank for none."
+            : invalid
+              ? "A tag is required."
+              : " ")}
       </span>
     </label>
   );

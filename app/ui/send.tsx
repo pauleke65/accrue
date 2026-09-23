@@ -15,6 +15,7 @@ import {
 } from "@/lib/chain";
 import { Receipt, PaymentsTable, type PaymentRecord } from "./receipt";
 import { TagField } from "./tag-field";
+import { useTagGate } from "./tag-gate";
 
 /**
  * Sending money to a person rather than to an address.
@@ -26,6 +27,7 @@ import { TagField } from "./tag-field";
  */
 export function Send() {
   const w = useWallet();
+  const gate = useTagGate();
   const [to, setTo] = useState("");
   const [amount, setAmount] = useState("");
   const [busy, setBusy] = useState(false);
@@ -68,8 +70,23 @@ export function Send() {
         )
       : [];
 
+    // Every payment here was sent from one of this wallet's own three role
+    // accounts, so its sender's tag — unlike the recipient's — is always
+    // something the wallet already knows, with no lookup required.
+    const myTagByAddress = new Map<string, string>();
+    if (w.wallet)
+      for (const r of ["payer", "worker", "verifier"] as const) {
+        const rec = w.tags[r];
+        if (rec) myTagByAddress.set(w.wallet.addresses[r].toLowerCase(), rec.tag);
+      }
+    const withFromTag = (list: PaymentRecord[]) =>
+      list.map((p) => ({
+        ...p,
+        fromTag: myTagByAddress.get(p.from.toLowerCase()) ?? null,
+      }));
+
     if (!w.address) {
-      setPayments(mine);
+      setPayments(withFromTag(mine));
       return;
     }
 
@@ -89,7 +106,7 @@ export function Send() {
       };
       if (!data.configured || !data.transfers) {
         setSource("own");
-        setPayments(mine);
+        setPayments(withFromTag(mine));
         return;
       }
 
@@ -123,15 +140,17 @@ export function Send() {
 
       setSource("envio");
       setPayments(
-        [...fromChain, ...stillPending].sort((a, b) =>
-          a.at < b.at ? 1 : a.at > b.at ? -1 : 0,
+        withFromTag(
+          [...fromChain, ...stillPending].sort((a, b) =>
+            a.at < b.at ? 1 : a.at > b.at ? -1 : 0,
+          ),
         ),
       );
     } catch {
       setSource("own");
-      setPayments(mine);
+      setPayments(withFromTag(mine));
     }
-  }, [w.address]);
+  }, [w.address, w.wallet, w.tags]);
 
   useEffect(() => {
     void loadPayments();
@@ -139,6 +158,7 @@ export function Send() {
 
   async function send() {
     if (!w.account || !w.address) return;
+    if (!gate.requireTag()) return;
     setBusy(true);
     setLocalError("");
     setResolved(null);
@@ -399,7 +419,7 @@ export function TagCard() {
       <section className="tag-card">
         <div>
           <p className="mono-label">Your payment tag</p>
-          <h2 className="tag-handle">@{current.tag}</h2>
+          <h2 className="tag-handle">{current.tag}</h2>
           <p className="muted">
             {current.displayName} · {shortAddress(w.address ?? "0x")}
           </p>

@@ -22,6 +22,10 @@ import { publicClient } from "@/lib/ausd";
 export type PaymentRecord = {
   hash: `0x${string}`;
   from: string;
+  /** This workspace's own tag for `from`, resolved client-side — every
+      payment here was sent from one of this wallet's own role accounts, so
+      the sender's tag is always something the wallet already knows. */
+  fromTag?: string | null;
   to: string;
   toTag: string | null;
   amount: string;
@@ -141,7 +145,16 @@ export function Receipt({
         <div className="receipt-parties">
           <div>
             <span className="mono-label">From</span>
-            <b>{shortAddress(payment.from)}</b>
+            <b>
+              {payment.fromTag
+                ? `@${payment.fromTag}`
+                : shortAddress(payment.from)}
+            </b>
+            {payment.fromTag && (
+              <small className="receipt-sub">
+                {shortAddress(payment.from)}
+              </small>
+            )}
           </div>
           <div className="receipt-arrow" aria-hidden="true">
             →
