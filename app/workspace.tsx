@@ -1,6 +1,6 @@
 "use client";
 import { useWorkspace } from "./use-workspace";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Connections } from "./ui/workspace-pages";
 import {
   ShieldCheck,
@@ -22,6 +22,8 @@ import { SessionBadge } from "./ui/session-badge";
 import { useWallet } from "./wallet-context";
 import { Fingerprint } from "lucide-react";
 import { Choice } from "./ui/shared";
+import { InvitationAcceptModal } from "./ui/invitation-accept-modal";
+
 const navigation = [
   { id: "jobs", label: "Agreements", icon: ShieldCheck },
   { id: "send", label: "Send", icon: SendHorizontal },
@@ -29,11 +31,13 @@ const navigation = [
   { id: "activity", label: "Activity", icon: Activity },
   { id: "integrations", label: "Connections", icon: Settings2 },
 ] as const;
+
 export default function Accrue() {
   const wallet = useWallet();
   // Lets Earnings and Activity deep-link into a specific funded job, the
   // same way sandbox's own `selected` lets its own pages do.
   const [openJob, setOpenJob] = useState<string | null>(null);
+  const [inviteToken, setInviteToken] = useState<string | null>(null);
   const {
     page,
     loading,
@@ -44,6 +48,27 @@ export default function Accrue() {
     refresh,
     navigate,
   } = useWorkspace();
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const job = params.get("job");
+    const invite = params.get("invite");
+    if (job) {
+      setOpenJob(job);
+      navigate("jobs");
+    } else if (invite) {
+      void fetch(`/api/invitations?token=${encodeURIComponent(invite)}`)
+        .then((r) => r.ok ? r.json() : null)
+        .then((data) => {
+          if (data?.invitation?.agreementId) {
+            setOpenJob(data.invitation.agreementId);
+            navigate("jobs");
+          }
+        });
+    }
+    // Invite links are applied once on load.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   return (
     <div className="shell">
       <aside className="rail">
@@ -92,16 +117,20 @@ export default function Accrue() {
             {page === "send" || page === "jobs" ? (
               <NetworkSwitch />
             ) : null}
-            <Choice
-              label="Role"
-              value={wallet.role}
-              onChange={(v) => wallet.setRole(v as "payer" | "worker" | "verifier")}
-              items={[
-                { value: "payer", label: "Payer view" },
-                { value: "worker", label: "Worker view" },
-                { value: "verifier", label: "Verifier view" },
-              ]}
-            />
+            {wallet.demoRoles && (
+              <Choice
+                label="Role"
+                value={wallet.role}
+                onChange={(v) =>
+                  wallet.setRole(v as "payer" | "worker" | "verifier")
+                }
+                items={[
+                  { value: "payer", label: "Payer view" },
+                  { value: "worker", label: "Worker view" },
+                  { value: "verifier", label: "Verifier view" },
+                ]}
+              />
+            )}
             {wallet.wallet ? (
               <button
                 className="text-button"
@@ -167,12 +196,41 @@ export default function Accrue() {
             </div>
           )}
           {signedOut ? (
-            <section className="empty-state">
-              <ShieldCheck size={36} />
-              <h1>Your agreements, kept private.</h1>
-              <p>Sign in to fund jobs, send money, and track your earnings.</p>
-              <a className="primary" href="/signin-with-chatgpt?return_to=/">
-                Sign in to Accrue <ArrowRight size={16} />
+            <section className="panel" style={{ maxWidth: "680px", margin: "40px auto 0", textAlign: "center" }}>
+              <div className="eyebrow" style={{ marginBottom: "8px" }}>SECURE MILESTONE ESCROW</div>
+              <h1 style={{ fontSize: "26px", margin: "0 0 12px", color: "var(--m-ink)" }}>
+                Secure milestone payments for your projects<span className="heading-dot">.</span>
+              </h1>
+              <p className="muted" style={{ fontSize: "15px", maxWidth: "560px", margin: "0 auto 28px", lineHeight: "1.5" }}>
+                Accrue holds project funds in a secure digital vault. Money is released step-by-step only after work is verified and approved.
+              </p>
+
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "16px", marginBottom: "28px", textAlign: "left" }}>
+                <div style={{ background: "var(--m-surface)", border: "1px solid var(--m-hairline)", padding: "16px" }}>
+                  <div className="mono-label" style={{ color: "var(--m-purple-bright)", marginBottom: "6px" }}>01. SET STEPS</div>
+                  <strong style={{ display: "block", fontSize: "14px", marginBottom: "4px" }}>Define Milestones</strong>
+                  <span className="muted" style={{ fontSize: "12px", lineHeight: "1.4", display: "block" }}>
+                    Payer sets job milestones and payment amounts.
+                  </span>
+                </div>
+                <div style={{ background: "var(--m-surface)", border: "1px solid var(--m-hairline)", padding: "16px" }}>
+                  <div className="mono-label" style={{ color: "var(--m-purple-bright)", marginBottom: "6px" }}>02. LOCK FUNDS</div>
+                  <strong style={{ display: "block", fontSize: "14px", marginBottom: "4px" }}>Deposit to Vault</strong>
+                  <span className="muted" style={{ fontSize: "12px", lineHeight: "1.4", display: "block" }}>
+                    Money is locked in escrow—guaranteed, but untouchable.
+                  </span>
+                </div>
+                <div style={{ background: "var(--m-surface)", border: "1px solid var(--m-hairline)", padding: "16px" }}>
+                  <div className="mono-label" style={{ color: "var(--m-positive)", marginBottom: "6px" }}>03. VERIFY & PAY</div>
+                  <strong style={{ display: "block", fontSize: "14px", marginBottom: "4px" }}>Approve Release</strong>
+                  <span className="muted" style={{ fontSize: "12px", lineHeight: "1.4", display: "block" }}>
+                    Worker submits proof, Verifier approves, funds release.
+                  </span>
+                </div>
+              </div>
+
+              <a className="primary" href="/signin-with-chatgpt?return_to=/" style={{ textDecoration: "none", padding: "12px 24px" }}>
+                Sign in with Passkey <ArrowRight size={16} />
               </a>
             </section>
           ) : loading ? (

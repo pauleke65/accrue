@@ -115,7 +115,33 @@ export const liveAgreements = sqliteTable(
     // Lets a genuine participant — the on-chain worker or verifier, proven by
     // a signature rather than by having created the row — be found without
     // scanning every agreement any account has ever recorded.
+    index("live_agreements_payer").on(table.payerAddress),
     index("live_agreements_worker").on(table.workerAddress),
     index("live_agreements_verifier").on(table.verifierAddress),
+  ],
+);
+
+/**
+ * Authenticated shareable invitations.
+ *
+ * Lets a participant generate a secure share link for an agreement role.
+ * Counterparties inspect full agreement terms before claiming their role with
+ * a passkey signature.
+ */
+export const agreementInvitations = sqliteTable(
+  "agreement_invitations",
+  {
+    token: text("token").primaryKey(),
+    agreementId: text("agreement_id").notNull(),
+    role: text("role").notNull(), // 'worker' | 'verifier' | 'mediator'
+    targetTag: text("target_tag"),
+    expiresAt: text("expires_at").notNull(),
+    claimedBy: text("claimed_by"),
+    status: text("status").notNull(), // 'pending' | 'accepted' | 'revoked'
+    createdAt: text("created_at").notNull(),
+  },
+  (table) => [
+    index("agreement_invitations_agreement").on(table.agreementId),
+    index("agreement_invitations_status").on(table.status),
   ],
 );

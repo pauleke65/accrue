@@ -2,7 +2,9 @@
 import { ArrowUpRight, ShieldCheck } from "lucide-react";
 import { Status } from "./shared";
 import { token, network, explorer, shortAddress, escrow } from "@/lib/chain";
+import { useWallet } from "../wallet-context";
 export function Connections() {
+  const w = useWallet();
   return (
     <>
       <div className="page-heading">
@@ -17,22 +19,34 @@ export function Connections() {
       <div className="notice">
         <ShieldCheck />
         <p>
-          Three things run side by side, and it matters which is which.{" "}
-          <b>Send</b> and <b>Funded jobs</b> both move real {token.symbol} on{" "}
-          {network.name}, signed by your passkey against the deployed escrow —
-          test money, but genuine transactions that another account can
-          independently verify. <b>Sandbox</b> is the same workflow against a
-          private ledger in your own workspace: role switching there does not
-          grant access to other users, and no sandbox figure has touched a
-          network.
+          <b>Send</b> and <b>Agreements</b> move real {token.symbol} on{" "}
+          {network.name}, signed by your passkey. Each passkey is one person.
+          Name someone by their @tag and they see the job on their own phone
+          after they sign in. The Role switcher is a one-device walkthrough,
+          off unless you turn it on below.
         </p>
       </div>
+      <section className="panel">
+        <Status value={w.demoRoles ? "Demo" : "Product"} />
+        <h2>One device, three roles</h2>
+        <p className="muted">
+          Off: your passkey is one account. You pay, work, or verify based on
+          which jobs name that account. On: this passkey derives three
+          addresses so you can demonstrate every side without a second phone.
+        </p>
+        <button
+          className="secondary"
+          onClick={() => w.setDemoRoles(!w.demoRoles)}
+        >
+          {w.demoRoles ? "Turn demo roles off" : "Turn demo roles on"}
+        </button>
+      </section>
       <div className="connection-grid">
         {[
           {
             name: "Passkey accounts · Mera",
             status: "Active",
-            text: "One passkey is the whole account layer. No seed phrase, no extension, and no custody backend: the key is derived from the passkey itself, so the same account reopens on any device holding it. A signing session lasts 15 minutes, then the key is discarded.",
+            text: "One passkey is one person. No seed phrase, no extension, no custody backend. The same passkey reopens the same account on any device that holds it. A signing session lasts 15 minutes, then the key is discarded.",
           },
           {
             name: `${token.symbol} · Agora`,
@@ -63,14 +77,9 @@ export function Connections() {
             linkText: `Escrow ${shortAddress(escrow.address)}`,
           },
           {
-            name: "Funded jobs",
+            name: "Agreements",
             status: "Active",
-            text: `Agreements under "Funded jobs" hold real ${token.symbol} in the contract. Participants are named by tag, each role signs with its own account, and every figure shown is read from the chain. The readable scope and acceptance criteria are held here, because the contract stores only their hashes — the app checks that the text still hashes to what the contract enforces.`,
-          },
-          {
-            name: "Sandbox agreements",
-            status: "Simulated",
-            text: "The separate sandbox keeps the older simulation: drafting, acceptance, funding, evidence, approval, withdrawal and refunds against a private ledger in D1, with real private evidence files but no real money. It is useful for walking the workflow without spending anything.",
+            text: `Jobs hold real ${token.symbol} in the contract. People are named by @tag. Each person signs with their own passkey. Share the job link so the other phone can open it and accept.`,
           },
           {
             name: "Gas sponsorship",

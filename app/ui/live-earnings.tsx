@@ -98,10 +98,10 @@ export function LiveEarnings({ onOpen }: { onOpen: (id: string) => void }) {
 
       <div className="notice">
         <ShieldCheck />
-        <p>
+        <div>
           Open a job to withdraw that role&apos;s available balance. Approved
           work cannot be reclaimed by the payer, however long it sits here.
-        </p>
+        </div>
       </div>
 
       {live.loading && <p className="muted">Reading the network…</p>}

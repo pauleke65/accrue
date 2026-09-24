@@ -50,6 +50,13 @@
       "when": 1789409368472,
       "tag": "0006_futuristic_tarantula",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1789412000000,
+      "tag": "0007_payer_address_index",
+      "breakpoints": true
     }
   ]
 }

@@ -52,22 +52,31 @@ type WalletState = {
   ensureGas: () => Promise<void>;
   /** Claims test tokens through the sponsor, so no gas is needed first. */
   sponsorTokens: () => Promise<void>;
+  requestTestTokens: () => Promise<void>;
+  ausdBalance: bigint | null;
   resolveTag: (
     tag: string,
   ) => Promise<{ address: `0x${string}`; displayName: string } | null>;
   /**
-   * Signed proof that this passkey controls its worker and verifier
-   * addresses, so the app can show agreements someone else's account
-   * created but that name one of them. Cached for the connection's
-   * lifetime — the message never changes, so re-signing on every fetch
-   * would just be asking the same question twice.
+   * Signed proof that this passkey controls the addresses that should
+   * see jobs. Product mode proves the one account. Demo mode proves the
+   * three derived role addresses so one person can walk every side.
+   * Cached for the connection's lifetime.
    */
   proveParticipation: () => Promise<
     { address: `0x${string}`; signature: `0x${string}` }[]
   >;
+  /**
+   * One-device walkthrough: three derived accounts and a Role switcher.
+   * Off by default — each passkey is one person with one address.
+   */
+  demoRoles: boolean;
+  setDemoRoles: (value: boolean) => void;
 };
 
 const Context = createContext<WalletState | null>(null);
+
+const DEMO_KEY = "accrue.demoRoles";
 
 const emptyByRole = <T,>(value: T) =>
   Object.fromEntries(ROLES.map((r) => [r, value])) as Record<Role, T>;
@@ -83,7 +92,8 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   } | null>(null);
   const [connecting, setConnecting] = useState(false);
   const [error, setError] = useState("");
-  const [role, setRole] = useState<Role>("payer");
+  const [role, setRoleState] = useState<Role>("payer");
+  const [demoRoles, setDemoRolesState] = useState(false);
   const [balances, setBalances] = useState(emptyByRole<bigint | null>(null));
   const [gas, setGas] = useState(emptyByRole<bigint | null>(null));
   const [tags, setTags] = useState(emptyByRole<TagRecord>(null));
@@ -95,11 +105,33 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   // It is resolved after mount instead, so both agree on "unknown" first.
   const [available, setAvailable] = useState(false);
   useEffect(() => setAvailable(passkeysAvailable()), []);
+  useEffect(() => {
+    try {
+      setDemoRolesState(window.localStorage.getItem(DEMO_KEY) === "1");
+    } catch {
+      setDemoRolesState(false);
+    }
+  }, []);
+
+  const setRole = useCallback((next: Role) => {
+    setRoleState(next);
+  }, []);
+
+  const setDemoRoles = useCallback((value: boolean) => {
+    try {
+      window.localStorage.setItem(DEMO_KEY, value ? "1" : "0");
+    } catch {
+      /* private mode */
+    }
+    setDemoRolesState(value);
+    if (!value) setRoleState("payer");
+    proofCacheRef.current = null;
+  }, []);
 
   const loadFor = useCallback(async (current: Wallet) => {
     try {
       const entries = await Promise.all(
-        ROLES.map(async (r) => {
+        (demoRoles ? ROLES : (["payer"] as const)).map(async (r) => {
           const address = current.addresses[r];
           const [ausd, fee, tag] = await Promise.all([
             readBalance(address),
@@ -144,7 +176,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     } catch (cause) {
       setError(readableError(cause));
     }
-  }, []);
+  }, [demoRoles]);
 
   const refresh = useCallback(async () => {
     if (walletRef.current) await loadFor(walletRef.current);
@@ -198,6 +230,10 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   }, [wallet, disconnect]);
 
   useEffect(() => () => walletRef.current?.end(), []);
+
+  useEffect(() => {
+    if (walletRef.current) void loadFor(walletRef.current);
+  }, [demoRoles, loadFor]);
 
   /**
    * Claiming a tag means signing the claim with the account it points at, so
@@ -282,7 +318,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     if (proofCacheRef.current?.payer === current.addresses.payer)
       return proofCacheRef.current.proofs;
 
-    const roles = ["worker", "verifier"] as const;
+    const roles = demoRoles ? ROLES : (["payer"] as const);
     const proofs = await Promise.all(
       roles.map(async (r) => {
         const address = current.addresses[r];
@@ -294,7 +330,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     );
     proofCacheRef.current = { payer: current.addresses.payer, proofs };
     return proofs;
-  }, []);
+  }, [demoRoles]);
 
   const value = useMemo<WalletState>(
     () => ({
@@ -303,10 +339,10 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       connecting,
       error,
       setError,
-      role,
+      role: demoRoles ? role : "payer",
       setRole,
-      address: wallet?.addresses[role] ?? null,
-      account: wallet?.accounts[role] ?? null,
+      address: wallet?.addresses[demoRoles ? role : "payer"] ?? null,
+      account: wallet?.accounts[demoRoles ? role : "payer"] ?? null,
       balances,
       gas,
       tags,
@@ -317,8 +353,12 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       claimTag,
       ensureGas,
       sponsorTokens,
+      requestTestTokens: sponsorTokens,
+      ausdBalance: balances[demoRoles ? role : "payer"],
       resolveTag,
       proveParticipation,
+      demoRoles,
+      setDemoRoles,
     }),
     [
       available,
@@ -326,6 +366,8 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       connecting,
       error,
       role,
+      demoRoles,
+      setDemoRoles,
       balances,
       gas,
       tags,

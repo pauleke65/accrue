@@ -49,9 +49,8 @@ export async function verifiedAddresses(
   proofs: ParticipantProof[] | undefined,
 ): Promise<`0x${string}`[]> {
   if (!proofs?.length) return [];
-  // A wallet has two roles worth proving here (worker, verifier — the payer
-  // already sees everything through ownership); this cap is headroom, not a
-  // design target.
+  // One passkey proves at most three derived addresses (demo mode). Product
+  // mode proves a single account. The cap is headroom, not a design target.
   const results = await Promise.all(
     proofs.slice(0, 8).map(async (p) => {
       if (!p.address || !isAddress(p.address) || !p.signature?.startsWith("0x"))
@@ -74,10 +73,11 @@ export async function verifiedAddresses(
 
 /**
  * Every agreement this request can legitimately see: the ones its own
- * account created — unchanged, still the common case — plus any where a
- * proven address is named as worker or verifier, regardless of whose account
- * recorded it. Rows are merged by id, so an agreement this account both
- * created and is a participant in is not duplicated.
+ * login created, plus any where a proven address is named as payer, worker
+ * or verifier. The chain already treats those three as the parties; the
+ * readable terms follow the same rule, so a second phone that signs in with
+ * its own passkey sees jobs that name it even if a different login wrote
+ * the row.
  */
 export async function accessibleLiveAgreements(
   owner: string,
@@ -99,11 +99,12 @@ export async function accessibleLiveAgreements(
     const asParticipant = await db
       .prepare(
         `SELECT * FROM live_agreements` +
-          ` WHERE worker_address IN (${placeholders})` +
+          ` WHERE payer_address IN (${placeholders})` +
+          ` OR worker_address IN (${placeholders})` +
           ` OR verifier_address IN (${placeholders})` +
           ` ORDER BY created_at DESC LIMIT 50`,
       )
-      .bind(...addresses, ...addresses)
+      .bind(...addresses, ...addresses, ...addresses)
       .all<LiveAgreementRow>();
     for (const row of asParticipant.results) byId.set(row.id, row);
   }

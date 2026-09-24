@@ -408,6 +408,39 @@ export function useLiveAgreements() {
     [run, refresh, w],
   );
 
+  const consentCancellation = useCallback(
+    async (agreement: LiveAgreement) =>
+      run(async (account) => {
+        const state = await callEscrow({
+          account,
+          functionName: "consentCancellation",
+          args: [BigInt(agreement.onchainId)],
+          report: setProgress,
+        });
+        if (state.status !== "confirmed")
+          throw new Error(state.error ?? "Cancellation vote did not go through.");
+        await refresh();
+      }),
+    [run, refresh],
+  );
+
+  const refund = useCallback(
+    async (agreement: LiveAgreement) =>
+      run(async (account) => {
+        const state = await callEscrow({
+          account,
+          functionName: "refund",
+          args: [BigInt(agreement.onchainId)],
+          report: setProgress,
+        });
+        if (state.status !== "confirmed")
+          throw new Error(state.error ?? "Refund did not go through.");
+        await w.refresh();
+        await refresh();
+      }),
+    [run, refresh, w],
+  );
+
   return {
     agreements,
     loading,
@@ -422,6 +455,8 @@ export function useLiveAgreements() {
     submit,
     approve,
     withdraw,
+    consentCancellation,
+    refund,
     MilestoneState,
   };
 }

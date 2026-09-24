@@ -3,6 +3,8 @@ import { useState } from "react";
 import {
   ArrowLeft,
   ArrowUpRight,
+  Check,
+  Copy,
   FolderOpen,
   Plus,
   Search,
@@ -12,7 +14,9 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { TagField } from "./tag-field";
+import { PILOT_TEMPLATES } from "./templates";
+import { FundingReviewModal } from "./funding-review-modal";
+import { ProfileCard } from "./profile-card";
 import { useTagGate } from "./tag-gate";
 import { useWallet } from "../wallet-context";
 import {
@@ -65,11 +69,29 @@ export function LiveAgreements({
   const open = openId !== undefined ? openId : localOpen;
   const setOpen = onOpenChange ?? setLocalOpen;
   const [creating, setCreating] = useState(false);
+  const [initialDraft, setInitialDraft] = useState<Draft | undefined>(undefined);
+  const [profileTag, setProfileTag] = useState<{ tag: string; address?: string | null } | null>(null);
   const [filter, setFilter] = useState("all");
   const [query, setQuery] = useState("");
+  const [claimingTokens, setClaimingTokens] = useState(false);
 
   const startCreating = () => {
     if (gate.requireTag()) setCreating(true);
+  };
+
+  const handleClaimTokens = async () => {
+    setClaimingTokens(true);
+    try {
+      if (w.requestTestTokens) {
+        await w.requestTestTokens();
+      } else {
+        await w.sponsorTokens();
+      }
+    } catch (err) {
+      live.setError(err instanceof Error ? err.message : "Failed to claim test tokens.");
+    } finally {
+      setClaimingTokens(false);
+    }
   };
 
   if (!w.wallet)
@@ -91,20 +113,35 @@ export function LiveAgreements({
   if (creating && w.role === "payer")
     return (
       <Builder
+        initialDraft={initialDraft}
         busy={live.busy}
         error={live.error}
         onDismissError={() => live.setError("")}
-        onCancel={() => setCreating(false)}
+        onCancel={() => {
+          setCreating(false);
+          setInitialDraft(undefined);
+        }}
         onCreate={async (draft) => {
           const id = await live.create(draft);
-          if (id !== null) setCreating(false);
+          if (id !== null) {
+            setCreating(false);
+            setInitialDraft(undefined);
+          }
         }}
       />
     );
 
   if (selected)
     return (
-      <Detail agreement={selected} live={live} onBack={() => setOpen(null)} />
+      <Detail
+        agreement={selected}
+        live={live}
+        onBack={() => setOpen(null)}
+        onDuplicate={(draft) => {
+          setInitialDraft(draft);
+          setCreating(true);
+        }}
+      />
     );
 
   const reserved = live.agreements.reduce((s, a) => s + a.chain.reserved, 0n);
@@ -117,8 +154,12 @@ export function LiveAgreements({
     0,
   );
 
-  const bucket = (a: LiveAgreement): "active" | "complete" =>
-    status(a) === "Complete" ? "complete" : "active";
+  const bucket = (a: LiveAgreement): "awaiting" | "active" | "complete" => {
+    if (!a.chain.funded) return "awaiting";
+    if (a.chain.reserved === 0n || a.chain.cancelled) return "complete";
+    return "active";
+  };
+
   const visible = live.agreements.filter(
     (a) =>
       (filter === "all" || bucket(a) === filter) &&
@@ -140,14 +181,32 @@ export function LiveAgreements({
             confirms the work. Nobody, including us, can move it another way.
           </p>
         </div>
-        {/* Creating a job means committing the money for it, so only the
-            payer can start one. The other roles are invited into a job; they
-            do not open one. */}
-        {w.role === "payer" && (
-          <button className="primary" onClick={startCreating}>
-            <Plus size={16} /> New agreement
+        <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+          <button
+            className="secondary"
+            disabled={claimingTokens}
+            onClick={handleClaimTokens}
+          >
+            {claimingTokens ? "Claiming..." : "Claim Test AUSD"}
           </button>
-        )}
+          {(!w.demoRoles || w.role === "payer") && (
+            <button className="primary" onClick={startCreating}>
+              <Plus size={16} /> New agreement
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="notice" style={{ marginTop: 0, marginBottom: "20px" }}>
+        <ShieldCheck size={18} />
+        <div style={{ fontSize: "13px", lineHeight: "1.4" }}>
+          <strong>How Escrow Protection Works:</strong>
+          <span style={{ display: "block", marginTop: "4px" }}>
+            • <strong>Payer</strong>: Deposits money into the vault up front so payment is guaranteed.<br />
+            • <strong>Worker</strong>: Completes milestones and uploads photo/document proof.<br />
+            • <strong>Verifier</strong>: Inspects work and approves funds for release.
+          </span>
+        </div>
       </div>
 
       {live.error && (
@@ -198,13 +257,13 @@ export function LiveAgreements({
               : `Nothing to ${w.role === "worker" ? "work on" : "verify"} yet.`}
           </h2>
           <p>
-            {w.role === "payer"
-              ? `Fund one and the ${token.symbol} sits in the contract until the work is verified.`
-              : "A job appears here once someone funds one and names you in it."}
+            {w.demoRoles && w.role !== "payer"
+              ? "A job appears here once someone names this role's account in it."
+              : `Start one, or wait for someone to name @${w.tags.payer?.tag ?? "your tag"} in a job. They share a link; you sign in with your passkey and accept.`}
           </p>
-          {w.role === "payer" && (
+          {(!w.demoRoles || w.role === "payer") && (
             <button className="secondary" onClick={startCreating}>
-              Fund a job <ArrowUpRight size={15} />
+              New agreement <ArrowUpRight size={15} />
             </button>
           )}
         </div>
@@ -214,6 +273,7 @@ export function LiveAgreements({
             <Tabs value={filter} onValueChange={setFilter}>
               <TabsList variant="line">
                 <TabsTrigger value="all">All agreements</TabsTrigger>
+                <TabsTrigger value="awaiting">Awaiting funding</TabsTrigger>
                 <TabsTrigger value="active">In progress</TabsTrigger>
                 <TabsTrigger value="complete">Completed</TabsTrigger>
               </TabsList>
@@ -292,13 +352,23 @@ export function LiveAgreements({
         Held by contract {shortAddress(escrow.address)} · every figure read from
         the network
       </div>
+
+      {profileTag && (
+        <ProfileCard
+          tag={profileTag.tag}
+          address={profileTag.address}
+          onClose={() => setProfileTag(null)}
+        />
+      )}
     </>
   );
 }
 
 function status(a: LiveAgreement): string {
   if (a.chain.cancelled) return "Cancelled";
-  if (!a.chain.funded) return "Awaiting funding";
+  if (!a.chain.funded) {
+    return readyToFund(a) ? "Ready to fund" : "Awaiting acceptances";
+  }
   if (a.chain.reserved === 0n) return "Complete";
   if (a.states.some((s) => s === 1)) return "Awaiting review";
   return "In progress";
@@ -308,15 +378,43 @@ function Detail({
   agreement,
   live,
   onBack,
+  onDuplicate,
 }: {
   agreement: LiveAgreement;
   live: ReturnType<typeof useLiveAgreements>;
   onBack: () => void;
+  onDuplicate: (draft: Draft) => void;
 }) {
   const w = useWallet();
   const [notes, setNotes] = useState("");
+  const [reviewingFunding, setReviewingFunding] = useState(false);
+  const [claimingInDetail, setClaimingInDetail] = useState(false);
   const acting = roleOf(agreement, w.address);
   const a = agreement.chain;
+
+  const userAusd = w.ausdBalance ?? w.balances.payer ?? w.balances[w.role] ?? 0n;
+  const isInsufficientFunds =
+    acting === "payer" &&
+    !a.funded &&
+    readyToFund(agreement) &&
+    userAusd < a.deposit;
+
+  const required = requiredAcceptances(agreement);
+  const acceptedRoles = required.filter((r) => hasAccepted(agreement, r));
+  const pendingRoles = required.filter((r) => !hasAccepted(agreement, r));
+
+  const formatRoleTag = (r: Role) => {
+    if (r === "worker")
+      return agreement.workerTag ? `@${agreement.workerTag}` : "@worker";
+    if (r === "verifier")
+      return agreement.verifierTag ? `@${agreement.verifierTag}` : "@verifier";
+    return "@payer";
+  };
+
+  const acceptedText = acceptedRoles.length
+    ? acceptedRoles.map(formatRoleTag).join(", ")
+    : "nobody";
+  const pendingText = pendingRoles.map(formatRoleTag).join(" and ");
 
   const owed =
     acting === "worker"
@@ -339,6 +437,29 @@ function Detail({
           <h1>{agreement.title}</h1>
           <p className="muted">{agreement.scope}</p>
         </div>
+        <div className="flex gap-2">
+          <button
+            className="secondary"
+            onClick={() => {
+              onDuplicate({
+                title: `${agreement.title} (Copy)`,
+                scope: agreement.scope,
+                workerTag: agreement.workerTag ?? "",
+                verifierTag: agreement.verifierTag ?? "",
+                days: 14,
+                milestones: agreement.milestones.map((m) => ({
+                  title: m.title,
+                  criteria: m.criteria,
+                  amount: formatAmount(BigInt(m.workerAmount)),
+                  fee: formatAmount(BigInt(m.verifierFee)),
+                })),
+              });
+            }}
+          >
+            <Plus size={15} /> Duplicate as Draft
+          </button>
+          <ShareLinkButton agreement={agreement} />
+        </div>
       </div>
 
       {live.error && (
@@ -346,6 +467,47 @@ function Detail({
           {live.error}
           <button className="text-button" onClick={() => live.setError("")}>
             Dismiss
+          </button>
+        </div>
+      )}
+
+      {isInsufficientFunds && (
+        <div
+          role="alert"
+          className="error-banner"
+          style={{
+            marginBottom: "16px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            flexWrap: "wrap",
+            gap: "12px",
+          }}
+        >
+          <div>
+            Insufficient AUSD balance. You have {formatAmount(userAusd)} but
+            need {formatAmount(a.deposit)} to fund this job.
+          </div>
+          <button
+            className="secondary text-xs"
+            disabled={claimingInDetail}
+            onClick={async () => {
+              setClaimingInDetail(true);
+              try {
+                if (w.requestTestTokens) await w.requestTestTokens();
+                else await w.sponsorTokens();
+              } catch (err) {
+                live.setError(
+                  err instanceof Error
+                    ? err.message
+                    : "Failed to claim test tokens.",
+                );
+              } finally {
+                setClaimingInDetail(false);
+              }
+            }}
+          >
+            {claimingInDetail ? "Claiming..." : "Claim Test AUSD"}
           </button>
         </div>
       )}
@@ -397,15 +559,22 @@ function Detail({
             <h3>
               {acting && !hasAccepted(agreement, acting)
                 ? "Review and accept these terms."
-                : "Waiting on the others."}
+                : !readyToFund(agreement)
+                  ? "Waiting on required acceptances."
+                  : "Ready for funding."}
             </h3>
             <p>
-              Accepted so far:{" "}
-              {(["payer", "worker", "verifier"] as const)
-                .filter((r) => hasAccepted(agreement, r))
-                .join(", ") || "nobody"}
-              . Funding moves {formatAmount(a.deposit)} {token.symbol} into the
-              contract.
+              {!readyToFund(agreement) ? (
+                <>
+                  Accepted so far: {acceptedText}. Waiting for {pendingText} to
+                  accept terms before funding can proceed.
+                </>
+              ) : (
+                <>
+                  All required terms accepted. Funding moves{" "}
+                  {formatAmount(a.deposit)} {token.symbol} into the contract.
+                </>
+              )}
             </p>
           </div>
           <div className="milestone-actions">
@@ -421,13 +590,15 @@ function Detail({
             {acting === "payer" && (
               <button
                 className="secondary"
-                disabled={live.busy || !readyToFund(agreement)}
+                disabled={
+                  live.busy || !readyToFund(agreement) || userAusd < a.deposit
+                }
                 title={
-                  readyToFund(agreement)
-                    ? undefined
-                    : `Waiting on ${requiredAcceptances(agreement)
-                        .filter((role) => !hasAccepted(agreement, role))
-                        .join(" and ")} to accept first.`
+                  !readyToFund(agreement)
+                    ? `Waiting for ${pendingText} to accept terms before funding can proceed.`
+                    : userAusd < a.deposit
+                      ? `Insufficient AUSD balance (${formatAmount(userAusd)} available, ${formatAmount(a.deposit)} needed).`
+                      : undefined
                 }
                 onClick={() => void live.fund(agreement)}
               >
@@ -436,13 +607,60 @@ function Detail({
             )}
             {acting === "payer" && !readyToFund(agreement) && (
               <p className="fine-print" style={{ width: "100%" }}>
-                Waiting on{" "}
-                {requiredAcceptances(agreement)
-                  .filter((role) => !hasAccepted(agreement, role))
-                  .join(" and ")}{" "}
-                to accept before this can be funded.
+                Waiting on {pendingText} to accept before this can be funded.
               </p>
             )}
+            {acting === "payer" &&
+              readyToFund(agreement) &&
+              userAusd < a.deposit && (
+                <p
+                  className="fine-print"
+                  style={{ width: "100%", color: "var(--m-amber-text, #b45309)" }}
+                >
+                  Insufficient AUSD balance ({formatAmount(userAusd)} available,{" "}
+                  {formatAmount(a.deposit)} needed).
+                </p>
+              )}
+          </div>
+        </section>
+      )}
+
+      {/* Cancellation and Refund Controls */}
+      {a.funded && (
+        <section className="panel mb-4 p-4">
+          <div className="flex justify-between items-center">
+            <div>
+              <h3 className="text-sm font-semibold">
+                {a.cancelled
+                  ? "Agreement Cancelled"
+                  : "Mutual Cancellation & Refund"}
+              </h3>
+              <p className="text-xs text-muted">
+                {a.cancelled
+                  ? "The agreement was cancelled by mutual consent. Reserved funds can be refunded to the payer."
+                  : "Both parties must consent to cancel an active agreement. Reserved funds return to the payer."}
+              </p>
+            </div>
+            <div className="flex gap-2">
+              {acting && !a.cancelled && (
+                <button
+                  className="secondary text-xs"
+                  disabled={live.busy}
+                  onClick={() => void live.consentCancellation(agreement)}
+                >
+                  Vote to Cancel
+                </button>
+              )}
+              {acting === "payer" && (a.cancelled || Date.now() / 1000 >= Number(a.expiry)) && a.reserved > 0n && (
+                <button
+                  className="primary text-xs"
+                  disabled={live.busy}
+                  onClick={() => void live.refund(agreement)}
+                >
+                  Claim Refund ({formatAmount(a.reserved)} {token.symbol})
+                </button>
+              )}
+            </div>
           </div>
         </section>
       )}
@@ -564,23 +782,27 @@ function Detail({
 }
 
 function Builder({
+  initialDraft,
   onCreate,
   onCancel,
   busy,
   error,
   onDismissError,
 }: {
+  initialDraft?: Draft;
   onCreate: (draft: Draft) => Promise<void>;
   onCancel: () => void;
   busy: boolean;
   error: string;
   onDismissError: () => void;
 }) {
-  const [draft, setDraft] = useState<Draft>(emptyDraft);
+  const [draft, setDraft] = useState<Draft>(initialDraft ?? emptyDraft);
   // Set only once someone tries to submit an incomplete form: highlighting
   // every required field red before it has even been touched would just be
   // noise, not help.
   const [showErrors, setShowErrors] = useState(false);
+  const [workerFound, setWorkerFound] = useState(false);
+  const [verifierFound, setVerifierFound] = useState(false);
   const set = (patch: Partial<Draft>) => setDraft({ ...draft, ...patch });
   const setMilestone = (
     index: number,
@@ -601,7 +823,9 @@ function Builder({
 
   const titleValid = draft.title.trim().length > 0;
   const scopeValid = draft.scope.trim().length >= 10;
-  const workerValid = draft.workerTag.trim().length > 0;
+  const workerValid = workerFound;
+  const verifierValid =
+    !draft.verifierTag.trim() || verifierFound;
   const milestonesValid = draft.milestones.map((m) => ({
     title: m.title.trim().length > 0,
     criteria: m.criteria.trim().length >= 10,
@@ -611,6 +835,7 @@ function Builder({
     titleValid &&
     scopeValid &&
     workerValid &&
+    verifierValid &&
     milestonesValid.every((v) => v.title && v.criteria && v.amount);
   const invalid = (ok: boolean) => showErrors && !ok;
 
@@ -639,6 +864,30 @@ function Builder({
           </button>
         </div>
       )}
+
+      <section className="panel" style={{ marginTop: 0, marginBottom: "20px" }}>
+        <p className="eyebrow" style={{ marginBottom: "12px" }}>Start from a Pilot Template</p>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+          {PILOT_TEMPLATES.map((tmpl) => (
+            <button
+              key={tmpl.id}
+              type="button"
+              className="secondary"
+              style={{ fontSize: "12px", padding: "6px 12px" }}
+              onClick={() => {
+                set({
+                  title: tmpl.name,
+                  scope: tmpl.description,
+                  days: tmpl.days,
+                  milestones: tmpl.milestones.map((m) => ({ ...m })),
+                });
+              }}
+            >
+              + {tmpl.name}
+            </button>
+          ))}
+        </div>
+      </section>
 
       <section className="panel">
         <div className="form-stack">
@@ -673,15 +922,20 @@ function Builder({
               label="Who is doing the work"
               value={draft.workerTag}
               onChange={(workerTag) => set({ workerTag })}
+              onResolved={(found) => setWorkerFound(Boolean(found))}
               placeholder="@bola"
               invalid={invalid(workerValid)}
+              helperText="Account address or @tag of the person completing the work."
             />
             <TagField
               label="Who verifies it"
               value={draft.verifierTag}
               onChange={(verifierTag) => set({ verifierTag })}
+              onResolved={(found) => setVerifierFound(Boolean(found))}
               placeholder="@ngozi"
               optional
+              invalid={invalid(verifierValid)}
+              helperText="Account address or @tag of the third-party inspector who verifies work quality before funds are released."
             />
           </div>
           <label>
@@ -809,6 +1063,138 @@ function Builder({
         </button>
       </section>
     </>
+  );
+}
+
+function ShareLinkButton({ agreement }: { agreement: LiveAgreement }) {
+  const [copied, setCopied] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  async function handleShare() {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/invitations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          agreementId: agreement.id,
+          role: "worker",
+          days: 7,
+        }),
+      });
+      let url = `${window.location.origin}/?job=${encodeURIComponent(agreement.id)}`;
+      if (res.ok) {
+        const data = await res.json();
+        if (data.token) {
+          url = `${window.location.origin}/?invite=${encodeURIComponent(data.token)}`;
+        }
+      }
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    } catch {
+      const fallbackUrl = `${window.location.origin}/?job=${encodeURIComponent(agreement.id)}`;
+      void navigator.clipboard.writeText(fallbackUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <button className="secondary" onClick={handleShare} disabled={loading}>
+      {copied ? <Check size={15} /> : <Copy size={15} />}
+      {copied ? "Invite link copied!" : loading ? "Generating..." : "Share invite"}
+    </button>
+  );
+}
+
+function ActionInboxBanner({
+  agreements,
+  address,
+  onOpen,
+}: {
+  agreements: LiveAgreement[];
+  address: string | null;
+  onOpen: (id: string) => void;
+}) {
+  if (!address) return null;
+  const actions: { id: string; title: string; action: string; badge: string }[] = [];
+
+  for (const a of agreements) {
+    const role = roleOf(a, address);
+    if (!role) continue;
+
+    if (!hasAccepted(a, role) && !a.chain.cancelled) {
+      actions.push({
+        id: a.id,
+        title: a.title,
+        action: `Accept terms as ${role}`,
+        badge: "Acceptance Required",
+      });
+    } else if (role === "payer" && readyToFund(a) && !a.chain.funded) {
+      actions.push({
+        id: a.id,
+        title: a.title,
+        action: "Fund agreement deposit",
+        badge: "Ready to Fund",
+      });
+    } else if (a.chain.funded && !a.chain.cancelled && a.chain.reserved > 0n) {
+      const pendingReview = a.states.findIndex((s) => s === 1);
+      if (pendingReview !== -1) {
+        const milestone = a.milestones[pendingReview];
+        const isApprover = milestone.verifierFee !== "0" ? role === "verifier" : role === "payer";
+        if (isApprover) {
+          actions.push({
+            id: a.id,
+            title: a.title,
+            action: `Review submission for "${milestone.title}"`,
+            badge: "Review Needed",
+          });
+        }
+      }
+    }
+  }
+
+  if (!actions.length) return null;
+
+  return (
+    <div className="panel" style={{ borderLeft: "2px solid var(--m-purple)", marginTop: 0, marginBottom: "20px", padding: "18px 20px" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px" }}>
+        <h3 style={{ margin: 0, fontSize: "14px", display: "flex", alignItems: "center", gap: "8px" }}>
+          <ShieldCheck size={16} /> Action Required Inbox ({actions.length})
+        </h3>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+        {actions.map((act, i) => (
+          <div
+            key={`${act.id}-${i}`}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              padding: "10px 14px",
+              background: "var(--m-surface)",
+              border: "1px solid var(--m-hairline)",
+              fontSize: "13px",
+            }}
+          >
+            <div>
+              <strong style={{ color: "var(--m-ink)" }}>{act.title}</strong> —{" "}
+              <span className="muted">{act.action}</span>
+            </div>
+            <button
+              className="primary"
+              style={{ fontSize: "12px", padding: "4px 12px" }}
+              onClick={() => onOpen(act.id)}
+            >
+              Open <ArrowUpRight size={13} />
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 

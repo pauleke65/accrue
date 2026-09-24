@@ -68,6 +68,7 @@ const impostor = privateKeyToAccount(generatePrivateKey());
 const otherOwner = `someone_elses_account_${Date.now().toString(36)}`;
 const onchainId = String(Date.now());
 const rowId = `10143:0x0000000000000000000000000000000000dEaD:${onchainId}`;
+const payerRowId = `${rowId}-payer`;
 const title = "A job this session did not create";
 
 // A row exactly like a real payer would write, but under a different owner
@@ -127,6 +128,25 @@ try {
   assert.equal(found.worker.toLowerCase(), stranger.address.toLowerCase());
   say("visible with valid proof", `title reads correctly: "${found.title}"`);
 
+  d1(
+    `INSERT INTO live_agreements` +
+      `(id,owner,chain_id,escrow,onchain_id,title,scope,payer_address,worker_address,verifier_address,worker_tag,verifier_tag,milestones,created_at)` +
+      ` VALUES(` +
+      `'${escaped(payerRowId)}','${escaped(otherOwner)}',10143,` +
+      `'0x0000000000000000000000000000000000dEaD','${escaped(onchainId)}p',` +
+      `'Payer-named job','Created under another login.',` +
+      `'${stranger.address}','0x0000000000000000000000000000000000dEaD','0x0000000000000000000000000000000000dEaD',` +
+      `null,null,'[]','${new Date().toISOString()}')`,
+  );
+  const asPayer = await api("/api/live-agreements", [
+    { address: stranger.address, signature: validSignature },
+  ]);
+  assert.ok(
+    asPayer.data.agreements.some((a) => a.id === payerRowId),
+    "a proven payer address must see a job that names it",
+  );
+  say("visible as named payer", "confirmed");
+
   // The activity endpoint shares the same access function; confirm it
   // accepts the same proof shape without error rather than re-deriving the
   // whole check against real on-chain events.
@@ -148,6 +168,7 @@ try {
             "a valid signature from the named worker's own key does unlock it",
             "the unlocked row's readable text is correct",
             "escrow-activity accepts the same proof shape",
+            "a proven payer address sees a job that names it",
           ],
         },
         null,
@@ -155,5 +176,7 @@ try {
       ),
   );
 } finally {
-  d1(`DELETE FROM live_agreements WHERE id = '${escaped(rowId)}'`);
+  d1(
+    `DELETE FROM live_agreements WHERE id IN ('${escaped(rowId)}','${escaped(payerRowId)}')`,
+  );
 }

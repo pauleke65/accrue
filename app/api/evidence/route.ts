@@ -16,16 +16,22 @@ export async function POST(request: Request) {
       )
     )
       throw new HttpError(400, "Use JPG, PNG, PDF, or text files.");
-    const agreement = await database()
+    let agreement = await database()
       .prepare("SELECT id FROM agreements WHERE id=? AND owner=?")
       .bind(agreementId, owner)
       .first();
+    if (!agreement) {
+      agreement = await database()
+        .prepare("SELECT id FROM live_agreements WHERE id=?")
+        .bind(agreementId)
+        .first();
+    }
     if (!agreement) throw new HttpError(404, "Agreement not found.");
     const count = await database()
       .prepare(
-        "SELECT count(*) as n FROM evidence_files WHERE owner=? AND agreement_id=?",
+        "SELECT count(*) as n FROM evidence_files WHERE agreement_id=?",
       )
-      .bind(owner, agreementId)
+      .bind(agreementId)
       .first<{ n: number }>();
     if ((count?.n ?? 0) >= 60)
       throw new HttpError(
@@ -77,8 +83,8 @@ export async function GET(request: Request) {
     const owner = await authorize();
     const id = new URL(request.url).searchParams.get("id");
     const file = await database()
-      .prepare("SELECT name,mime FROM evidence_files WHERE id=? AND owner=?")
-      .bind(id, owner)
+      .prepare("SELECT name,mime FROM evidence_files WHERE id=?")
+      .bind(id)
       .first<{ name: string; mime: string }>();
     if (!file) throw new HttpError(404, "Evidence not found.");
     const object = await bucket().get(id!);

@@ -21,6 +21,7 @@ export function TagField({
   placeholder = "@bola",
   optional = false,
   invalid = false,
+  helperText,
 }: {
   label: string;
   value: string;
@@ -32,6 +33,8 @@ export function TagField({
   optional?: boolean;
   /** Highlights the field red, e.g. after a submit attempt left it empty. */
   invalid?: boolean;
+  /** Optional helper text explaining tag assignment. */
+  helperText?: string;
 }) {
   const w = useWallet();
   const [state, setState] = useState<
@@ -87,6 +90,11 @@ export function TagField({
         aria-describedby={`${label}-resolution`}
         aria-invalid={invalid}
       />
+      {helperText && (
+        <p className="field-help" style={{ fontSize: "12px", color: "var(--m-muted)", marginTop: "2px", marginBottom: "4px", lineHeight: "1.3" }}>
+          {helperText}
+        </p>
+      )}
       {/* Always rendered so the row does not jump as the answer arrives. */}
       <span
         id={`${label}-resolution`}
