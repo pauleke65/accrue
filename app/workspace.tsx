@@ -205,7 +205,7 @@ export default function Accrue() {
               </button>
             </div>
           )}
-          {signedOut ? (
+          {signedOut && !wallet.wallet ? (
             <section className="panel" style={{ maxWidth: "680px", margin: "40px auto 0", textAlign: "center" }}>
               <div className="eyebrow" style={{ marginBottom: "8px" }}>SECURE MILESTONE ESCROW</div>
               <h1 style={{ fontSize: "26px", margin: "0 0 12px", color: "var(--m-ink)" }}>
