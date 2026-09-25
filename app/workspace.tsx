@@ -142,14 +142,24 @@ export default function Accrue() {
                   : "Signed in"}
               </button>
             ) : (
-              <button
-                className="secondary"
-                disabled={!wallet.available || wallet.connecting}
-                onClick={() => void wallet.connect("open")}
-              >
-                <Fingerprint size={15} />
-                {wallet.connecting ? "Waiting…" : "Sign in"}
-              </button>
+              <>
+                <button
+                  className="secondary"
+                  disabled={!wallet.available || wallet.connecting}
+                  onClick={() => void wallet.connect("open")}
+                >
+                  <Fingerprint size={15} />
+                  {wallet.connecting ? "Waiting…" : "Sign in"}
+                </button>
+                <button
+                  className="text-button"
+                  disabled={!wallet.available || wallet.connecting}
+                  onClick={() => void wallet.connect("create")}
+                  style={{ fontSize: "12px" }}
+                >
+                  New account
+                </button>
+              </>
             )}
             {!signedOut && (
               <a
@@ -229,9 +239,29 @@ export default function Accrue() {
                 </div>
               </div>
 
-              <a className="primary" href="/signin-with-chatgpt?return_to=/" style={{ textDecoration: "none", padding: "12px 24px" }}>
-                Sign in with Passkey <ArrowRight size={16} />
-              </a>
+              <div style={{ display: "flex", gap: "12px", justifyContent: "center", flexWrap: "wrap" }}>
+                <button
+                  className="primary"
+                  disabled={!wallet.available || wallet.connecting}
+                  onClick={() => void wallet.connect("create")}
+                  style={{ padding: "12px 24px" }}
+                >
+                  <Fingerprint size={16} />
+                  {wallet.connecting ? "Creating…" : "Create account"}
+                </button>
+                <button
+                  className="secondary"
+                  disabled={!wallet.available || wallet.connecting}
+                  onClick={() => void wallet.connect("open")}
+                  style={{ padding: "12px 24px" }}
+                >
+                  <ArrowRight size={16} />
+                  {wallet.connecting ? "Waiting…" : "Sign in with Passkey"}
+                </button>
+              </div>
+              <p className="muted" style={{ fontSize: "12px", marginTop: "12px" }}>
+                First time? Create an account. Your passkey is stored on your device — no passwords, no seed phrases.
+              </p>
             </section>
           ) : loading ? (
             <section className="empty-state" aria-live="polite">
