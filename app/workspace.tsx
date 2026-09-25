@@ -259,6 +259,14 @@ export default function Accrue() {
                   {wallet.connecting ? "Waiting…" : "Sign in with Passkey"}
                 </button>
               </div>
+              {wallet.error && (
+                <div role="alert" className="error-banner" style={{ marginTop: "16px", textAlign: "left" }}>
+                  {wallet.error}
+                  <button className="text-button" onClick={() => wallet.setError("")}>
+                    Dismiss
+                  </button>
+                </div>
+              )}
               <p className="muted" style={{ fontSize: "12px", marginTop: "12px" }}>
                 First time? Create an account. Your passkey is stored on your device — no passwords, no seed phrases.
               </p>
