@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 
-export type Page = "jobs" | "send" | "earnings" | "activity" | "integrations";
+export type Page = "digital" | "jobs" | "send" | "earnings" | "activity" | "integrations";
 
 /**
  * The workspace shell's own state: which page is showing, which role is
@@ -14,7 +14,7 @@ export type Page = "jobs" | "send" | "earnings" | "activity" | "integrations";
  * show a page at all, or the signed-out landing screen instead.
  */
 export function useWorkspace() {
-  const [page, setPage] = useState<Page>("jobs");
+  const [page, setPage] = useState<Page>("digital");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [signedOut, setSignedOut] = useState(false);
@@ -43,7 +43,7 @@ export function useWorkspace() {
   }, []);
 
   useEffect(() => {
-    void refresh();
+    queueMicrotask(() => void refresh());
   }, [refresh]);
 
   useEffect(() => {

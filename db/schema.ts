@@ -1,4 +1,4 @@
-import { integer, sqliteTable, text, index } from "drizzle-orm/sqlite-core";
+import { integer, sqliteTable, text, index, primaryKey } from "drizzle-orm/sqlite-core";
 export const requestLimits = sqliteTable("request_limits", {
   owner: text("owner").primaryKey(),
   window: integer("window").notNull(),
@@ -145,3 +145,56 @@ export const agreementInvitations = sqliteTable(
     index("agreement_invitations_status").on(table.status),
   ],
 );
+
+/** Readable digital-work policy; the contract remains the payment authority. */
+export const digitalJobs = sqliteTable(
+  "digital_jobs",
+  {
+    id: text("id").primaryKey(),
+    onchainId: text("onchain_id").notNull(),
+    title: text("title").notNull(),
+    policyJson: text("policy_json").notNull(),
+    policyHash: text("policy_hash").notNull(),
+    payerAddress: text("payer_address").notNull(),
+    workerAddress: text("worker_address").notNull(),
+    verifierA: text("verifier_a").notNull(),
+    verifierB: text("verifier_b").notNull(),
+    verifierC: text("verifier_c").notNull(),
+    createdAt: text("created_at").notNull(),
+  },
+  (table) => [
+    index("digital_jobs_payer").on(table.payerAddress),
+    index("digital_jobs_worker").on(table.workerAddress),
+    index("digital_jobs_verifier_a").on(table.verifierA),
+    index("digital_jobs_verifier_b").on(table.verifierB),
+    index("digital_jobs_verifier_c").on(table.verifierC),
+  ],
+);
+
+export const digitalSubmissions = sqliteTable("digital_submissions", {
+  jobId: text("job_id").notNull(),
+  version: integer("version").notNull(),
+  evidenceHash: text("evidence_hash").notNull(),
+  manifestJson: text("manifest_json").notNull(),
+  createdAt: text("created_at").notNull(),
+}, (table) => [primaryKey({ columns: [table.jobId, table.version] })]);
+
+export const digitalVerificationRuns = sqliteTable("digital_verification_runs", {
+  jobId: text("job_id").notNull(),
+  version: integer("version").notNull(),
+  state: text("state").notNull(),
+  reportJson: text("report_json"),
+  reportHash: text("report_hash"),
+  voteTx: text("vote_tx"),
+  updatedAt: text("updated_at").notNull(),
+}, (table) => [primaryKey({ columns: [table.jobId, table.version] })]);
+
+export const digitalManualVotes = sqliteTable("digital_manual_votes", {
+  jobId: text("job_id").notNull(),
+  version: integer("version").notNull(),
+  verifierAddress: text("verifier_address").notNull(),
+  pass: integer("pass").notNull(),
+  notes: text("notes").notNull(),
+  reportHash: text("report_hash").notNull(),
+  createdAt: text("created_at").notNull(),
+}, (table) => [primaryKey({ columns: [table.jobId, table.version, table.verifierAddress] })]);

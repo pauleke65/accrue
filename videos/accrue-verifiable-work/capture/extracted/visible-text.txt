@@ -1,0 +1,77 @@
+[span] ccrue
+[span] Monad testnet
+[a] Open workspace ↗
+[div] A real agreement · Digital work #1
+[h1] Pay for the
+[em] outcome.
+[p] A worker deployed a public API. Accrue pinned the evidence, two independent verifiers approved the result, and the contract released payment on Monad testnet.
+[div] Worker payout · confirmed on-chain
+[div] 5.00
+[span] AUSD
+[div] Verified and withdrawn
+[b] 2 / 3
+[span] Pass quorum
+[b] 200
+[span] HTTP response
+[span] Reviewer fees paid
+[b] 0.10
+[span] AUSD unused fees returned
+[div] The agreement
+[h2] From locked terms to proof
+[p] One API task. One evidence version. On-chain settlement.
+[div] 01 / DEFINE
+[h3] Lock the policy
+[p] The payer reserved 5 AUSD plus a 0.30 AUSD verifier pool after the worker accepted the terms.
+[span] Expected endpoint
+[strong] GET /health → 200
+[span] Expected response
+[strong] status: ready
+[span] Policy digest
+[strong] 0x5952…545f1f
+[div] 02 / SUBMIT
+[h3] Pin the evidence
+[p] The worker submitted a public GitHub commit and a live Cloudflare Worker deployment. Their manifest hash was recorded in the contract.
+[span] Source
+[a] GitHub commit ↗
+[span] Deployment
+[a] Live /health ↗
+[div] 03 / VERIFY
+[h3] Check the result
+[p] The public endpoint returned HTTP 200 and
+[span] {"status":"ready"}
+[p] . Two named reviewers signed pass votes for the pinned evidence version.
+[span] Required threshold
+[strong] 2 matching votes
+[span] Result
+[strong] PASS · PASS
+[div] The decision
+[h2] Independent votes. Automatic payout.
+[p] Every vote and withdrawal is verifiable on-chain.
+[strong] Jev · job #1
+[small] No vote on this agreement · Cloudflare quota
+[span] PENDING
+[strong] Reviewer B
+[small] Signed pass vote · 0x5171…fC651
+[span] PASS
+[strong] Reviewer C
+[small] Signed pass vote · 0x2aB9…6e105D
+[span] PASS
+[a] Inspect the deciding vote and settlement ↗
+[div] Settlement confirmed
+[h3] 5.00 AUSD → worker
+[p] The second pass vote changed the agreement to Paid. The worker then withdrew the earned reward from the contract.
+[span] Reviewer B earned
+[strong] 0.10 AUSD
+[span] Reviewer C earned
+[strong] 0.10 AUSD
+[span] Unused fee returned to payer
+[strong] 0.10 AUSD
+[a] Inspect the worker withdrawal ↗
+[strong] Jev live evaluation · job #2.
+[aside] BeatAPI’s free
+[span] jev-1.13-free
+[aside] model checked the same locked policy and public evidence: requirements 94%, human review 14%. The policy allows an automated PASS only when human review is at most 10%, so Jev recommended manual review and cast no vote. Two named reviewers inspected the evidence and passed it; the contract settled and the worker withdrew 5 AUSD.
+[a] Job #2 settlement ↗
+[aside] The checks prove that a public commit exists and the endpoint responds as agreed; they do not prove the deployment was built from that commit.
+[span] Accrue · Settlement for verifiable digital work
+[a] View contract on Monad ↗

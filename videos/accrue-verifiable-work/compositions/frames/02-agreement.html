@@ -1,0 +1,42 @@
+<template>
+  <style>
+    @font-face { font-family: 'Inter'; src: url('assets/fonts/Inter-400.woff2') format('woff2'); font-weight: 400; }
+    @font-face { font-family: 'Inter'; src: url('assets/fonts/Inter-700.woff2') format('woff2'); font-weight: 700; }
+    #root { position: absolute; inset: 0; overflow: hidden; width: 100%; height: 100%; color: #F5F2FF; font-family: 'Inter'; }
+    #a-ground { position: absolute; inset: 0; background: #17131F; }
+    #a-shot { position: absolute; inset: 0; overflow: hidden; }
+    #a-screen { position: absolute; width: 1920px; height: 1080px; max-width: none; object-fit: cover; transform-origin: 50% 50%; }
+    #a-dim { position:absolute; inset:0; background:linear-gradient(180deg,rgba(23,19,31,.98) 0%,rgba(23,19,31,.93) 23%,rgba(23,19,31,.08) 56%,rgba(23,19,31,.6) 100%); }
+    .a-title { position: absolute; top: 80px; font-size: 61px; font-weight: 700; letter-spacing: -.05em; line-height: 1.02; text-shadow: 0 10px 40px #17131F; }
+    #a-one { left: 100px; }
+    #a-two { left: 100px; }
+    #a-three { left: 100px; }
+    #a-rule { position:absolute; top:270px; left:100px; width: 580px; height: 5px; background:#78E6B5; box-shadow:0 0 28px rgba(120,230,181,.65); }
+    #a-note { position: absolute; left: 100px; top: 785px; padding: 16px 28px; border-radius: 999px; border: 1px solid rgba(120,230,181,.5); background: rgba(16,35,31,.95); color: #78E6B5; font-size: 31px; font-weight: 700; }
+  </style>
+  <div data-hf-id="hf-4e6z" id="root" data-composition-id="02-agreement" data-width="1920" data-height="1080" data-duration="13.5">
+    <div data-hf-id="hf-6bf8" id="a-ground" class="clip" data-start="0" data-duration="13.5" data-track-index="0"></div>
+    <div data-hf-id="hf-4vgt" id="a-shot" class="clip" data-start="0" data-duration="13.5" data-track-index="1" data-layout-allow-overflow=""><img data-hf-id="hf-hvn9" id="a-screen" src="assets/scroll-000.png" alt="Real Accrue agreement cards"></div>
+    <div data-hf-id="hf-1xsn" id="a-dim" class="clip" data-start="0" data-duration="13.5" data-track-index="2"></div>
+    <div data-hf-id="hf-0jyh" id="a-one" class="clip a-title" data-start="0" data-duration="13.5" data-track-index="3">Lock the terms</div>
+    <div data-hf-id="hf-na7k" id="a-two" class="clip a-title" data-start="0" data-duration="13.5" data-track-index="4">Pin the evidence</div>
+    <div data-hf-id="hf-18rv" id="a-three" class="clip a-title" data-start="0" data-duration="13.5" data-track-index="5">Check GET /health → 200</div>
+    <div data-hf-id="hf-tceh" id="a-rule" class="clip" data-start="0" data-duration="13.5" data-track-index="6"></div>
+    <div data-hf-id="hf-43s9" id="a-note" class="clip" data-start="0" data-duration="13.5" data-track-index="7">2 of 3 approvals required</div>
+  </div>
+  <script>
+    window.__timelines = window.__timelines || {};
+    const tl = gsap.timeline({ paused: true });
+    tl.fromTo('#a-screen', { x: -115, y: -230, scale: 1.22, opacity: .55 }, { x: -115, y: -230, scale: 1.22, opacity: 1, duration: 1.3, ease: 'power3.out' }, 0);
+    tl.fromTo('#a-one', { y: 26, opacity: 0 }, { y: 0, opacity: 1, duration: .75, ease: 'power3.out' }, .5);
+    tl.fromTo('#a-rule', { scaleX: 0, transformOrigin: 'left center', opacity: 0 }, { scaleX: 1, opacity: 1, duration: 1.25, ease: 'power3.out' }, 1.4);
+    tl.to('#a-one', { opacity: 0, duration: .3 }, 3.1);
+    tl.fromTo('#a-two', { y: 25, opacity: 0 }, { y: 0, opacity: 1, duration: .75, ease: 'power3.out' }, 3.35);
+    tl.to('#a-rule', { x: 535, duration: 1, ease: 'power3.out' }, 4.3);
+    tl.to('#a-two', { opacity: 0, duration: .3 }, 7.1);
+    tl.fromTo('#a-three', { y: 25, opacity: 0 }, { y: 0, opacity: 1, duration: .75, ease: 'power3.out' }, 7.4);
+    tl.to('#a-rule', { x: 1040, duration: 1, ease: 'power3.out' }, 8.1);
+    tl.fromTo('#a-note', { y: 25, opacity: 0 }, { y: 0, opacity: 1, duration: .8, ease: 'power3.out' }, 10.6);
+    window.__timelines['02-agreement'] = tl;
+  </script>
+</template>

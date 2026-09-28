@@ -1,0 +1,28 @@
+<template>
+  <style>
+    @font-face { font-family: 'Inter'; src: url('assets/fonts/Inter-400.woff2') format('woff2'); font-weight: 400; }
+    @font-face { font-family: 'Inter'; src: url('assets/fonts/Inter-700.woff2') format('woff2'); font-weight: 700; }
+    #root { position: absolute; inset: 0; overflow: hidden; width: 100%; height: 100%; color: #F5F2FF; font-family: 'Inter'; }
+    #o-ground { position: absolute; inset: 0; background: #17131F; }
+    #o-shot { position: absolute; inset: 0; overflow: hidden; }
+    #o-shot img { width: 1920px; height: 1080px; object-fit: cover; display: block; }
+    #o-shade { position: absolute; inset: 0; background: linear-gradient(90deg,rgba(23,19,31,.10) 45%,rgba(23,19,31,.33)); pointer-events: none; }
+    #o-tag { position: absolute; top: 350px; left: 1120px; padding: 22px 32px; border: 1px solid rgba(120,230,181,.7); border-radius: 18px; background: rgba(16,35,31,.94); box-shadow: 0 20px 90px rgba(0,0,0,.4); color: #78E6B5; font-size: 43px; font-weight: 700; letter-spacing: -.035em; white-space: nowrap; }
+    #o-line { position: absolute; left: 244px; top: 780px; max-width: 980px; padding: 20px 30px; background: rgba(23,19,31,.94); border-left: 5px solid #78E6B5; border-radius: 6px 18px 18px 6px; font-size: 37px; font-weight: 700; letter-spacing: -.035em; }
+  </style>
+  <div data-hf-id="hf-adad" id="root" data-composition-id="01-outcome" data-width="1920" data-height="1080" data-duration="10.5">
+    <div data-hf-id="hf-zirl" id="o-ground" class="clip" data-start="0" data-duration="10.5" data-track-index="0"></div>
+    <div data-hf-id="hf-9gdh" id="o-shot" class="clip" data-start="0" data-duration="10.5" data-track-index="1"><img data-hf-id="hf-6o10" id="o-screen" src="assets/scroll-000.png" alt="Real Accrue demo page"></div>
+    <div data-hf-id="hf-hnnh" id="o-shade" class="clip" data-start="0" data-duration="10.5" data-track-index="2"></div>
+    <div data-hf-id="hf-4sq3" id="o-tag" class="clip" data-start="0" data-duration="10.5" data-track-index="3">5.00 AUSD paid</div>
+    <div data-hf-id="hf-ramp" id="o-line" class="clip" data-start="0" data-duration="10.5" data-track-index="4">One API task. One verifiable result.</div>
+  </div>
+  <script>
+    window.__timelines = window.__timelines || {};
+    const tl = gsap.timeline({ paused: true });
+    tl.fromTo('#o-screen', { scale: 1.045, opacity: 0.25 }, { scale: 1, opacity: 1, duration: 2, ease: 'power3.out' }, 0);
+    tl.fromTo('#o-tag', { y: 26, opacity: 0 }, { y: 0, opacity: 1, duration: .9, ease: 'power3.out' }, 2.15);
+    tl.fromTo('#o-line', { y: 26, opacity: 0 }, { y: 0, opacity: 1, duration: .9, ease: 'power3.out' }, 5.6);
+    window.__timelines['01-outcome'] = tl;
+  </script>
+</template>

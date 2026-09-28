@@ -12,9 +12,11 @@ import {
   LogOut,
   CheckCircle2,
   SendHorizontal,
+  Bot,
 } from "lucide-react";
 import { Send as SendPage } from "./ui/send";
 import { LiveAgreements } from "./ui/live-agreements";
+import { DigitalWork } from "./ui/digital-work";
 import { LiveEarnings } from "./ui/live-earnings";
 import { LiveActivity } from "./ui/live-activity";
 import { NetworkSwitch } from "./ui/network-switch";
@@ -25,7 +27,8 @@ import { Choice } from "./ui/shared";
 import { InvitationAcceptModal } from "./ui/invitation-accept-modal";
 
 const navigation = [
-  { id: "jobs", label: "Agreements", icon: ShieldCheck },
+  { id: "digital", label: "Digital work", icon: Bot },
+  { id: "jobs", label: "Legacy escrow", icon: ShieldCheck },
   { id: "send", label: "Send", icon: SendHorizontal },
   { id: "earnings", label: "Earnings", icon: Wallet },
   { id: "activity", label: "Activity", icon: Activity },
@@ -53,12 +56,14 @@ export default function Accrue() {
     const params = new URLSearchParams(window.location.search);
     const job = params.get("job");
     const invite = params.get("invite");
-    if (job) {
-      setOpenJob(job);
-      navigate("jobs");
-    } else if (invite) {
-      setInviteToken(invite);
-    }
+    queueMicrotask(() => {
+      if (job) {
+        setOpenJob(job);
+        navigate("jobs");
+      } else if (invite) {
+        setInviteToken(invite);
+      }
+    });
     // Invite links are applied once on load.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -107,7 +112,7 @@ export default function Accrue() {
             {/* The disclosure has to match the page: the send screen moves
                 real testnet tokens, while everything else reads the chain
                 without moving anything. */}
-            {page === "send" || page === "jobs" ? (
+            {page === "send" || page === "jobs" || page === "digital" ? (
               <NetworkSwitch />
             ) : null}
             {wallet.demoRoles && (
@@ -271,6 +276,7 @@ export default function Accrue() {
             </section>
           ) : (
             <>
+              {page === "digital" && <DigitalWork />}
               {page === "jobs" && (
                 <LiveAgreements openId={openJob} onOpenChange={setOpenJob} />
               )}

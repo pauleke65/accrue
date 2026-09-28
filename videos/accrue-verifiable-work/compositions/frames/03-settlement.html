@@ -1,0 +1,34 @@
+<template>
+  <style>
+    @font-face { font-family: 'Inter'; src: url('assets/fonts/Inter-400.woff2') format('woff2'); font-weight: 400; }
+    @font-face { font-family: 'Inter'; src: url('assets/fonts/Inter-700.woff2') format('woff2'); font-weight: 700; }
+    #root { position: absolute; inset: 0; overflow: hidden; width: 100%; height: 100%; color: #F5F2FF; font-family: 'Inter'; }
+    #s-ground { position: absolute; inset: 0; background: #17131F; }
+    #s-shot { position: absolute; inset: 0; overflow: hidden; }
+    #s-screen { position: absolute; width: 1920px; height: 1080px; object-fit: cover; max-width: none; }
+    #s-dim { position:absolute; inset:0; background:linear-gradient(180deg,rgba(23,19,31,.98) 0%,rgba(23,19,31,.48) 30%,rgba(23,19,31,.15) 65%,rgba(23,19,31,.9) 100%); }
+    #s-title { position:absolute; left:100px; top:68px; font-size:70px; font-weight:700; letter-spacing:-.05em; }
+    #s-chip { position:absolute; right:110px; top:70px; border:1px solid rgba(120,230,181,.7); background:rgba(16,35,31,.96); color:#78E6B5; font-size:42px; font-weight:700; padding:18px 30px; border-radius:16px; }
+    #s-paid { position:absolute; left:100px; top:220px; color:#78E6B5; font-size:46px; font-weight:700; letter-spacing:-.04em; text-shadow:0 8px 30px #17131F; }
+    #s-foot { position:absolute; left:100px; top:805px; color:#F5F2FF; font-size:26px; font-weight:400; background:rgba(23,19,31,.96); padding:12px 20px; border-radius:10px; }
+  </style>
+  <div data-hf-id="hf-7om0" id="root" data-composition-id="03-settlement" data-width="1920" data-height="1080" data-duration="13">
+    <div data-hf-id="hf-zpwd" id="s-ground" class="clip" data-start="0" data-duration="13" data-track-index="0"></div>
+    <div data-hf-id="hf-p9o0" id="s-shot" class="clip" data-start="0" data-duration="13" data-track-index="1" data-layout-allow-overflow=""><img data-hf-id="hf-7enb" id="s-screen" src="assets/scroll-100.png" alt="Real quorum and onchain settlement"></div>
+    <div data-hf-id="hf-7u9o" id="s-dim" class="clip" data-start="0" data-duration="13" data-track-index="2"></div>
+    <div data-hf-id="hf-ua8i" id="s-title" class="clip" data-start="0" data-duration="13" data-track-index="3">Independent votes</div>
+    <div data-hf-id="hf-sbep" id="s-chip" class="clip" data-start="0" data-duration="13" data-track-index="4">2 / 3 PASS</div>
+    <div data-hf-id="hf-fxxv" id="s-paid" class="clip" data-start="0" data-duration="13" data-track-index="5">5.00 AUSD → worker</div>
+    <div data-hf-id="hf-umhs" id="s-foot" class="clip" data-start="0" data-duration="13" data-track-index="6">Free Jev checked job #2 · manual review at 14%</div>
+  </div>
+  <script>
+    window.__timelines = window.__timelines || {};
+    const tl = gsap.timeline({ paused: true });
+    tl.fromTo('#s-screen', { x: -75, y: -65, scale: 1.08, opacity: .6 }, { x: -75, y: -65, scale: 1.08, opacity: 1, duration: 1.4, ease: 'power3.out' }, 0);
+    tl.fromTo('#s-title', { y: 28, opacity: 0 }, { y: 0, opacity: 1, duration: .8, ease: 'power3.out' }, .45);
+    tl.fromTo('#s-chip', { y: 28, opacity: 0 }, { y: 0, opacity: 1, duration: .8, ease: 'power3.out' }, 2.1);
+    tl.fromTo('#s-paid', { y: 28, opacity: 0 }, { y: 0, opacity: 1, duration: .8, ease: 'power3.out' }, 5.2);
+    tl.fromTo('#s-foot', { y: 28, opacity: 0 }, { y: 0, opacity: 1, duration: .8, ease: 'power3.out' }, 9.8);
+    window.__timelines['03-settlement'] = tl;
+  </script>
+</template>
