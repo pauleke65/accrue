@@ -1,37 +1,98 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=1440, height=900">
-  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js" integrity="sha384-sG0Hv1tP1lZCk9KQmrIbY/XNwi+OY84GQqhMscbnsoBFqAz8KNCil1kvfL3Hbbk2" crossorigin="anonymous"></script>
-  <style>
-    * { box-sizing: border-box; }
-    html, body { margin: 0; width: 1440px; height: 900px; overflow: hidden; background: #09090f; }
-    #root { position: relative; width: 100%; height: 100%; overflow: hidden; background: #09090f; }
-    video.screen { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
-    #progress { position: absolute; bottom: 0; left: 0; width: 100%; height: 4px; background: #a975ff; transform-origin: left center; z-index: 2; }
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1920,height=1080">
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js" integrity="sha384-sG0Hv1tP1lZCk9KQmrIbY/XNwi+OY84GQqhMscbnsoBFqAz8KNCil1kvfL3Hbbk2" crossorigin="anonymous"></script>
+<style>
+*{box-sizing:border-box}html,body{width:1920px;height:1080px;margin:0;overflow:hidden;background:#07080d;color:#f9f9fb;font-family:Inter,Arial,sans-serif}
+#root{position:relative;width:100%;height:100%;overflow:hidden;background:#07080d}
+#screen-layout{position:absolute;inset:0;display:flex;gap:0;padding:38px 34px 54px}
+#screen-frame{position:relative;width:1510px;height:944px;flex-shrink:0;overflow:hidden;background:#101017;border:1px solid #a89aff66;box-shadow:0 34px 90px #0009}
+.shot{position:absolute;inset:0;width:100%;height:100%;transform-origin:center center}
+.shot video{display:block;width:100%;height:100%;object-fit:cover}
+#panel{position:relative;flex:1;min-width:0;padding:20px 10px 10px 35px;display:flex;flex-direction:column;border-top:1px solid #a89aff66;border-bottom:1px solid #a89aff66;background:#15131f}
+.panel-top{display:flex;align-items:center;gap:9px;color:#b8b4fe;font:700 14px ui-monospace,Menlo,monospace;letter-spacing:.13em}
+.brand-glyph{display:grid;place-items:center;width:27px;height:27px;background:#7658ff;color:white;font:bold 19px ui-monospace,monospace}
+.panel-divider{height:1px;background:#a89aff44;margin:31px 0 0}
+.chapter{position:absolute;top:188px;left:35px;right:20px;min-height:520px}
+.chapter-inner{position:relative}
+.chapter-number{color:#69e9aa;font:700 12px ui-monospace,Menlo,monospace;letter-spacing:.16em}
+.chapter h2{margin:30px 0 18px;max-width:320px;font-size:57px;line-height:1.04;letter-spacing:-.035em}
+.chapter p{max-width:270px;color:#cbc8d9;font-size:19px;line-height:1.5}
+.chapter-proof{display:inline-block;margin-top:35px;padding:11px 13px;color:#6ee7a8;background:#6ee7a81e;font:700 12px ui-monospace,Menlo,monospace;letter-spacing:.06em}
+.panel-bottom{margin-top:auto;color:#c0bdd0;font:700 11px ui-monospace,Menlo,monospace;letter-spacing:.1em;line-height:1.5}
+.panel-bottom strong{display:block;margin-top:7px;color:white;font-size:14px}
+#progress-track{position:absolute;bottom:0;left:0;width:100%;height:6px;background:#302a44}
+#progress{width:100%;height:100%;background:#6ee7a8;transform-origin:left center}
+.card{position:absolute;inset:0;z-index:10;background:#11101b;display:grid;place-items:center;overflow:hidden}
+.card-inner{width:1370px}
+.card-mark{display:flex;align-items:center;gap:13px;color:#b8b4fe;font:700 20px ui-monospace,Menlo,monospace;letter-spacing:.18em}
+.card-mark b{display:grid;place-items:center;background:#7658ff;color:white;width:41px;height:41px;font:bold 28px ui-monospace,Menlo,monospace;letter-spacing:0}
+.card h1{max-width:1200px;margin:40px 0;font-size:118px;line-height:.98;letter-spacing:-.04em}
+.card h1 em{font-style:normal;color:#6ee7a8}
+.card-line{height:3px;background:#6ee7a8;width:820px;transform-origin:left center}
+.card small{display:block;margin-top:36px;color:#c6c4d5;font:700 16px ui-monospace,Menlo,monospace;letter-spacing:.12em}
+#outro .card-inner{width:1390px}
+#outro h1{font-size:130px}
+#outro .amount{display:block;margin:20px 0 0;color:#6ee7a8;font-size:158px;font-weight:750;letter-spacing:-.05em}
+#outro p{font-size:24px;color:#d5d3df}
+.intro-rail{position:absolute;bottom:105px;left:275px;width:1370px;display:flex;align-items:center;justify-content:space-between;color:#b8b4fe;font:700 15px ui-monospace,Menlo,monospace;letter-spacing:.12em}
+.intro-rail span{display:inline-flex;gap:10px;align-items:center}
+.intro-rail i{display:inline-block;width:9px;height:9px;background:#6ee7a8;border-radius:50%}
+audio{display:none}
+</style>
 </head>
 <body>
-  <div data-hf-id="hf-6igr" id="root" data-composition-id="main" data-start="0" data-duration="76.7" data-width="1440" data-height="900">
-    <video data-hf-id="hf-95q3" id="screen-1" class="clip screen" src="assets/walkthrough/01-create-agreement.mp4" data-start="0" data-duration="10.3" data-track-index="0" muted playsinline></video>
-    <audio data-hf-id="hf-abur" id="narration-1" src="assets/walkthrough/01-create-agreement-narration.m4a" data-start="0" data-duration="9.338" data-track-index="10" data-volume="1"></audio>
-    <video data-hf-id="hf-m9vd" id="screen-2" class="clip screen" src="assets/walkthrough/02-accept-and-fund.mp4" data-start="10.3" data-duration="10.95" data-track-index="0" muted playsinline></video>
-    <audio data-hf-id="hf-6g1l" id="narration-2" src="assets/walkthrough/02-accept-and-fund-narration.m4a" data-start="10.3" data-duration="8.271" data-track-index="10" data-volume="1"></audio>
-    <video data-hf-id="hf-yewg" id="screen-3" class="clip screen" src="assets/walkthrough/03-submit-evidence.mp4" data-start="21.25" data-duration="8.8" data-track-index="0" muted playsinline></video>
-    <audio data-hf-id="hf-uvcx" id="narration-3" src="assets/walkthrough/03-submit-evidence-narration.m4a" data-start="21.25" data-duration="6.4" data-track-index="10" data-volume="1"></audio>
-    <video data-hf-id="hf-1397" id="screen-4" class="clip screen" src="assets/walkthrough/04-run-jev.mp4" data-start="30.05" data-duration="16.85" data-track-index="0" muted playsinline></video>
-    <audio data-hf-id="hf-3xqd" id="narration-4" src="assets/walkthrough/04-run-jev-narration.m4a" data-start="30.05" data-duration="16.037" data-track-index="10" data-volume="1"></audio>
-    <video data-hf-id="hf-mjih" id="screen-5" class="clip screen" src="assets/walkthrough/05-review-and-settle.mp4" data-start="46.9" data-duration="19.15" data-track-index="0" muted playsinline></video>
-    <audio data-hf-id="hf-8ta8" id="narration-5" src="assets/walkthrough/05-review-and-settle-narration.m4a" data-start="46.9" data-duration="16.317" data-track-index="10" data-volume="1"></audio>
-    <video data-hf-id="hf-8hkj" id="screen-6" class="clip screen" src="assets/walkthrough/06-withdraw.mp4" data-start="66.05" data-duration="10.65" data-track-index="0" muted playsinline></video>
-    <audio data-hf-id="hf-ok6c" id="narration-6" src="assets/walkthrough/06-withdraw-narration.m4a" data-start="66.05" data-duration="9.588" data-track-index="10" data-volume="1"></audio>
-    <div data-hf-id="hf-qvqa" id="progress" data-layout-ignore="" aria-hidden="true"></div>
-  </div>
-  <script>
-    const timeline = gsap.timeline({ paused: true });
-    timeline.fromTo("#progress", { scaleX: 0 }, { scaleX: 1, duration: 76.7, ease: "none" }, 0);
-    window.__timelines["main"] = timeline;
-  </script>
+<div id="root" data-composition-id="main" data-start="0" data-duration="70" data-width="1920" data-height="1080">
+<div id="screen-layout"><div id="screen-frame">
+<div class="shot" id="shot-1"><video id="screen-1" class="clip" src="assets/proof-engine/01-create.mp4" data-start="2" data-duration="11.5" data-playback-rate="1.973913" data-track-index="0" muted playsinline></video></div>
+<div class="shot" id="shot-2"><video id="screen-2" class="clip" src="assets/proof-engine/02-accept-fund.mp4" data-start="13.5" data-duration="11.5" data-playback-rate="1.730435" data-track-index="0" muted playsinline></video></div>
+<div class="shot" id="shot-3"><video id="screen-3" class="clip" src="assets/proof-engine/03-submit.mp4" data-start="25" data-duration="8" data-playback-rate="1.518750" data-track-index="0" muted playsinline></video></div>
+<div class="shot" id="shot-4"><video id="screen-4" class="clip" src="assets/proof-engine/04-proof-engine.mp4" data-start="33" data-duration="14" data-playback-rate="1.067857" data-track-index="0" muted playsinline></video></div>
+<div class="shot" id="shot-5"><video id="screen-5" class="clip" src="assets/proof-engine/05-quorum.mp4" data-start="47" data-duration="11.5" data-playback-rate="1.765217" data-track-index="0" muted playsinline></video></div>
+<div class="shot" id="shot-6"><video id="screen-6" class="clip" src="assets/proof-engine/06-withdraw.mp4" data-start="58.5" data-duration="9" data-playback-rate="1.261111" data-track-index="0" muted playsinline></video></div>
+</div><aside id="panel"><div class="panel-top"><span class="brand-glyph">A</span> ACCRUE / PROOF ENGINE</div><div class="panel-divider"></div>
+<div id="chapter-1" class="chapter clip" data-start="2" data-duration="11.5" data-track-index="2"><div class="chapter-inner"><span class="chapter-number">01 / 06 · LIVE TESTNET</span><h2>Lock the outcome.</h2><p>The payer fixes the API result, 5 AUSD reward, deadline, and who may review.</p><span class="chapter-proof">AGREEMENT CREATED ON MONAD</span></div></div>
+<div id="chapter-2" class="chapter clip" data-start="13.5" data-duration="11.5" data-track-index="2"><div class="chapter-inner"><span class="chapter-number">02 / 06 · LIVE TESTNET</span><h2>Accept. Then fund.</h2><p>The worker accepts the policy. The payer locks reward and reviewer fees.</p><span class="chapter-proof">5.30 AUSD RESERVED</span></div></div>
+<div id="chapter-3" class="chapter clip" data-start="25" data-duration="8" data-track-index="2"><div class="chapter-inner"><span class="chapter-number">03 / 06 · LIVE TESTNET</span><h2>Pin the evidence.</h2><p>A public commit and live deployment are bound to this evidence version.</p><span class="chapter-proof">COMMIT + ENDPOINT HASHED</span></div></div>
+<div id="chapter-4" class="chapter clip" data-start="33" data-duration="14" data-track-index="2"><div class="chapter-inner"><span class="chapter-number">04 / 06 · LIVE TESTNET</span><h2>Let proof speak.</h2><p>Proof Engine checks the API and abstains when the review risk exceeds the limit.</p><span class="chapter-proof">94% REQUIREMENTS · 15% HUMAN REVIEW</span></div></div>
+<div id="chapter-5" class="chapter clip" data-start="47" data-duration="11.5" data-track-index="2"><div class="chapter-inner"><span class="chapter-number">05 / 06 · LIVE TESTNET</span><h2>People decide.</h2><p>Two independently signed pass votes reach the contract’s locked quorum.</p><span class="chapter-proof">2 OF 3 · PAYABLE</span></div></div>
+<div id="chapter-6" class="chapter clip" data-start="58.5" data-duration="9" data-track-index="2"><div class="chapter-inner"><span class="chapter-number">06 / 06 · LIVE TESTNET</span><h2>Worker gets paid.</h2><p>The worker withdraws the 5 AUSD earned from this real testnet job.</p><span class="chapter-proof">WITHDRAWAL CONFIRMED</span></div></div>
+<div class="panel-bottom">LIVE JOB #6 <strong>VERIFIABLE DIGITAL WORK</strong></div></aside></div>
+<div id="progress-track"><div id="progress"></div></div>
+<div id="intro" class="card clip" data-start="0" data-duration="2" data-track-index="5"><div class="card-inner"><div class="card-mark"><b>A</b> ACCRUE / PROOF ENGINE</div><h1>Work pays when <em>proof holds.</em></h1><div class="card-line"></div><small>REAL PRODUCT · REAL TESTNET JOB #6</small></div><div class="intro-rail"><span><i></i> LOCK</span><span><i></i> CHECK</span><span><i></i> DECIDE</span><span><i></i> PAY</span></div></div>
+<div id="outro" class="card clip" data-start="67.5" data-duration="2.5" data-track-index="5"><div class="card-inner"><div class="card-mark"><b>A</b> ACCRUE / PROOF ENGINE</div><span class="amount">5.00 AUSD</span><h1>Earned. Verified. <em>Paid.</em></h1><p>Proof Engine abstained. Two reviewers settled. The worker withdrew.</p></div></div>
+<audio id="voice-1" src="assets/proof-engine/create-voice.m4a" data-start="2" data-duration="9.022" data-track-index="10" data-volume="1"></audio>
+<audio id="voice-2" src="assets/proof-engine/accept-fund-voice.m4a" data-start="13.5" data-duration="9.199" data-track-index="10" data-volume="1"></audio>
+<audio id="voice-3" src="assets/proof-engine/submit-voice.m4a" data-start="25" data-duration="7.279" data-track-index="10" data-volume="1"></audio>
+<audio id="voice-4" src="assets/proof-engine/proof-engine-voice.m4a" data-start="33" data-duration="13.609" data-track-index="10" data-volume="1"></audio>
+<audio id="voice-5" src="assets/proof-engine/quorum-voice.m4a" data-start="47" data-duration="10.190" data-track-index="10" data-volume="1"></audio>
+<audio id="voice-6" src="assets/proof-engine/withdraw-voice.m4a" data-start="58.5" data-duration="7.662" data-track-index="10" data-volume="1"></audio>
+<audio id="voice-intro" src="assets/proof-engine/intro-voice.m4a" data-start="0" data-duration="1.903" data-track-index="10" data-volume="1"></audio>
+<audio id="voice-outro" src="assets/proof-engine/outro-voice.m4a" data-start="67.5" data-duration="1.673" data-track-index="10" data-volume="1"></audio>
+</div>
+<script>
+const tl=gsap.timeline({paused:true});
+tl.fromTo("#progress",{scaleX:0},{scaleX:1,duration:65.5,ease:"none"},2);
+tl.fromTo("#screen-frame",{opacity:0,scale:.94},{opacity:1,scale:1,duration:.5,ease:"power2.out"},2);
+tl.fromTo("#panel",{opacity:0,x:45},{opacity:1,x:0,duration:.5,ease:"power2.out"},2);
+tl.fromTo("#intro .card-inner",{opacity:0,y:75},{opacity:1,y:0,duration:.65,ease:"power3.out"},0);
+tl.fromTo("#intro .card-line",{scaleX:0},{scaleX:1,duration:1.1,ease:"power2.out"},.5);
+tl.fromTo("#outro .card-inner",{opacity:0,y:70},{opacity:1,y:0,duration:.55,ease:"power3.out"},67.5);
+tl.fromTo("#shot-1",{scale:1.02,x:0,y:0},{scale:1.13,x:-28,y:-20,duration:11.5,ease:"power1.inOut"},2);
+tl.fromTo("#chapter-1 .chapter-inner",{opacity:0,y:30},{opacity:1,y:0,duration:.46,ease:"power3.out"},2.00);
+tl.fromTo("#shot-2",{scale:1.03,x:0,y:0},{scale:1.14,x:-48,y:-15,duration:11.5,ease:"power1.inOut"},13.5);
+tl.fromTo("#chapter-2 .chapter-inner",{opacity:0,y:30},{opacity:1,y:0,duration:.46,ease:"power3.out"},13.50);
+tl.fromTo("#shot-3",{scale:1.04,x:0,y:0},{scale:1.16,x:32,y:8,duration:8,ease:"power1.inOut"},25);
+tl.fromTo("#chapter-3 .chapter-inner",{opacity:0,y:30},{opacity:1,y:0,duration:.46,ease:"power3.out"},25.00);
+tl.fromTo("#shot-4",{scale:1.03,x:0,y:0},{scale:1.17,x:-42,y:28,duration:14,ease:"power1.inOut"},33);
+tl.fromTo("#chapter-4 .chapter-inner",{opacity:0,y:30},{opacity:1,y:0,duration:.46,ease:"power3.out"},33.00);
+tl.fromTo("#shot-5",{scale:1.03,x:0,y:0},{scale:1.15,x:-24,y:15,duration:11.5,ease:"power1.inOut"},47);
+tl.fromTo("#chapter-5 .chapter-inner",{opacity:0,y:30},{opacity:1,y:0,duration:.46,ease:"power3.out"},47.00);
+tl.fromTo("#shot-6",{scale:1.04,x:0,y:0},{scale:1.13,x:-18,y:6,duration:9,ease:"power1.inOut"},58.5);
+tl.fromTo("#chapter-6 .chapter-inner",{opacity:0,y:30},{opacity:1,y:0,duration:.46,ease:"power3.out"},58.50);
+window.__timelines["main"]=tl;
+</script>
 </body>
 </html>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowUpRight, Bot, CheckCircle2, Clock3, Plus, ShieldCheck } from "lucide-react";
+import { ArrowRight, ArrowUpRight, CheckCircle2, Clock3, Plus, ScanSearch, ShieldCheck } from "lucide-react";
 import { formatAmount, shortAddress, token } from "@/lib/chain";
 import { DigitalWorkStatus } from "@/lib/digital-work-chain";
 import { digitalJobId } from "@/lib/digital-work-id";
@@ -33,11 +33,21 @@ export function DigitalWork() {
   const verified = digital.jobs.filter((job) => job.chain.status === DigitalWorkStatus.paid).length;
 
   if (!wallet.wallet) return (
-    <div className="empty-state">
-      <Bot size={34} />
-      <h2>Sign in to pay for verified work.</h2>
-      <p>Fund an API task, inspect its tests and Jev evaluation, then settle through an independent verifier quorum.</p>
-      <a className="secondary" href="/demo.html">Explore the live testnet demo <ArrowUpRight size={15} /></a>
+    <div className="dw-signin-hero">
+      <div className="dw-signin-copy">
+        <span className="dw-product-name"><ScanSearch size={18} /> ACCRUE PROOF ENGINE</span>
+        <h1>Work pays when <em>proof holds.</em></h1>
+        <p>Fund an API outcome. Automated checks and independent reviewers inspect the evidence before Accrue releases payment.</p>
+        <a className="primary" href="/proof-engine-walkthrough.mp4">Watch the real walkthrough <ArrowUpRight size={15} /></a>
+        <small>Sign in with a passkey to create or review an agreement.</small>
+      </div>
+      <a className="dw-signin-proof" href="/demo.html" aria-label="Explore the proof trail for paid testnet job 6">
+        <div className="dw-signin-proof-top"><span>LIVE PROOF / JOB #6</span><span>MONAD TESTNET</span></div>
+        <div className="dw-signin-proof-amount"><strong>5.00</strong><span>AUSD<br />PAID TO WORKER</span></div>
+        <div className="dw-signin-proof-checks"><span><CheckCircle2 size={16} /> Commit found</span><span><CheckCircle2 size={16} /> API responded</span><span><CheckCircle2 size={16} /> JSON matched</span></div>
+        <div className="dw-signin-proof-note"><span>94% requirements confidence</span><span>15% human review need</span><strong>Proof Engine abstained. Two reviewers passed.</strong></div>
+        <div className="dw-signin-proof-link">Follow the proof trail <ArrowUpRight size={17} /></div>
+      </a>
     </div>
   );
 
@@ -63,36 +73,35 @@ export function DigitalWork() {
 
   return (
     <>
-      <div className="page-heading dw-heading">
-        <div>
-          <p className="eyebrow">DIGITAL WORK / MONAD TESTNET</p>
-          <h1>Pay for the outcome<span className="heading-dot">.</span></h1>
-          <p className="muted">AUSD is reserved for a specific API result. The worker pins the artifact; locked checks and independent verifiers decide what happens next.</p>
+      <div className="dw-protocol-hero">
+        <div className="dw-protocol-copy">
+          <span className="dw-product-name"><ScanSearch size={17} /> ACCRUE PROOF ENGINE <i /> LIVE ON MONAD TESTNET</span>
+          <h1>Work pays when <em>proof holds.</em></h1>
+          <p>Set the outcome. Lock the reward. Proof Engine checks the evidence, and independent reviewers decide what is uncertain.</p>
+          <div className="dw-hero-actions"><button className="primary" disabled={!digital.config?.contractAddress || !digital.config?.jevAddress} onClick={() => setCreating(true)}><Plus size={17} /> Create an agreement</button><a href="#digital-agreements">View your work <ArrowRight size={16} /></a></div>
+          <div className="dw-hero-facts"><span><ShieldCheck size={15} /> Terms locked before funding</span><span><CheckCircle2 size={15} /> 2 of 3 votes to settle</span></div>
         </div>
-        <button className="primary" disabled={!digital.config?.contractAddress || !digital.config?.jevAddress} onClick={() => setCreating(true)}>
-          <Plus size={16} /> New digital job
-        </button>
+        <div className="dw-engine-visual" aria-label="Proof Engine verification path">
+          <div className="dw-engine-visual-top"><span>PROOF ENGINE / LIVE REVIEW</span><span className="dw-live-dot">SYSTEM READY</span></div>
+          <div className="dw-engine-visual-main"><ScanSearch size={38} strokeWidth={1.3} /><strong>Proof, then payment.</strong><p>One continuous record from the agreed test to the final on-chain vote.</p></div>
+          <div className="dw-engine-visual-steps"><span>LOCK <b>01</b></span><i /><span>CHECK <b>02</b></span><i /><span>DECIDE <b>03</b></span><i /><span>PAY <b>04</b></span></div>
+          <div className="dw-engine-visual-foot">AI checks quickly. Human reviewers resolve uncertainty. The contract settles the outcome.</div>
+        </div>
       </div>
 
       {digital.error && <div role="alert" className="error-banner">{digital.error}<button className="text-button" onClick={() => digital.setError("")}>Dismiss</button></div>}
       {!digital.config?.contractAddress && <div className="notice"><ShieldCheck size={18} /><p>The digital-work contract has not been configured on this deployment. The existing milestone escrow remains available under Agreements.</p></div>}
-      {digital.config?.contractAddress && !digital.config.modelReady && <div className="notice"><Bot size={18} /><p>Jev is not connected here yet. Add a free BeatAPI key or Cloudflare AI access to enable the agent vote.</p></div>}
+      {digital.config?.contractAddress && !digital.config.modelReady && <div className="notice"><ScanSearch size={18} /><p>Proof Engine is not connected on this deployment. Configure its AI provider to enable automated review.</p></div>}
 
-      <div className="dw-intro-grid">
-        <div className="dw-intro-card"><span>01 / DEFINE</span><strong>Lock the policy</strong><p>Reward, API behavior, deadline, and 2-of-3 verifier set are fixed before funding.</p></div>
-        <div className="dw-intro-card"><span>02 / VERIFY</span><strong>Run evidence</strong><p>Public commit and deployed endpoint checks feed a Cloudflare Worker using Jev.</p></div>
-        <div className="dw-intro-card"><span>03 / SETTLE</span><strong>Pay on proof</strong><p>Two distinct verifier votes release the worker reward. Missed review returns reserved funds.</p></div>
-      </div>
-
-      <div className="metrics">
+      <div className="metrics dw-metrics">
         <section className="metric featured"><span>Active digital jobs</span><strong>{funded.toString().padStart(2, "0")}</strong><small>Funded and in progress</small></section>
         <section className="metric"><span>Verified outcomes</span><strong>{verified.toString().padStart(2, "0")}</strong><small>2-of-3 approval reached</small></section>
         <section className="metric"><span>Available to withdraw</span><strong>{formatAmount(digital.claimable)}</strong><small>{token.symbol} earned across your jobs</small></section>
       </div>
 
-      <div className="dw-list-heading"><div><p className="eyebrow">YOUR WORK</p><h2>Digital agreements</h2></div><span>{digital.jobs.length} jobs</span></div>
+      <div id="digital-agreements" className="dw-list-heading"><div><h2>Your agreements</h2><p>From locked outcome to verified payout.</p></div><span>{digital.jobs.length} jobs</span></div>
       {digital.loading ? <p className="muted">Reading jobs from Monad…</p> : digital.jobs.length === 0 ? (
-        <div className="empty-state"><Bot size={34} /><h2>No digital jobs yet.</h2><p>Create an API task or wait to be named as its worker or verifier.</p></div>
+        <div className="empty-state"><ScanSearch size={34} /><h2>No agreements yet.</h2><p>Create an API task or wait to be invited as its worker or reviewer.</p></div>
       ) : (
         <div className="dw-job-grid">
           {digital.jobs.map((job) => (

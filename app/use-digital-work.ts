@@ -172,7 +172,7 @@ export function useDigitalWork() {
   }, [wallet]);
 
   const create = useCallback((draft: DigitalDraft) => run(async (account) => {
-    if (!config?.jevAddress) throw new Error("Set a dedicated Jev verifier key before creating a job.");
+    if (!config?.jevAddress) throw new Error("Proof Engine needs a configured automated verifier before you can create an agreement.");
     const policy = parseDigitalPolicy(draft.policy);
     const worker = await resolve(draft.worker);
     const reviewerB = await resolve(draft.reviewerB);

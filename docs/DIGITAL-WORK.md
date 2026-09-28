@@ -12,28 +12,28 @@ The build implements six features across three of the original five directions:
 | Verifiable work protocol | Versioned, hashed evidence manifest and bounded public endpoint checks |
 | Verifier network | Three distinct invited verifiers with 2-of-3 pass/fail quorum |
 | Verifier network | Verifier fees, correction requests, expiry refund, and pull withdrawals |
-| Autonomous work economy | Dedicated Jev voter with typed model evaluation and on-chain vote |
+| Autonomous work economy | Proof Engine automated reviewer with typed AI evaluation and an on-chain vote when the policy permits |
 | Autonomous work economy | Wallet-authenticated routes usable by human or agent participants |
 
 This release does not include a general verifier marketplace, reputation graph, or recurring SLA contracts.
 
 ## Live testnet proof
 
-The [76-second narrated walkthrough](../videos/accrue-verifiable-work/renders/video.mp4) records the product in use for job `#4`: create, accept, fund, submit, run Jev, collect two signed human reviews, settle, and withdraw. Its [source composition and narration](../videos/accrue-verifiable-work/) are editable. Jev returned 94% requirements confidence and 14% human-review need for this job, so it abstained under the locked 10% review limit. The worker's claimable balance was zero after the recorded withdrawal.
+The [70-second narrated walkthrough](../videos/accrue-verifiable-work/renders/video.mp4) records the product in use for job `#6`: create, accept, fund, submit, run Proof Engine, collect two signed human reviews, settle, and withdraw. The [interactive proof page](../public/demo.html) lets readers inspect each step. Its [source composition and narration](../videos/accrue-verifiable-work/) are editable. The underlying AI returned 94% requirements confidence and 15% human-review need, so Proof Engine abstained under the locked 10% review limit. A fresh contract read confirmed status `Paid`, two pass votes, zero fail votes, and zero remaining worker claimable balance.
 
 - Contract: [`0x2Fdfa4470fB43d9432f021fDB4043d59fF8C8f07`](https://testnet.monadvision.com/address/0x2Fdfa4470fB43d9432f021fDB4043d59fF8C8f07)
 - Deployment: [`0x676033…faa08f5fa`](https://testnet.monadvision.com/tx/0x6760331451ff48ea1aecc41bbc4d9c345f4a12330ddcb0689aef22dfaa08f5fa)
-- Job `#1`: worker reward 5 AUSD, verifier pool 0.30 AUSD, two independent pass votes.
-- Deciding vote and settlement: [`0x4dddfd…4b8fdf7`](https://testnet.monadvision.com/tx/0x4dddfd0ff5416445d3d76884429063bcbab4f91c078a6e03ce03721bd4b8fdf7)
-- Worker withdrawal: [`0xc630fe…17e3f`](https://testnet.monadvision.com/tx/0xc630fe160acb176a1043b4eee7e8ae5f8047f10158412f45ca8365384fc17e3f)
+- Job `#6`: worker reward 5 AUSD, verifier pool 0.30 AUSD, two independent pass votes.
+- Deciding vote and settlement: [`0x3575e2…903cc`](https://testnet.monadvision.com/tx/0x3575e2f43cadefc4c24d997b7f87df8767157da587871bfac518c868f8f903cc)
+- Worker: [`0x481A…65b7`](https://testnet.monadvision.com/address/0x481A9deE8B9A2dB6C703DF85b41912D5c97B65b7)
 - Public endpoint: [Cloudflare Worker `/health`](https://accrue-verifiable-work-demo.pauleke65.workers.dev/health)
 - Readable showcase: [`/demo.html`](../public/demo.html)
 
 The automated checks prove that the submitted public commit exists and the deployment responds with the locked HTTP status and JSON value. They do **not** prove that the deployment was built from that commit. Independent reviewers remain responsible for that assessment. This is a material boundary of the API-task prototype.
 
-## Jev provider
+## Proof Engine provider
 
-The verifier Worker prefers BeatAPI `jev-1.13-free` when `ACCRUE_BEATAPI_API_KEY` is set. It sends the locked policy and deterministic check report to `POST https://api.beatapi.io/v1/systemone`, validates the two typed `noul` probabilities, and votes only when its own policy threshold is met. The [provider docs](https://docs.beatapi.io/decisions) say the free model works at zero balance with one successful request per minute before a top-up. Keep the API key in the server's `.dev.vars` or a deployment secret. A default auto-group key is required.
+Proof Engine is Accrue's branded verification flow. It combines deterministic public checks, an AI assessment, and a policy decision. The AI provider is disclosed in the technical record; Accrue does not claim to own the underlying model. The verifier Worker prefers BeatAPI `jev-1.13-free` when `ACCRUE_BEATAPI_API_KEY` is set. It sends the locked policy and deterministic check report to `POST https://api.beatapi.io/v1/systemone`, validates the two typed `noul` probabilities, and votes only when its own policy threshold is met. The [provider docs](https://docs.beatapi.io/decisions) say the free model works at zero balance with one successful request per minute before a top-up. Keep the API key in the server's `.dev.vars` or a deployment secret. A default auto-group key is required.
 
 Without that key, the Cloudflare AI binding calls `typesafe/jev`. The first live call reached Cloudflare, but this account returned “Insufficient AI Gateway credits.” With a BeatAPI key in ignored `.dev.vars`, the second demo job received a real `jev-1.13-free` evaluation: requirements probability `0.94`, human-review probability `0.14`, recommendation `manual_review`. The locked policy requires human-review probability at most `0.10` for an automated PASS, so Jev correctly cast no vote. The two named human reviewers then passed job `#2`, the contract settled, and the worker withdrew 5 AUSD. Job `#1` also settled by two human votes. No Jev onchain vote is claimed for either job.
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowLeft, Bot, ShieldCheck } from "lucide-react";
+import { ArrowLeft, ScanSearch, ShieldCheck } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { shortAddress, token } from "@/lib/chain";
@@ -67,10 +67,10 @@ export function DigitalWorkBuilder({
         </section>
 
         <section className="panel dw-form-section">
-          <div className="dw-section-head"><span>02</span><div><h2>People and AI</h2><p>Jev is one vote. Two other independently controlled reviewers complete the set.</p></div></div>
+          <div className="dw-section-head"><span>02</span><div><h2>Verification team</h2><p>Proof Engine reviews automatically. Two independent people complete the quorum.</p></div></div>
           <div className="form-stack">
             <label>Worker @tag or wallet address<Input value={draft.worker} onChange={(event) => set({ worker: event.target.value })} placeholder="@worker" required /></label>
-            <div className="dw-jev-identity"><Bot size={20} /><div><strong>Jev · {config?.provider ?? "AI"}</strong><span>{config?.jevAddress ? `Verifier ${shortAddress(config.jevAddress)}` : "Verifier wallet not configured"} · {config?.modelReady ? "model configured" : "model not configured"}</span></div></div>
+            <div className="dw-engine-identity"><span className="dw-engine-icon"><ScanSearch size={24} strokeWidth={1.7} /></span><div><small>AUTOMATED REVIEWER</small><strong>Accrue Proof Engine</strong><span>Checks the public commit and live API, then evaluates the result against your locked policy.</span><em>{config?.jevAddress ? `Verifier ${shortAddress(config.jevAddress)}` : "Verifier wallet not configured"} · {config?.modelReady ? "Ready" : "Not connected"}</em></div></div>
             <div className="form-grid">
               <label>Reviewer two<Input value={draft.reviewerB} onChange={(event) => set({ reviewerB: event.target.value })} placeholder="@reviewer or 0x…" required /></label>
               <label>Reviewer three<Input value={draft.reviewerC} onChange={(event) => set({ reviewerC: event.target.value })} placeholder="@reviewer or 0x…" required /></label>
@@ -93,7 +93,7 @@ export function DigitalWorkBuilder({
           </div>
         </section>
 
-        <div className="action-banner"><div><h3>Review the locked policy.</h3><p><ShieldCheck size={15} /> Jev pass threshold 90%. Uncertain results require human review. Funding begins after the worker accepts.</p></div><button className="primary" type="submit" disabled={busy || !config?.contractAddress || !config?.jevAddress}>{busy ? "Creating…" : "Create digital job"}</button></div>
+        <div className="action-banner"><div><h3>Review the locked policy.</h3><p><ShieldCheck size={15} /> Proof Engine needs at least 90% requirements confidence and no more than 10% human review need to pass automatically. Funding begins after worker acceptance.</p></div><button className="primary" type="submit" disabled={busy || !config?.contractAddress || !config?.jevAddress}>{busy ? "Creating…" : "Create agreement"}</button></div>
       </form>
     </>
   );

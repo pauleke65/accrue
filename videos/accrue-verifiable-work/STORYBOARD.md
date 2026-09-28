@@ -1,22 +1,24 @@
 ---
-format: 1440x900
-duration: 76.7s
-message: "Watch an actual API job get verified and paid on Monad testnet."
-arc: Live product walkthrough
-audience: Monad hackathon judges and developers
+format: 1920x1080
+duration: 70s
+message: "Proof, then payment. Watch a real job cross every state."
+arc: First-person product walkthrough
+audience: Monad judges and developers
 mode: autonomous
 music: none
 ---
 
-## Walkthrough
+## Edit
 
-The screen recording remains full frame at native resolution. Spoken narration follows six actual interactions, with a slim bottom progress line. No screenshot substitutes, simulated votes, or background music.
+A 2-second branded opening reveals the product. Real app footage dominates a 16:9 frame, with a narrow right chapter panel. The pointer and role switches remain visible. Each clip runs at a deliberate accelerated rate; the camera moves toward the action instead of holding a static full page. Spoken narration explains the decision at the moment it appears. A short payout end card concludes the job.
 
-| Time | Recorded action | Explanation |
+| Time | Action | Proof shown |
 | --- | --- | --- |
-| 0:00–0:10.3 | Create agreement | Expected API response, reward, worker, reviewer quorum |
-| 0:10.3–0:21.25 | Worker accepts; payer funds | Locked terms and AUSD custody |
-| 0:21.25–0:30.05 | Worker submits | Public commit, deployment URL, evidence hash |
-| 0:30.05–0:46.9 | Run Jev | Endpoint and commit checks; 14% review need triggers abstention |
-| 0:46.9–1:06.05 | Review and settle | Two named signed PASS votes meet quorum |
-| 1:06.05–1:16.7 | Worker withdraws | Actual five AUSD testnet payout |
+| 0:00–0:02 | Branded open | Accrue Proof Engine |
+| 0:02–0:13.5 | Define and create | Locked policy, testnet agreement |
+| 0:13.5–0:25 | Accept and fund | Worker consent, 5.30 AUSD reserved |
+| 0:25–0:33 | Submit | Public commit and endpoint |
+| 0:33–0:47 | Run Proof Engine | 94% confidence, 15% review need, abstention |
+| 0:47–0:58.5 | Human quorum | Two signed PASS votes |
+| 0:58.5–1:07.5 | Withdraw | Worker receives five AUSD |
+| 1:07.5–1:10 | Branded close | Verified and paid |

@@ -143,14 +143,14 @@ async function invokeJev(state: unknown): Promise<unknown> {
         signal: AbortSignal.timeout(20_000),
       });
     } catch {
-      throw new HttpError(502, "Free Jev provider could not be reached. Review the evidence manually.");
+      throw new HttpError(502, "Proof Engine could not reach its AI provider. Review the evidence manually.");
     }
     if (response.status === 429)
-      throw new HttpError(429, "Free Jev allows one successful request per minute. Retry shortly.");
+      throw new HttpError(429, "Proof Engine is rate limited. Retry in a minute.");
     if (response.status === 401 || response.status === 403)
-      throw new HttpError(503, "The BeatAPI Jev key was rejected. Check the server secret.");
+      throw new HttpError(503, "Proof Engine provider credentials were rejected. Check the server secret.");
     if (!response.ok)
-      throw new HttpError(502, `Free Jev provider returned ${response.status}. Review manually.`);
+      throw new HttpError(502, `Proof Engine provider returned ${response.status}. Review manually.`);
     return response.json();
   }
   if (env.AI) {
@@ -159,12 +159,12 @@ async function invokeJev(state: unknown): Promise<unknown> {
     } catch (error) {
       const detail = error instanceof Error ? error.message : String(error);
       if (/insufficient.*credits|2021/i.test(detail))
-        throw new HttpError(503, "Cloudflare Jev needs AI Gateway credits on this account.");
-      throw new HttpError(502, `Cloudflare Jev could not evaluate this evidence: ${detail.slice(0, 160)}`);
+        throw new HttpError(503, "Proof Engine needs AI Gateway credits on this Cloudflare account.");
+      throw new HttpError(502, `Proof Engine could not evaluate this evidence: ${detail.slice(0, 160)}`);
     }
   }
   if (!env.ACCRUE_CLOUDFLARE_ACCOUNT_ID || !env.ACCRUE_CLOUDFLARE_AI_TOKEN)
-    throw new HttpError(503, "Jev is not configured. Add a free BeatAPI key or Cloudflare AI access.");
+    throw new HttpError(503, "Proof Engine is not configured. Add a BeatAPI key or Cloudflare AI access.");
   const response = await fetch(
     `https://api.cloudflare.com/client/v4/accounts/${env.ACCRUE_CLOUDFLARE_ACCOUNT_ID}/ai/run`,
     {
@@ -177,7 +177,7 @@ async function invokeJev(state: unknown): Promise<unknown> {
       signal: AbortSignal.timeout(20_000),
     },
   );
-  if (!response.ok) throw new HttpError(502, `Cloudflare Jev returned ${response.status}.`);
+  if (!response.ok) throw new HttpError(502, `Proof Engine provider returned ${response.status}.`);
   const payload = await response.json() as { result?: unknown };
   return payload.result ?? payload;
 }
@@ -188,7 +188,7 @@ export async function assessWithJev(
 ): Promise<JevAssessment> {
   const raw = await invokeJev({ policy, testReport: report });
   const result = jevSchema.safeParse(raw);
-  if (!result.success) throw new HttpError(502, "Jev returned an invalid evaluation response.");
+  if (!result.success) throw new HttpError(502, "Proof Engine received an invalid AI evaluation response.");
   const requirementsProbability = result.data.answers.requirements_met.noul;
   const reviewProbability = result.data.answers.needs_human_review.noul;
   const deterministicPass = report.commitFound && report.statusMatches && report.bodyMatches;

@@ -2,23 +2,19 @@
 workflow: product-launch-video
 flow: automation
 storyboard: no
-message: "A real testnet walkthrough of an API agreement from creation to worker withdrawal."
+message: "Accrue Proof Engine checks evidence, routes uncertainty to people, and settles verified work."
 destination: product-demo
-aspect: 1440x900
+aspect: 1920x1080
 language: en
-audience: "Monad hackathon judges and developer users"
-length: 76.7s
-angle: "Use Accrue live and explain each economic and verification step"
+audience: "Monad judges and developers"
+length: 70s
+angle: "A fast first-person walkthrough of a real new testnet job"
 ---
 
 ## Intent
 
-A narrated recording of the actual Accrue product in use. The browser flow creates testnet job #4, accepts and funds it, submits evidence, runs BeatAPI Jev, collects two human votes, and withdraws the worker reward. The narration speaks in first person and explains the state transitions.
-
-## Assets
-
-Six real browser recordings and six matching voiceover clips live in `assets/walkthrough/`. The recordings were made against the local UI connected to Monad testnet. `recordings/recording.json` contains the job and addresses.
+A dynamic, narrated recording of using the redesigned Accrue product. Live job #6 is created, accepted, funded, submitted, checked by Proof Engine, approved by two independent reviewers, settled, and withdrawn. A visible pointer, accelerated action, camera moves, chapter panel, and spoken explanation keep the task readable.
 
 ## Truth constraints
 
-Jev returned 94% requirements and 14% human-review need. Because the agreement's review limit was 10%, Jev abstained. Two independent human reviewers passed the work. The five AUSD withdrawal was executed on testnet. The commit and deployment checks do not cryptographically prove that the deployed code came from that commit.
+Proof Engine is Accrue's branded verification workflow, not a proprietary foundation model. It uses deterministic checks and a Jev model through BeatAPI; provider details remain visible in the app's technical record. For job #6, model requirements confidence was 94% and human review need was 15%. That exceeds the locked 10% limit, so the automated reviewer abstained. Two human reviewers passed. The contract paid and the worker withdrew 5 AUSD.

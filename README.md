@@ -95,9 +95,9 @@ hashes it produced.
 
 ## Reading further
 
-- [Watch the narrated digital-work walkthrough](./videos/accrue-verifiable-work/renders/video.mp4) — actual testnet use from agreement creation through worker withdrawal.
-- [DEMO.md](./DEMO.md) — a shooting script for a three-minute walkthrough, and
-  a full feature checklist.
+- [Watch the 70-second Proof Engine walkthrough](./videos/accrue-verifiable-work/renders/video.mp4) — actual testnet use from agreement creation through worker withdrawal.
+- [Explore the proof trail](./public/demo.html) — an interactive tour of the recorded job.
+- [DEMO.md](./DEMO.md) — the walkthrough sequence, source, and on-chain evidence.
 - [IMPLEMENTATION.md](./IMPLEMENTATION.md) — architecture, security
   boundaries, and what remains before this could handle real money.
 - [docs/PRODUCT-REQUIREMENTS.md](./docs/PRODUCT-REQUIREMENTS.md) — the product

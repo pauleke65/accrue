@@ -44,7 +44,7 @@ async function submitJevVote(
   if (!key || !/^0x[a-fA-F0-9]{64}$/.test(key)) return null;
   const account = privateKeyToAccount(key as Hash);
   if (!namedVerifiers.some((address) => address.toLowerCase() === account.address.toLowerCase()))
-    throw new HttpError(409, "The configured Jev voter is not named on this job.");
+    throw new HttpError(409, "The configured Proof Engine verifier is not named on this agreement.");
   const address = digitalWorkAddress();
   if (!address) throw new HttpError(503, "Digital-work contract is not configured.");
   const jevWallet = createWalletClient({
@@ -59,7 +59,7 @@ async function submitJevVote(
     chain,
   });
   const receipt = await publicClient().waitForTransactionReceipt({ hash, timeout: 40_000 });
-  if (receipt.status !== "success") throw new HttpError(502, "Jev's vote transaction reverted.");
+  if (receipt.status !== "success") throw new HttpError(502, "Proof Engine's vote transaction reverted.");
   return hash;
 }
 
