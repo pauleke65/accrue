@@ -57,14 +57,7 @@ export default function Accrue() {
       setOpenJob(job);
       navigate("jobs");
     } else if (invite) {
-      void fetch(`/api/invitations?token=${encodeURIComponent(invite)}`)
-        .then((r) => r.ok ? r.json() : null)
-        .then((data) => {
-          if (data?.invitation?.agreementId) {
-            setOpenJob(data.invitation.agreementId);
-            navigate("jobs");
-          }
-        });
+      setInviteToken(invite);
     }
     // Invite links are applied once on load.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -303,6 +296,17 @@ export default function Accrue() {
           )}
         </div>
       </main>
+      {inviteToken && (
+        <InvitationAcceptModal
+          token={inviteToken}
+          onClose={() => setInviteToken(null)}
+          onAccepted={(agreementId) => {
+            setInviteToken(null);
+            setOpenJob(agreementId);
+            navigate("jobs");
+          }}
+        />
+      )}
     </div>
   );
 }

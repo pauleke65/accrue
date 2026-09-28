@@ -25,7 +25,11 @@ export function ProfileCard({
       try {
         const res = await fetch(`/api/tags?tag=${encodeURIComponent(clean)}`);
         if (res.ok) {
-          const data = await res.json();
+          const data = (await res.json()) as {
+            found?: boolean;
+            address?: string;
+            displayName?: string;
+          };
           if (active && data.found && data.address) {
             setResolvedAddress(data.address);
             if (data.displayName) setDisplayName(data.displayName);

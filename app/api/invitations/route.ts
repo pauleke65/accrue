@@ -83,6 +83,8 @@ export async function POST(request: Request) {
       .first<{ id: string; owner: string }>();
 
     if (!agreement) throw new HttpError(404, "Agreement not found.");
+    if (agreement.owner !== owner)
+      throw new HttpError(403, "Only the agreement owner can create invitations.");
 
     const token = crypto.randomUUID().replace(/-/g, "");
     const days = Math.min(Math.max(body.days ?? 7, 1), 30);
@@ -111,7 +113,7 @@ export async function POST(request: Request) {
 
 export async function PUT(request: Request) {
   try {
-    const owner = await authorize(request);
+    await authorize(request);
     const body = (await request.json()) as {
       token?: string;
       claimedAddress?: string;

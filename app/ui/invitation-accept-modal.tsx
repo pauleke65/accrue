@@ -39,10 +39,10 @@ export function InvitationAcceptModal({
       try {
         const res = await fetch(`/api/invitations?token=${encodeURIComponent(token)}`);
         if (!res.ok) {
-          const data = await res.json();
+          const data = (await res.json()) as { error?: string };
           throw new Error(data.error || "Invitation could not be loaded.");
         }
-        const data = await res.json();
+        const data = (await res.json()) as { invitation: InvitationDetails };
         if (active) setDetails(data.invitation);
       } catch (err) {
         if (active) setError(err instanceof Error ? err.message : "Failed to load invitation.");
@@ -70,7 +70,7 @@ export function InvitationAcceptModal({
         }),
       });
       if (!res.ok) {
-        const data = await res.json();
+        const data = (await res.json()) as { error?: string };
         throw new Error(data.error || "Failed to accept invitation.");
       }
       onAccepted(details.agreementId);
@@ -130,7 +130,7 @@ export function InvitationAcceptModal({
 
             {!w.wallet ? (
               <div className="notice" style={{ flexDirection: "column", alignItems: "flex-start", gap: "12px" }}>
-                <div style={{ display: "flex", itemsCenter: "center", gap: "8px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                   <ShieldCheck size={18} />
                   <span>Sign in with your passkey identity to verify terms and accept this role.</span>
                 </div>

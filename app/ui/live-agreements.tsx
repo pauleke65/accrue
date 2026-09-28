@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ArrowLeft,
   ArrowUpRight,
@@ -17,8 +17,10 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PILOT_TEMPLATES } from "./templates";
 import { FundingReviewModal } from "./funding-review-modal";
 import { ProfileCard } from "./profile-card";
+import { TagField } from "./tag-field";
 import { useTagGate } from "./tag-gate";
 import { useWallet } from "../wallet-context";
+import type { Role } from "@/lib/mera-account";
 import {
   useLiveAgreements,
   roleOf,
@@ -389,6 +391,11 @@ function Detail({
   const [notes, setNotes] = useState("");
   const [reviewingFunding, setReviewingFunding] = useState(false);
   const [claimingInDetail, setClaimingInDetail] = useState(false);
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 30_000);
+    return () => window.clearInterval(timer);
+  }, []);
   const acting = roleOf(agreement, w.address);
   const a = agreement.chain;
 
@@ -651,7 +658,7 @@ function Detail({
                   Vote to Cancel
                 </button>
               )}
-              {acting === "payer" && (a.cancelled || Date.now() / 1000 >= Number(a.expiry)) && a.reserved > 0n && (
+              {acting === "payer" && (a.cancelled || now / 1000 >= Number(a.expiry)) && a.reserved > 0n && (
                 <button
                   className="primary text-xs"
                   disabled={live.busy}
@@ -1084,7 +1091,7 @@ function ShareLinkButton({ agreement }: { agreement: LiveAgreement }) {
       });
       let url = `${window.location.origin}/?job=${encodeURIComponent(agreement.id)}`;
       if (res.ok) {
-        const data = await res.json();
+        const data = (await res.json()) as { token?: string };
         if (data.token) {
           url = `${window.location.origin}/?invite=${encodeURIComponent(data.token)}`;
         }
