@@ -1,8 +1,8 @@
 ---
 format: 1920x1080
 duration: 70s
-message: "Proof, then payment. Watch a real job cross every state."
-arc: First-person product walkthrough
+message: "A founder needs an API. A developer needs payment certainty. Proof Engine brings the deal to a decision."
+arc: Need → agreement → work → uncertainty → human decision → payout
 audience: Monad judges and developers
 mode: autonomous
 music: none
@@ -10,7 +10,7 @@ music: none
 
 ## Edit
 
-A 2-second branded opening reveals the product. Real app footage dominates a 16:9 frame, with a narrow right chapter panel. The pointer and role switches remain visible. Each clip runs at a deliberate accelerated rate; the camera moves toward the action instead of holding a static full page. Spoken narration explains the decision at the moment it appears. A short payout end card concludes the job.
+A 2-second branded opening sets up one launch and one API. Real app footage dominates a 16:9 frame, with a narrow right chapter panel. The pointer and role switches remain visible. Each clip runs at a deliberate accelerated rate; the camera moves toward the action instead of holding a static full page. Deepgram narration follows the founder's need for a working API and the developer's need for payment certainty. The automated abstention creates the story's uncertainty, the two signed votes resolve it, and a short payout end card closes the job.
 
 | Time | Action | Proof shown |
 | --- | --- | --- |

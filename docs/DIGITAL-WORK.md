@@ -19,11 +19,11 @@ This release does not include a general verifier marketplace, reputation graph, 
 
 ## Live testnet proof
 
-The [70-second narrated walkthrough](../videos/accrue-verifiable-work/renders/video.mp4) records the product in use for job `#6`: create, accept, fund, submit, run Proof Engine, collect two signed human reviews, settle, and withdraw. The [interactive proof page](../public/demo.html) lets readers inspect each step. Its [source composition and narration](../videos/accrue-verifiable-work/) are editable. The underlying AI returned 94% requirements confidence and 15% human-review need, so Proof Engine abstained under the locked 10% review limit. A fresh contract read confirmed status `Paid`, two pass votes, zero fail votes, and zero remaining worker claimable balance.
+The [70-second narrated walkthrough](../videos/accrue-verifiable-work/renders/video.mp4) records the product in use for job `#6`: create, accept, fund, submit, run Proof Engine, collect two signed reviewer votes, settle, and withdraw. The [interactive proof page](../public/demo.html) lets readers inspect each step. Its [source composition and narration](../videos/accrue-verifiable-work/) are editable. The underlying AI returned 94% requirements confidence and 15% human-review need, so Proof Engine abstained under the locked 10% review limit. A fresh contract read confirmed status `Paid`, two pass votes, zero fail votes, and zero remaining worker claimable balance. Distinct verifier addresses were used for the demo; the recording does not establish separate human operators.
 
 - Contract: [`0x2Fdfa4470fB43d9432f021fDB4043d59fF8C8f07`](https://testnet.monadvision.com/address/0x2Fdfa4470fB43d9432f021fDB4043d59fF8C8f07)
 - Deployment: [`0x676033…faa08f5fa`](https://testnet.monadvision.com/tx/0x6760331451ff48ea1aecc41bbc4d9c345f4a12330ddcb0689aef22dfaa08f5fa)
-- Job `#6`: worker reward 5 AUSD, verifier pool 0.30 AUSD, two independent pass votes.
+- Job `#6`: worker reward 5 AUSD, verifier pool 0.30 AUSD, two pass votes from distinct verifier addresses.
 - Deciding vote and settlement: [`0x3575e2…903cc`](https://testnet.monadvision.com/tx/0x3575e2f43cadefc4c24d997b7f87df8767157da587871bfac518c868f8f903cc)
 - Worker: [`0x481A…65b7`](https://testnet.monadvision.com/address/0x481A9deE8B9A2dB6C703DF85b41912D5c97B65b7)
 - Public endpoint: [Cloudflare Worker `/health`](https://accrue-verifiable-work-demo.pauleke65.workers.dev/health)

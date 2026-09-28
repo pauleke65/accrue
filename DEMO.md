@@ -2,6 +2,8 @@
 
 [Watch the 70-second product video](./videos/accrue-verifiable-work/renders/video.mp4) or [follow job #6 step by step](./public/demo.html). The recording shows real use of Accrue on Monad testnet. It uses test AUSD, a live public API, a real AI provider response, and on-chain agreement, vote, settlement, and withdrawal transactions.
 
+The narration frames the payer as a founder preparing to launch and the worker as a developer who wants payment secured. Those are relatable roles for the real testnet workflow, not claims about the actual account holders. The voice is Deepgram Aura-2 Zeus, generated through the installed Claude Speech plugin.
+
 ## What the video shows
 
 | Time | Product action | Why it matters |
@@ -10,10 +12,10 @@
 | 0:14–0:25 | Worker accepts; payer funds | Both sides share the exact policy, and 5.30 AUSD is reserved for the worker and reviewers. |
 | 0:25–0:33 | Worker submits evidence | The public commit and deployment URL are bound to a versioned evidence hash. |
 | 0:33–0:47 | Run Proof Engine | The commit, HTTP response, and JSON value pass. AI reports 94% requirements confidence and 15% human-review need. The locked 10% review limit makes the automated reviewer abstain. |
-| 0:47–0:59 | Two named reviewers vote pass | Two distinct on-chain votes reach the pre-set 2-of-3 quorum and make the reward payable. |
+| 0:47–0:59 | Two verifier seats vote pass | Two signed on-chain votes from distinct verifier addresses reach the pre-set 2-of-3 quorum and make the reward payable. |
 | 0:59–1:10 | Worker withdraws | The worker takes the 5 AUSD reward. The contract reports status `Paid` and a zero remaining claimable balance for the worker. |
 
-The purple cursor, form entry, role changes, scrolls, and clicks are captured from the actual product session for job #6. The right-hand chapter panel, camera movement, and narration make each action readable in the shortened cut. The [editable video project](./videos/accrue-verifiable-work/) includes the screen clips and voiceover source.
+The purple cursor, form entry, role changes, scrolls, and clicks are captured from the actual product session for job #6. The right-hand chapter panel follows the story from need through uncertainty to payout. The [editable video project](./videos/accrue-verifiable-work/) includes the screen clips and voiceover source.
 
 ## Evidence to open during a live presentation
 
