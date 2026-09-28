@@ -2,30 +2,23 @@
 workflow: product-launch-video
 flow: automation
 storyboard: no
-message: "Accrue pays for a verified API outcome through a two-of-three verifier quorum."
-destination: website-embed
-aspect: 1920x1080
+message: "A real testnet walkthrough of an API agreement from creation to worker withdrawal."
+destination: product-demo
+aspect: 1440x900
 language: en
-audience: "Monad hackathon judges and potential developer users"
-length: 36s
-angle: "Show the real agreement from locked policy to confirmed testnet payout"
+audience: "Monad hackathon judges and developer users"
+length: 76.7s
+angle: "Use Accrue live and explain each economic and verification step"
 ---
 
 ## Intent
 
-A concise, screen-led tour of the built Accrue digital-work prototype. Feature the real public demo page and its chain-backed 5 AUSD settlement. Make the pinned evidence, 2-of-3 quorum, verifier fees, and paid outcome legible in order.
+A narrated recording of the actual Accrue product in use. The browser flow creates testnet job #4, accepts and funds it, submits evidence, runs BeatAPI Jev, collects two human votes, and withdraws the worker reward. The narration speaks in first person and explains the state transitions.
 
 ## Assets
 
-- http://localhost:5173/demo.html — the Accrue demo page, captured as the visual source.
+Six real browser recordings and six matching voiceover clips live in `assets/walkthrough/`. The recordings were made against the local UI connected to Monad testnet. `recordings/recording.json` contains the job and addresses.
 
-## Customizations
+## Truth constraints
 
-- Use the site's dark violet palette and its real captured screens.
-- Silent on-screen text, with no simulated voice or model result.
-- End with the live free Jev result: job #2 received a 94% requirements score and a 14% human-review score. Its locked 10% threshold sent the work to human review; Jev did not cast a vote.
-
-## Notes
-
-- The user asked to build the app and then make a demo video, and asked to proceed autonomously.
-- Show the actual 5 AUSD worker withdrawal and 2-of-3 settlement. Do not depict a Jev vote as having happened.
+Jev returned 94% requirements and 14% human-review need. Because the agreement's review limit was 10%, Jev abstained. Two independent human reviewers passed the work. The five AUSD withdrawal was executed on testnet. The commit and deployment checks do not cryptographically prove that the deployed code came from that commit.

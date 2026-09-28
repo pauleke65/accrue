@@ -1,0 +1,9 @@
+.hyperframes/
+.thumbnails/
+.waveform-cache/
+renders/work-*/
+recordings/*.webm
+recordings/failure.png
+assets/walkthrough/*-25.jpg
+assets/walkthrough/*-75.jpg
+assets/walkthrough/contact-sheet.jpg

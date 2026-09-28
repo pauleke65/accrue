@@ -1,58 +1,37 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=1920, height=1080">
-    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js" integrity="sha384-sG0Hv1tP1lZCk9KQmrIbY/XNwi+OY84GQqhMscbnsoBFqAz8KNCil1kvfL3Hbbk2" crossorigin="anonymous"></script>
-    <style>
-      * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-      }
-      html,
-      body {
-        width: 1920px;
-        height: 1080px;
-        overflow: hidden;
-        background: #000;
-      }
-      #root {
-        position: relative;
-        width: 1920px;
-        height: 1080px;
-        overflow: hidden;
-        background: #17131F;
-      }
-      .scene {
-        position: absolute;
-        inset: 0;
-        width: 100%;
-        height: 100%;
-      }
-    </style>
-  </head>
-  <body>
-    <div data-hf-id="hf-nh7l" id="root" data-composition-id="main" data-start="0" data-duration="36" data-width="1920" data-height="1080">
-      <div data-hf-id="hf-k7d1" id="el-01-outcome" class="scene" data-composition-id="01-outcome" data-composition-src="compositions/frames/01-outcome.html" data-start="0" data-duration="10.5" data-track-index="0"></div>
-
-      <div data-hf-id="hf-ozyz" id="el-02-agreement" class="scene" data-composition-id="02-agreement" data-composition-src="compositions/frames/02-agreement.html" data-start="10" data-duration="13.5" data-track-index="1"></div>
-
-      <div data-hf-id="hf-bu57" id="el-03-settlement" class="scene" data-composition-id="03-settlement" data-composition-src="compositions/frames/03-settlement.html" data-start="23" data-duration="13" data-track-index="0"></div>
-
-    </div>
-
-    <script>
-      window.__timelines = window.__timelines || {};
-      window.__timelines["main"] = gsap.timeline({ paused: true });
-      // ── frame transitions (injected by transitions.mjs) ──
-      (function () { var tl = window.__timelines["main"];
-        tl.to("#el-01-outcome", { opacity: 0, duration: 0.5, ease: "power2.inOut" }, 10);
-        tl.fromTo("#el-02-agreement", { opacity: 0 }, { opacity: 1, duration: 0.5, ease: "power2.inOut" }, 10);
-        tl.to("#el-02-agreement", { opacity: 0, duration: 0.5, ease: "power2.inOut" }, 23);
-        tl.fromTo("#el-03-settlement", { opacity: 0 }, { opacity: 1, duration: 0.5, ease: "power2.inOut" }, 23);
-        tl.to({}, { duration: 36 }, 0); // full-span anchor — main.duration() == composition total (Studio master duration)
-      })();
-    </script>
-  </body>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=1440, height=900">
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js" integrity="sha384-sG0Hv1tP1lZCk9KQmrIbY/XNwi+OY84GQqhMscbnsoBFqAz8KNCil1kvfL3Hbbk2" crossorigin="anonymous"></script>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; width: 1440px; height: 900px; overflow: hidden; background: #09090f; }
+    #root { position: relative; width: 100%; height: 100%; overflow: hidden; background: #09090f; }
+    video.screen { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+    #progress { position: absolute; bottom: 0; left: 0; width: 100%; height: 4px; background: #a975ff; transform-origin: left center; z-index: 2; }
+  </style>
+</head>
+<body>
+  <div data-hf-id="hf-6igr" id="root" data-composition-id="main" data-start="0" data-duration="76.7" data-width="1440" data-height="900">
+    <video data-hf-id="hf-95q3" id="screen-1" class="clip screen" src="assets/walkthrough/01-create-agreement.mp4" data-start="0" data-duration="10.3" data-track-index="0" muted playsinline></video>
+    <audio data-hf-id="hf-abur" id="narration-1" src="assets/walkthrough/01-create-agreement-narration.m4a" data-start="0" data-duration="9.338" data-track-index="10" data-volume="1"></audio>
+    <video data-hf-id="hf-m9vd" id="screen-2" class="clip screen" src="assets/walkthrough/02-accept-and-fund.mp4" data-start="10.3" data-duration="10.95" data-track-index="0" muted playsinline></video>
+    <audio data-hf-id="hf-6g1l" id="narration-2" src="assets/walkthrough/02-accept-and-fund-narration.m4a" data-start="10.3" data-duration="8.271" data-track-index="10" data-volume="1"></audio>
+    <video data-hf-id="hf-yewg" id="screen-3" class="clip screen" src="assets/walkthrough/03-submit-evidence.mp4" data-start="21.25" data-duration="8.8" data-track-index="0" muted playsinline></video>
+    <audio data-hf-id="hf-uvcx" id="narration-3" src="assets/walkthrough/03-submit-evidence-narration.m4a" data-start="21.25" data-duration="6.4" data-track-index="10" data-volume="1"></audio>
+    <video data-hf-id="hf-1397" id="screen-4" class="clip screen" src="assets/walkthrough/04-run-jev.mp4" data-start="30.05" data-duration="16.85" data-track-index="0" muted playsinline></video>
+    <audio data-hf-id="hf-3xqd" id="narration-4" src="assets/walkthrough/04-run-jev-narration.m4a" data-start="30.05" data-duration="16.037" data-track-index="10" data-volume="1"></audio>
+    <video data-hf-id="hf-mjih" id="screen-5" class="clip screen" src="assets/walkthrough/05-review-and-settle.mp4" data-start="46.9" data-duration="19.15" data-track-index="0" muted playsinline></video>
+    <audio data-hf-id="hf-8ta8" id="narration-5" src="assets/walkthrough/05-review-and-settle-narration.m4a" data-start="46.9" data-duration="16.317" data-track-index="10" data-volume="1"></audio>
+    <video data-hf-id="hf-8hkj" id="screen-6" class="clip screen" src="assets/walkthrough/06-withdraw.mp4" data-start="66.05" data-duration="10.65" data-track-index="0" muted playsinline></video>
+    <audio data-hf-id="hf-ok6c" id="narration-6" src="assets/walkthrough/06-withdraw-narration.m4a" data-start="66.05" data-duration="9.588" data-track-index="10" data-volume="1"></audio>
+    <div data-hf-id="hf-qvqa" id="progress" data-layout-ignore="" aria-hidden="true"></div>
+  </div>
+  <script>
+    const timeline = gsap.timeline({ paused: true });
+    timeline.fromTo("#progress", { scaleX: 0 }, { scaleX: 1, duration: 76.7, ease: "none" }, 0);
+    window.__timelines["main"] = timeline;
+  </script>
+</body>
 </html>

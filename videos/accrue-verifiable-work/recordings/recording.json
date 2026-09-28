@@ -1,0 +1,21 @@
+{
+  "onchainId": "4",
+  "contract": "0x2Fdfa4470fB43d9432f021fDB4043d59fF8C8f07",
+  "payer": "0x461dac0a86cfCC7109b0ca40FF0c08d9CCBdbFe2",
+  "worker": "0x3727fde2Df269C36D33E4Fab051BC5fcA3d5F84d",
+  "reviewerB": "0xdF67C231ff2C23f6Eefa218384064FB5eFC5067B",
+  "reviewerC": "0x2aB9547976546C131b5cB9e2D9743b6FFf6e105D",
+  "evidence": {
+    "commitUrl": "https://github.com/pauleke65/accrue/commit/5cb48cf69c4ab6f5a20d36ab057923dcf6aef863",
+    "deploymentUrl": "https://accrue-verifiable-work-demo.pauleke65.workers.dev",
+    "notes": "Live Cloudflare Worker API. GET /health returns status ready."
+  },
+  "clips": [
+    "01-create-agreement",
+    "02-accept-and-fund",
+    "03-submit-evidence",
+    "04-run-jev",
+    "05-review-and-settle",
+    "06-withdraw"
+  ]
+}

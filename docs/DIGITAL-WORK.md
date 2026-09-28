@@ -19,6 +19,8 @@ This release does not include a general verifier marketplace, reputation graph, 
 
 ## Live testnet proof
 
+The [76-second narrated walkthrough](../videos/accrue-verifiable-work/renders/video.mp4) records the product in use for job `#4`: create, accept, fund, submit, run Jev, collect two signed human reviews, settle, and withdraw. Its [source composition and narration](../videos/accrue-verifiable-work/) are editable. Jev returned 94% requirements confidence and 14% human-review need for this job, so it abstained under the locked 10% review limit. The worker's claimable balance was zero after the recorded withdrawal.
+
 - Contract: [`0x2Fdfa4470fB43d9432f021fDB4043d59fF8C8f07`](https://testnet.monadvision.com/address/0x2Fdfa4470fB43d9432f021fDB4043d59fF8C8f07)
 - Deployment: [`0x676033…faa08f5fa`](https://testnet.monadvision.com/tx/0x6760331451ff48ea1aecc41bbc4d9c345f4a12330ddcb0689aef22dfaa08f5fa)
 - Job `#1`: worker reward 5 AUSD, verifier pool 0.30 AUSD, two independent pass votes.

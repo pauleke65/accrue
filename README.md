@@ -95,6 +95,7 @@ hashes it produced.
 
 ## Reading further
 
+- [Watch the narrated digital-work walkthrough](./videos/accrue-verifiable-work/renders/video.mp4) — actual testnet use from agreement creation through worker withdrawal.
 - [DEMO.md](./DEMO.md) — a shooting script for a three-minute walkthrough, and
   a full feature checklist.
 - [IMPLEMENTATION.md](./IMPLEMENTATION.md) — architecture, security
