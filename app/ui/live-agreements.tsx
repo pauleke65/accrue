@@ -1089,18 +1089,18 @@ function ShareLinkButton({ agreement }: { agreement: LiveAgreement }) {
           days: 7,
         }),
       });
-      let url = `${window.location.origin}/?job=${encodeURIComponent(agreement.id)}`;
+      let url = `${window.location.origin}/app?job=${encodeURIComponent(agreement.id)}`;
       if (res.ok) {
         const data = (await res.json()) as { token?: string };
         if (data.token) {
-          url = `${window.location.origin}/?invite=${encodeURIComponent(data.token)}`;
+          url = `${window.location.origin}/app?invite=${encodeURIComponent(data.token)}`;
         }
       }
       await navigator.clipboard.writeText(url);
       setCopied(true);
       setTimeout(() => setCopied(false), 2500);
     } catch {
-      const fallbackUrl = `${window.location.origin}/?job=${encodeURIComponent(agreement.id)}`;
+      const fallbackUrl = `${window.location.origin}/app?job=${encodeURIComponent(agreement.id)}`;
       void navigator.clipboard.writeText(fallbackUrl);
       setCopied(true);
       setTimeout(() => setCopied(false), 2500);
