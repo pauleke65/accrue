@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { SignInCard } from "./home";
 import {
   ArrowLeft,
   ArrowUpRight,
@@ -58,7 +59,11 @@ const emptyDraft: Draft = {
 export function LiveAgreements({
   openId,
   onOpenChange,
+  initialCreating = false,
 }: {
+  /** Set when Home sends someone straight to the builder; Home has already
+      checked the @name gate. */
+  initialCreating?: boolean;
   /** Lets another page (Earnings, Activity) deep-link into a specific job.
       Falls back to component-local state when the caller does not care. */
   openId?: string | null;
@@ -70,7 +75,7 @@ export function LiveAgreements({
   const [localOpen, setLocalOpen] = useState<string | null>(null);
   const open = openId !== undefined ? openId : localOpen;
   const setOpen = onOpenChange ?? setLocalOpen;
-  const [creating, setCreating] = useState(false);
+  const [creating, setCreating] = useState(initialCreating);
   const [initialDraft, setInitialDraft] = useState<Draft | undefined>(undefined);
   const [profileTag, setProfileTag] = useState<{ tag: string; address?: string | null } | null>(null);
   const [filter, setFilter] = useState("all");
@@ -96,17 +101,7 @@ export function LiveAgreements({
     }
   };
 
-  if (!w.wallet)
-    return (
-      <div className="empty-state">
-        <ShieldCheck />
-        <h2>Sign in to fund a job.</h2>
-        <p>
-          Agreements hold {token.symbol} in a contract until work is verified.
-          One passkey opens the accounts that sign for each role.
-        </p>
-      </div>
-    );
+  if (!w.wallet) return <SignInCard />;
 
   const selected = live.agreements.find((a) => a.id === open) ?? null;
 

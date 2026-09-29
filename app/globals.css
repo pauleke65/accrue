@@ -2483,3 +2483,113 @@ h3 {
   .lp-scenario-facts { grid-template-columns: 1fr; }
   .lp-scenario-facts div + div { border-left: 0; border-top: 1px solid var(--m-hairline); }
 }
+
+/* ------------------------------------------------------------ dashboard home
+   The first screen after sign-in. One column, ordered by urgency: money,
+   setup, what needs you, what you are waiting on, then how to start. */
+
+.home { display: grid; gap: 28px; max-width: 980px; }
+.home-greeting { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; }
+.home-greeting h1 { margin: 8px 0 6px; font-size: clamp(24px, 3vw, 32px); }
+.home-greeting .text-button { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; }
+
+.home-balances { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border: 1px solid var(--m-hairline); }
+.home-balances > div { padding: 20px 22px; }
+.home-balances > div + div { border-left: 1px solid var(--m-hairline); }
+.home-balances span { display: block; color: var(--m-ink-dim); font-family: var(--m-mono); font-size: 10px; letter-spacing: .14em; text-transform: uppercase; }
+.home-balances strong { display: block; margin: 8px 0 4px; font-family: var(--m-display); font-size: 28px; font-weight: 400; }
+.home-balances small { color: var(--m-ink-dim); font-size: 12px; }
+.home-balance-ready { background: var(--m-positive-bg); }
+.home-balance-ready strong { color: var(--m-positive); }
+
+.home-panel { border: 1px solid var(--m-hairline); background: var(--m-surface); }
+.home-panel-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 20px; border-bottom: 1px solid var(--m-hairline); }
+.home-panel-head h2 { font-size: 16px; }
+.home-panel > .error-banner { margin: 16px 20px 0; }
+
+.home-setup { list-style: none; margin: 0; padding: 0; }
+.home-setup li { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: 14px; align-items: center; padding: 16px 20px; }
+.home-setup li + li { border-top: 1px solid var(--m-edge); }
+.home-setup-icon { display: grid; place-items: center; width: 34px; height: 34px; border: 1px solid var(--m-purple-bright); color: var(--m-purple-300); }
+.home-setup li.done .home-setup-icon { border-color: var(--m-positive); background: var(--m-positive-bg); color: var(--m-positive); }
+.home-setup li.done b { color: var(--m-ink-dim); text-decoration: line-through; text-decoration-color: var(--m-ink-faint); }
+.home-setup p { margin-top: 2px; color: var(--m-ink-dim); font-size: 13px; line-height: 1.5; }
+.home-setup .secondary { padding: 10px 14px; }
+.home-setup-done { color: var(--m-positive); font-family: var(--m-mono); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; }
+
+.home-actions { list-style: none; margin: 0; padding: 0; }
+.home-actions li + li { border-top: 1px solid var(--m-edge); }
+.home-action { width: 100%; display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: 14px; align-items: center; padding: 16px 20px; border: 0; background: none; color: inherit; text-align: left; transition: background-color .15s; }
+.home-action:hover { background: var(--m-raised); }
+.home-action:focus-visible { outline-offset: -3px; }
+.home-action-icon { display: grid; place-items: center; width: 34px; height: 34px; border: 1px solid var(--m-hairline-strong); color: var(--m-ink-dim); }
+.home-action-you .home-action-icon { border-color: var(--m-purple-bright); background: color-mix(in srgb, var(--m-purple) 22%, transparent); color: var(--m-ink); }
+.home-action-body { display: grid; gap: 2px; min-width: 0; }
+.home-action-meta { overflow: hidden; color: var(--m-ink-dim); font-family: var(--m-mono); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; text-overflow: ellipsis; white-space: nowrap; }
+.home-action-body b { font-size: 15px; }
+.home-action-detail { color: var(--m-ink-dim); font-size: 13px; line-height: 1.5; }
+.home-action-cta { color: var(--m-purple-300); font-family: var(--m-mono); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; }
+.home-action-waiting .home-action-cta { color: var(--m-ink-dim); }
+.home-skeleton { height: 76px; background: linear-gradient(90deg, var(--m-surface), var(--m-raised), var(--m-surface)); background-size: 200% 100%; }
+@media (prefers-reduced-motion: no-preference) {
+  .home-skeleton { animation: home-shimmer 1.4s linear infinite; }
+  @keyframes home-shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+}
+.home-empty { display: flex; gap: 12px; align-items: flex-start; padding: 22px 20px; color: var(--m-ink-dim); }
+.home-empty svg { flex-shrink: 0; color: var(--m-positive); }
+.home-empty p { font-size: 14px; line-height: 1.6; }
+
+.home-start { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.home-start-card { display: grid; gap: 10px; align-content: start; padding: 22px 20px; border: 0; background: none; color: inherit; text-align: left; transition: background-color .15s; }
+.home-start-card + .home-start-card { border-left: 1px solid var(--m-hairline); }
+.home-start-card:hover:not(:disabled) { background: var(--m-raised); }
+.home-start-card:focus-visible { outline-offset: -3px; }
+.home-start-card:disabled { cursor: not-allowed; }
+.home-start-card > svg { color: var(--m-purple-300); }
+.home-start-card b { font-size: 16px; }
+.home-start-card p { color: var(--m-ink-dim); font-size: 14px; line-height: 1.6; }
+.home-start-card span { display: inline-flex; align-items: center; gap: 6px; margin-top: 4px; color: var(--m-purple-300); font-family: var(--m-mono); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; }
+.home-start-card:disabled span { color: var(--m-ink-dim); }
+
+.home-signin { max-width: 520px; margin: 48px auto 0; padding: 36px; border: 1px solid var(--m-hairline-strong); background: var(--m-surface); }
+.home-signin h1 { margin: 12px 0 10px; font-size: 26px; }
+.home-signin > p { color: var(--m-ink-dim); line-height: 1.6; }
+.home-signin-actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 26px 0 16px; }
+.home-signin .error-banner { margin-top: 12px; }
+.home-signin-back { display: inline-flex; align-items: center; gap: 6px; margin-top: 10px; padding: 6px 0; color: var(--m-purple-300); font-size: 14px; }
+.home-signin-back:hover { color: var(--m-ink); }
+
+/* Jobs page: one place for both escrow types. */
+.job-kind-switch { display: inline-flex; margin-bottom: 24px; border: 1px solid var(--m-hairline-strong); }
+.job-kind-switch button { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 8px 16px; border: 0; background: none; color: var(--m-ink-dim); font-family: var(--m-mono); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; transition: color .15s, background-color .15s; }
+.job-kind-switch button + button { border-left: 1px solid var(--m-hairline-strong); }
+.job-kind-switch button:hover { color: var(--m-ink); }
+.job-kind-switch button[aria-selected="true"] { background: var(--m-paper); color: var(--m-void); }
+.jobs-heading { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 16px; margin-bottom: 24px; }
+.jobs-heading p { max-width: 60ch; margin-top: 6px; }
+.empty-state .primary { margin-top: 18px; }
+
+/* Shell: secondary rail links and the signed-in identity chip. */
+.rail-links { display: grid; gap: 2px; margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--m-hairline); }
+.rail-link { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border: 0; background: none; color: var(--m-ink-dim); font-size: 13px; text-align: left; transition: color .15s; }
+.rail-link:hover, .rail-link.selected { color: var(--m-ink); }
+.identity-chip { padding: 6px 10px; border: 1px solid var(--m-hairline-strong); color: var(--m-purple-300); font-family: var(--m-mono); font-size: 12px; }
+
+@media (max-width: 760px) {
+  .home-balances { grid-template-columns: 1fr; }
+  .home-balances > div + div { border-left: 0; border-top: 1px solid var(--m-hairline); }
+  .home-start { grid-template-columns: 1fr; }
+  .home-start-card + .home-start-card { border-left: 0; border-top: 1px solid var(--m-hairline); }
+  .home-setup li { grid-template-columns: 34px minmax(0, 1fr); }
+  .home-setup li > .secondary, .home-setup-done { grid-column: 2; justify-self: start; }
+  .home-action { grid-template-columns: 34px minmax(0, 1fr); }
+  .home-action-cta { display: none; }
+  .home-signin { margin-top: 16px; padding: 24px 20px; }
+}
+/* The rail, and the brand with it, is hidden on phones; the topbar carries it there. */
+.topbar-brand { display: none; font-size: 22px; }
+.topbar-brand > span { font-size: 15px; }
+@media (max-width: 650px) {
+  .topbar-brand { display: flex; }
+  .topbar { min-height: 64px; }
+}
