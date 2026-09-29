@@ -3,7 +3,7 @@
   "configurations": [
     {
       "name": "accrue-dev",
-      "runtimeExecutable": "/Users/paulimoke/.nvm/versions/node/v24.13.0/bin/node",
+      "runtimeExecutable": "node",
       "runtimeArgs": ["scripts/run-framework.mjs", "dev"],
       "port": 5173
     }

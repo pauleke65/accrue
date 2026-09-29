@@ -75,7 +75,7 @@ export default function Accrue() {
             invalid-hook-call at render. The rule is disabled for this line
             rather than silenced project-wide. */}
         {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
-        <a className="brand" href="/">
+        <a className="brand" href="/app">
           a<span>accrue</span>
         </a>
         <p className="eyebrow">YOUR WORKSPACE</p>
