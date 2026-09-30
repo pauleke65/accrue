@@ -37,7 +37,9 @@ export function assessWithoutAi(report: CheckReport, reason: string): JevAssessm
     model: "unavailable",
     requirementsProbability: 0,
     reviewProbability: 0,
-    recommendation: allPassed ? "manual_review" : "fail",
+    // A check that could not run (timeout, rate limit) is not evidence of
+    // failure; a fail vote is permanent for that version, so abstain.
+    recommendation: allPassed || report.error ? "manual_review" : "fail",
     unavailable: reason,
   };
 }
@@ -123,7 +125,8 @@ export async function assessWithJev(
   const requirementsProbability = result.data.answers.requirements_met.noul;
   const reviewProbability = result.data.answers.needs_human_review.noul;
   const deterministicPass = checkItems(report).every((item) => item.passed);
-  const recommendation = !deterministicPass || requirementsProbability <= policy.failThreshold
+  const recommendation = report.error ? "manual_review"
+    : !deterministicPass || requirementsProbability <= policy.failThreshold
     ? "fail"
     : requirementsProbability >= policy.passThreshold && reviewProbability <= policy.failThreshold
       ? "pass"

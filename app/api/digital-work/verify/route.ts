@@ -8,6 +8,7 @@ import { readAuthorizedDigitalJob } from "@/lib/digital-work-access";
 import { digitalWorkAbi, DigitalWorkStatus } from "@/lib/digital-work-chain";
 import { parseDigitalManifest, parseDigitalPolicy } from "@/lib/digital-work-policy";
 import { assessWithJev, assessWithoutAi, runChecks } from "@/lib/jev-verifier";
+import { setGithubToken } from "@/lib/proof-checks";
 import { parseProofsParam, type ParticipantProof } from "@/lib/live-agreements-access";
 import { authorize, database, failure, HttpError } from "@/lib/server";
 
@@ -130,6 +131,7 @@ export async function POST(request: Request) {
     try {
       const policy = parseDigitalPolicy(JSON.parse(row.policy_json));
       const manifest = parseDigitalManifest(JSON.parse(submission.manifest_json));
+      setGithubToken((env as Record<string, string | undefined>).ACCRUE_GITHUB_TOKEN);
       const checks = await runChecks(policy, manifest);
       let jev;
       try {

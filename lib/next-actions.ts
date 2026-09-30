@@ -89,11 +89,11 @@ export function proofActions(job: ProofJobInput, me: string | null, nowSeconds: 
     job.status === ProofStatus.needsChanges;
   const v2 = (job.rules ?? 1) >= 2;
   if (open && nowSeconds > job.reviewDeadline) {
-    // Version 2: delivered on time and nobody voted it down means the worker is paid.
-    if (v2 && job.status === ProofStatus.submitted && (job.failVotes ?? 0) === 0) {
+    // Version 2: delivered on time and not voted down by two reviewers means the worker is paid.
+    if (v2 && job.status === ProofStatus.submitted && (job.failVotes ?? 0) < 2) {
       return [isWorker
-        ? out("Collect your pay", "No reviewer objected before the deadline, so the job pays you. Close it to release the money.", "you")
-        : out("Worker is owed the pay", "No reviewer objected before the deadline, so closing the job pays the worker.", "waiting")];
+        ? out("Collect your pay", "Two reviewers didn't vote it down before the deadline, so the job pays you. Close it to release the money.", "you")
+        : out("Worker is owed the pay", "Two reviewers didn't vote it down before the deadline, so closing the job pays the worker.", "waiting")];
     }
     return [isPayer
       ? out("Reclaim your funds", "The review deadline passed without approval. The reward and unused fees can come back to you.", "you")

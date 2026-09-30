@@ -58,7 +58,7 @@ export function DigitalWorkDetail({
   const open = job.chain.status === DigitalWorkStatus.funded || job.chain.status === DigitalWorkStatus.submitted ||
     job.chain.status === DigitalWorkStatus.needsChanges;
   // Rules version 2: evidence on time with no fail vote pays at the deadline.
-  const silencePays = job.rules >= 2 && job.chain.status === DigitalWorkStatus.submitted && job.chain.failVotes === 0;
+  const silencePays = job.rules >= 2 && job.chain.status === DigitalWorkStatus.submitted && job.chain.failVotes < 2;
   const myCancelBit = isPayer ? 1 : isWorker ? 2 : 0;
 
   useEffect(() => {
@@ -213,7 +213,7 @@ export function DigitalWorkDetail({
       {job.chain.status === DigitalWorkStatus.refunded && <section className="action-banner"><div><h3>Review expired. Reserved funds returned.</h3><p>The payer can withdraw the reward and unused verifier fees. Votes already cast remain paid.</p></div><Clock3 size={26} /></section>}
       {reviewExpired && open && (silencePays ? (
         <section className="action-banner">
-          <div><h3>No reviewer objected in time.</h3><p>The work was submitted before the deadline and nobody voted it down, so closing the job pays the worker. Unused review fees go back to the client. Anyone can close it.</p></div>
+          <div><h3>Not voted down in time.</h3><p>The work was submitted before the deadline and fewer than two reviewers voted it down, so closing the job pays the worker. Unused review fees go back to the client. Anyone can close it.</p></div>
           <button className="primary" disabled={digital.busy} onClick={() => void doAction(() => digital.expire(job))}>Close and pay the worker</button>
         </section>
       ) : (

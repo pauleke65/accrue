@@ -333,4 +333,19 @@ contract AccrueTest {
     function testRulesVersion() public view {
         require(escrow.rulesVersion() == 2, "version");
     }
+
+    function testUnearnedFeeReturnsOnceAllMilestonesSettle() public {
+        uint256 t0 = block.timestamp;
+        fund();
+        submitFirst();
+        vm.warp(t0 + 5 days);
+        escrow.payOnSilence(id);
+        vm.prank(worker);
+        escrow.submitEvidence(id, 1, evidence);
+        vm.warp(t0 + 10 days);
+        escrow.payOnSilence(id);
+        escrow.refund(id); // before expiry: both fees were never earned
+        require(escrow.getAgreement(id).refunded == 600, "fees not returned");
+        invariantCheck();
+    }
 }

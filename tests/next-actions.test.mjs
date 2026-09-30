@@ -82,8 +82,9 @@ test("v2 proof job: silence at the deadline pays the worker", () => {
   const silent = proof({ status: ProofStatus.submitted, rules: 2, failVotes: 0 });
   assert.deepEqual(owners(proofActions(silent, WORKER, 3_001n)), ["you:Collect your pay"]);
   assert.deepEqual(owners(proofActions(silent, PAYER, 3_001n)), ["waiting:Worker is owed the pay"]);
-  // A fail vote keeps the old refund path; version 1 always refunds.
-  assert.deepEqual(owners(proofActions({ ...silent, failVotes: 1 }, PAYER, 3_001n)), ["you:Reclaim your funds"]);
+  // One fail vote isn't a veto; two (the quorum) keep the refund path. Version 1 always refunds.
+  assert.deepEqual(owners(proofActions({ ...silent, failVotes: 1 }, PAYER, 3_001n)), ["waiting:Worker is owed the pay"]);
+  assert.deepEqual(owners(proofActions({ ...silent, failVotes: 2 }, PAYER, 3_001n)), ["you:Reclaim your funds"]);
   assert.deepEqual(owners(proofActions({ ...silent, rules: 1 }, PAYER, 3_001n)), ["you:Reclaim your funds"]);
 });
 

@@ -112,13 +112,16 @@ contract AccrueDigitalWorkTest {
     }
 
     function testDeadlineRefundKeepsEarnedVerifierFees() public {
+        // Two fail votes (the quorum) send the work back; at the deadline the
+        // client is refunded and the voters keep their fees.
         fundAndSubmit();
         voteAs(JEV_OPERATOR, false, EVIDENCE);
+        voteAs(REVIEWER, false, EVIDENCE);
         vm.warp(block.timestamp + 2 days + 1);
         work.expire(id);
         require(work.getJob(id).status == AccrueDigitalWork.Status.Refunded, "not refunded");
-        require(work.claimable(address(this)) == 1_060, "wrong refund");
-        require(work.claimable(JEV_OPERATOR) == 30, "reviewer fee erased");
+        require(work.claimable(address(this)) == 1_030, "wrong refund");
+        require(work.claimable(JEV_OPERATOR) == 30 && work.claimable(REVIEWER) == 30, "reviewer fee erased");
         vm.expectRevert();
         work.expire(id);
     }
@@ -220,5 +223,20 @@ contract AccrueDigitalWorkTest {
 
     function testRulesVersion() public view {
         require(work.rulesVersion() == 2, "version");
+    }
+
+    function testOneFailVoteDoesNotBlockPayAtDeadline() public {
+        fundAndSubmit();
+        voteAs(JEV_OPERATOR, false, EVIDENCE);
+        vm.warp(block.timestamp + 2 days + 1);
+        work.expire(id);
+        require(work.getJob(id).status == AccrueDigitalWork.Status.Paid, "one vote vetoed");
+        require(work.claimable(WORKER) == 1_000, "worker not paid");
+    }
+
+    function testReviewWindowHasAMinimum() public {
+        address[3] memory verifiers = [JEV_OPERATOR, REVIEWER, THIRD];
+        vm.expectRevert();
+        work.create(WORKER, verifiers, 1_000, 90, uint64(block.timestamp + 1 days), uint64(block.timestamp + 1 days + 1), POLICY);
     }
 }

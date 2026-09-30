@@ -13,7 +13,10 @@ import { authorize, database, failure, HttpError } from "@/lib/server";
  * draft forward so the client does not have to type it twice.
  *
  * Reading an offer by its token is public, like any link someone was sent.
- * Every change is signed by the address it acts for.
+ * Changes require a participant proof for the acting address. Those proofs
+ * are a fixed signed message per address (the app-wide scheme), not bound to
+ * the action or a nonce, so they work like a session token rather than a
+ * per-request signature.
  */
 
 type OfferRow = {
@@ -165,6 +168,9 @@ export async function PUT(request: Request) {
     const row = await load(body.token);
     if (row.status !== "open" || expired(row)) throw new HttpError(409, "Someone has already taken this job, or the link has closed.");
     const taker = await provenAs(body.proofs, (a) => a.toLowerCase() !== row.client_address.toLowerCase());
+    // A named account only: stops anonymous addresses squatting listed jobs,
+    // and lets the client see who took it.
+    if (!(await tagFor(taker))) throw new HttpError(409, "Claim an @name before taking a job.");
     // Guarded on status so two people taking at once cannot both win.
     const result = await database()
       .prepare("UPDATE job_offers SET status = 'taken', taker_address = ?, updated_at = ? WHERE token = ? AND status = 'open'")
@@ -190,10 +196,14 @@ export async function PATCH(request: Request) {
       if (row.status !== "taken" || !body.jobId) throw new HttpError(409, "Only a taken offer can become a job.");
       await db.prepare("UPDATE job_offers SET status = 'created', job_id = ?, updated_at = ? WHERE token = ?").bind(body.jobId, now, body.token).run();
     } else if (body.action === "withdraw") {
+      if (row.status !== "open" && row.status !== "taken") throw new HttpError(409, "Only an open or taken offer can be withdrawn.");
       await db.prepare("UPDATE job_offers SET status = 'withdrawn', updated_at = ? WHERE token = ?").bind(now, body.token).run();
     } else {
       // Reopen: the person who took it went quiet, so let someone else.
-      await db.prepare("UPDATE job_offers SET status = 'open', taker_address = NULL, updated_at = ? WHERE token = ?").bind(now, body.token).run();
+      // Only from "taken": a created job has a real on-chain worker.
+      if (row.status !== "taken") throw new HttpError(409, "Only a taken offer can be reopened.");
+      const expiresAt = new Date(Date.now() + 14 * 86_400_000).toISOString();
+      await db.prepare("UPDATE job_offers SET status = 'open', taker_address = NULL, expires_at = ?, updated_at = ? WHERE token = ?").bind(expiresAt, now, body.token).run();
     }
     return Response.json({ offer: await present(await load(body.token), "client") });
   } catch (error) {

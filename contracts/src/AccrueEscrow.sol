@@ -244,7 +244,13 @@ contract AccrueEscrow {
 
     function refund(uint256 id) external lock {
         Agreement storage a = agreements[id];
-        require(msg.sender == a.payer && a.funded && (a.cancelled || block.timestamp >= a.expiry), "not refundable");
+        // Also once every milestone is settled: anything left (a fee nobody
+        // earned) has no reason to wait for expiry.
+        require(
+            msg.sender == a.payer && a.funded &&
+                (a.cancelled || block.timestamp >= a.expiry || a.nextMilestone == milestones[id].length),
+            "not refundable"
+        );
         // Delivered work the approver never answered is paid before anything returns.
         // Work still inside its review window has to be decided first.
         if (!a.cancelled) {

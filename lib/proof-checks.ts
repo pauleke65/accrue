@@ -8,6 +8,7 @@ import {
   assertManifestFits,
   deliverableKind,
   deploymentProbeUrl,
+  webpageManifestSchema,
 } from "./digital-work-policy.ts";
 
 /**
@@ -15,6 +16,24 @@ import {
  * not a judgement. Kept free of Worker-only imports so the checks run under
  * node --test with a stubbed fetch.
  */
+
+/**
+ * GitHub allows 60 unauthenticated requests an hour per IP, and Workers share
+ * egress IPs. A token (set by the verify route from ACCRUE_GITHUB_TOKEN)
+ * lifts that; without one a rate limit is reported as an error, which makes
+ * the engine abstain rather than vote fail.
+ */
+let githubToken: string | null = null;
+export function setGithubToken(token: string | null | undefined): void {
+  githubToken = token?.trim() || null;
+}
+function githubHeaders(): Record<string, string> {
+  return {
+    Accept: "application/vnd.github+json",
+    "User-Agent": "Accrue-Proof-Engine",
+    ...(githubToken ? { Authorization: `Bearer ${githubToken}` } : {}),
+  };
+}
 
 const MAX_RESPONSE_BYTES = 32_768;
 const MAX_PAGE_BYTES = 524_288;
@@ -111,7 +130,9 @@ export async function runChecks(
 /** Collapses markup to readable text so a phrase split by tags still matches. */
 function visibleText(html: string): string {
   return html
-    .replace(/<(script|style)[\s\S]*?<\/\1>/gi, " ")
+    .replace(/<(script|style|noscript|template)[\s\S]*?<\/\1>/gi, " ")
+    // Text a visitor can't see doesn't count: hidden elements are dropped.
+    .replace(/<(\w+)[^>]*(\shidden[\s>=]|aria-hidden="true"|display\s*:\s*none|visibility\s*:\s*hidden)[^>]*>[\s\S]*?<\/\1>/gi, " ")
     .replace(/<[^>]+>/g, " ")
     .replace(/&nbsp;/g, " ")
     .replace(/&amp;/g, "&")
@@ -129,20 +150,32 @@ export async function runWebpageChecks(
   };
   let loaded = false;
   let contains = false;
+  let onHost = !policy.pageHost;
   try {
-    const response = await fetcher(manifest.pageUrl, {
-      headers: { Accept: "text/html,text/plain", "User-Agent": "Accrue-Proof-Engine" },
-      redirect: "follow",
-      signal: AbortSignal.timeout(10_000),
-    });
+    // Follow redirects by hand so every hop is re-checked as a public HTTPS
+    // address; an automatic follow could land anywhere.
+    let url = manifest.pageUrl;
+    let response = await fetcher(url, { headers: { Accept: "text/html,text/plain", "User-Agent": "Accrue-Proof-Engine" }, redirect: "manual", signal: AbortSignal.timeout(10_000) });
+    for (let hop = 0; hop < 3 && response.status >= 300 && response.status < 400; hop++) {
+      const next = new URL(response.headers.get("location") ?? "", url).toString();
+      webpageManifestSchema.shape.pageUrl.parse(next);
+      await response.body?.cancel();
+      url = next;
+      response = await fetcher(url, { headers: { Accept: "text/html,text/plain", "User-Agent": "Accrue-Proof-Engine" }, redirect: "manual", signal: AbortSignal.timeout(10_000) });
+    }
     report.responseStatus = response.status;
-    loaded = response.status === 200 && new URL(response.url || manifest.pageUrl).protocol === "https:";
+    const host = new URL(url).hostname.toLowerCase();
+    onHost = !policy.pageHost || host === policy.pageHost || host.endsWith(`.${policy.pageHost}`);
+    loaded = response.status === 200;
+    if (response.status === 429 || response.status >= 500)
+      report.error = `The site answered ${response.status}; the page could not be checked.`;
     const text = visibleText(await readLimited(response, MAX_PAGE_BYTES));
     contains = text.includes(policy.requiredText.toLowerCase().replace(/\s+/g, " "));
   } catch (error) {
     report.error = `Could not load the page: ${error instanceof Error ? error.message : "network error"}`;
   }
   report.items = [
+    ...(policy.pageHost ? [{ label: "Agreed site", passed: onHost, detail: onHost ? policy.pageHost : `Must be on ${policy.pageHost}` }] : []),
     { label: "Page loads", passed: loaded, detail: report.responseStatus ? `HTTPS, status ${report.responseStatus}` : "No response" },
     { label: "Required text", passed: contains, detail: contains ? `Found "${policy.requiredText}"` : `"${policy.requiredText}" not found on the page` },
   ];
@@ -160,20 +193,29 @@ export async function runPullRequestChecks(
   };
   let found = false;
   let rightRepo = false;
+  let byWorker = !policy.authorLogin;
+  let fresh = !policy.openedAfter;
   try {
     const response = await fetcher(`https://api.github.com/repos/${owner}/${repo}/pulls/${number}`, {
-      headers: { Accept: "application/vnd.github+json", "User-Agent": "Accrue-Proof-Engine" },
+      headers: githubHeaders(),
       redirect: "manual",
       signal: AbortSignal.timeout(8_000),
     });
     found = response.status === 200;
+    // Rate limits and outages say nothing about the work: report, don't fail.
+    if (response.status === 403 || response.status === 429 || response.status >= 500)
+      report.error = `GitHub answered ${response.status}; the pull request could not be checked.`;
     if (found) {
       const pull = JSON.parse(await readLimited(response, MAX_PAGE_BYTES)) as {
         merged?: boolean;
+        user?: { login?: string };
+        created_at?: string;
         base?: { repo?: { full_name?: string } };
       };
       rightRepo = (pull.base?.repo?.full_name ?? "").toLowerCase() === policy.repository.toLowerCase();
       report.merged = pull.merged === true;
+      byWorker = !policy.authorLogin || (pull.user?.login ?? "").toLowerCase() === policy.authorLogin.toLowerCase();
+      fresh = !policy.openedAfter || (!!pull.created_at && pull.created_at >= policy.openedAfter);
     } else {
       await response.body?.cancel();
     }
@@ -183,6 +225,8 @@ export async function runPullRequestChecks(
   report.items = [
     { label: "Pull request", passed: found, detail: found ? "Found on GitHub" : "Not found or not public" },
     { label: "Target repository", passed: rightRepo, detail: rightRepo ? policy.repository : `Must merge into ${policy.repository}` },
+    ...(policy.authorLogin ? [{ label: "Opened by the worker", passed: byWorker, detail: byWorker ? `@${policy.authorLogin} on GitHub` : `Must be opened by @${policy.authorLogin}` }] : []),
+    ...(policy.openedAfter ? [{ label: "Opened for this job", passed: fresh, detail: fresh ? "After the job was posted" : "Opened before the job existed" }] : []),
     { label: "Merged", passed: report.merged, detail: report.merged ? "Merged by a maintainer" : "Not merged yet" },
   ];
   return report;
@@ -212,7 +256,7 @@ export async function runApiChecks(
 
   try {
     const commit = await fetcher(apiCommitUrl, {
-      headers: { Accept: "application/vnd.github+json", "User-Agent": "Accrue-Digital-Work" },
+      headers: githubHeaders(),
       redirect: "manual",
       signal: AbortSignal.timeout(8_000),
     });

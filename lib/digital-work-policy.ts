@@ -29,6 +29,8 @@ export const webpagePolicySchema = z.object({
   title: z.string().trim().min(3).max(120),
   brief: z.string().trim().min(15).max(2000),
   requiredText: z.string().trim().min(2).max(200),
+  /** The site the page must live on, so any page with the phrase won't do. */
+  pageHost: z.string().trim().toLowerCase().regex(/^[a-z0-9.-]+\.[a-z]{2,}$/).optional(),
   passThreshold: z.literal(0.9),
   failThreshold: z.literal(0.1),
 }).strict();
@@ -39,6 +41,10 @@ export const pullRequestPolicySchema = z.object({
   title: z.string().trim().min(3).max(120),
   brief: z.string().trim().min(15).max(2000),
   repository: z.string().regex(/^[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+$/, "Use owner/repository, like acme/website."),
+  /** The worker's GitHub login: the pull request must be theirs. */
+  authorLogin: z.string().regex(/^[a-zA-Z0-9-]{1,39}$/).optional(),
+  /** Pull requests opened before the job was written don't count. */
+  openedAfter: z.string().datetime().optional(),
   passThreshold: z.literal(0.9),
   failThreshold: z.literal(0.1),
 }).strict();

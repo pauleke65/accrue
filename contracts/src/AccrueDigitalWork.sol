@@ -9,8 +9,8 @@ interface IDigitalWorkToken {
 
 /// @notice One deliverable, three independent verifiers, and conditional AUSD settlement.
 /// @dev Prototype for testnet use. The token must transfer exact amounts without rebasing.
-/// Version 2 adds two rules. Silence is not a no: work submitted on time that no
-/// verifier voted down by the review deadline pays the worker, so a client cannot
+/// Version 2 adds two rules. Silence is not a no: work submitted on time that fewer than
+/// two verifiers voted down by the review deadline pays the worker, so a client cannot
 /// get delivered work for free by picking reviewers who never vote. And a funded job
 /// can be cancelled when client and worker both agree. Job and Vote layouts are
 /// unchanged from version 1, so readers of either version decode jobs the same way.
@@ -52,6 +52,7 @@ contract AccrueDigitalWork {
     mapping(address => uint256) public claimable;
     /// @notice Consent to cancel a funded job: bit 1 the payer, bit 2 the worker.
     mapping(uint256 => uint8) public cancelConsents;
+    uint64 public constant MIN_REVIEW_WINDOW = 1 days;
 
     event JobCreated(uint256 indexed id, address indexed payer, address indexed worker, bytes32 policyHash);
     event WorkerAccepted(uint256 indexed id);
@@ -88,7 +89,11 @@ contract AccrueDigitalWork {
     ) external returns (uint256 id) {
         require(worker != address(0) && worker != msg.sender, "invalid worker");
         require(reward > 0 && feePool >= 3, "invalid amounts");
-        require(deliveryDeadline > block.timestamp && reviewDeadline > deliveryDeadline, "invalid deadlines");
+        // Reviewers always get at least a day after the last possible submission.
+        require(
+            deliveryDeadline > block.timestamp && reviewDeadline >= uint256(deliveryDeadline) + MIN_REVIEW_WINDOW,
+            "invalid deadlines"
+        );
         require(policyHash != bytes32(0), "invalid policy");
         for (uint256 i; i < 3; ++i) {
             address verifier = verifiers[i];
@@ -176,7 +181,7 @@ contract AccrueDigitalWork {
     }
 
     /// @notice Closes a job once its review deadline has passed. Anyone may call it.
-    /// Evidence submitted on time with no fail vote on that version pays the worker:
+    /// Evidence submitted on time with fewer than two fail votes on that version pays the worker:
     /// reviewers had the whole review window to object. Otherwise the payer is refunded
     /// the reward and every fee nobody earned.
     function expire(uint256 id) external {
@@ -186,7 +191,9 @@ contract AccrueDigitalWork {
             job.status == Status.Funded || job.status == Status.Submitted || job.status == Status.NeedsChanges,
             "not refundable"
         );
-        if (job.status == Status.Submitted && job.failVotes == 0) {
+        // Blocking payment takes the same quorum as everything else: two of
+        // three. A single fail vote (or a colluding verifier) is not enough.
+        if (job.status == Status.Submitted && job.failVotes < 2) {
             job.status = Status.Paid;
             claimable[job.worker] += job.reward;
             claimable[job.payer] += job.remainingFees;

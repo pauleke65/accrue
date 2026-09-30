@@ -61,3 +61,42 @@ test("the original API policy format still hashes as before", () => {
 });
 
 const EXPECTED_API_HASH = "0xa72a6bb57a7d677630f1a40e70d78bc37e53a4332c2e26229d8d28bee2bdbe2f";
+
+// ---- Review feedback: evidence tied to the job, errors never fail ----
+
+const tiedPage = parseDigitalPolicy({ ...base, type: "webpage", title: "Landing copy", brief: "Publish the new landing page copy.", requiredText: "Pay when it's proven done", pageHost: "acme.com" });
+const tiedPr = parseDigitalPolicy({ ...base, type: "pull_request", title: "Fix checkout", brief: "Fix the mobile checkout bug and get it merged.", repository: "acme/shop", authorLogin: "kofi-dev", openedAfter: "2026-09-01T00:00:00.000Z" });
+const prUrl = parseDigitalManifest({ pullRequestUrl: "https://github.com/acme/shop/pull/9", notes: "" });
+const prApi = "https://api.github.com/repos/acme/shop/pulls/9";
+
+test("a page on another site does not count", async () => {
+  const report = await runChecks(tiedPage, parseDigitalManifest({ pageUrl: "https://elsewhere.com/", notes: "" }),
+    fakeFetch({ "https://elsewhere.com/": { body: "Pay when it's proven done" } }));
+  assert.equal(checkItems(report).find((i) => i.label === "Agreed site").passed, false);
+});
+
+test("hidden text on the page does not count", async () => {
+  const report = await runChecks(tiedPage, parseDigitalManifest({ pageUrl: "https://acme.com/", notes: "" }),
+    fakeFetch({ "https://acme.com/": { body: '<div style="display:none">Pay when it\'s proven done</div><p>Coming soon</p>' } }));
+  assert.equal(checkItems(report).find((i) => i.label === "Required text").passed, false);
+});
+
+test("a redirect to a non-public address is refused, not followed", async () => {
+  const fetcher = async (url) => String(url) === "https://acme.com/"
+    ? new Response(null, { status: 302, headers: { location: "http://169.254.169.254/" } })
+    : new Response("secret");
+  const report = await runChecks(tiedPage, parseDigitalManifest({ pageUrl: "https://acme.com/", notes: "" }), fetcher);
+  assert.ok(report.error);
+});
+
+test("an old or someone else's merged pull request does not count", async () => {
+  const other = await runChecks(tiedPr, prUrl, fakeFetch({ [prApi]: { body: { merged: true, user: { login: "someone" }, created_at: "2026-09-10T00:00:00Z", base: { repo: { full_name: "acme/shop" } } } } }));
+  assert.equal(checkItems(other).find((i) => i.label === "Opened by the worker").passed, false);
+  const old = await runChecks(tiedPr, prUrl, fakeFetch({ [prApi]: { body: { merged: true, user: { login: "kofi-dev" }, created_at: "2025-01-01T00:00:00Z", base: { repo: { full_name: "acme/shop" } } } } }));
+  assert.equal(checkItems(old).find((i) => i.label === "Opened for this job").passed, false);
+});
+
+test("a GitHub rate limit is an error, so the engine abstains instead of failing", async () => {
+  const report = await runChecks(tiedPr, prUrl, fakeFetch({ [prApi]: { status: 403, body: { message: "rate limit" } } }));
+  assert.ok(report.error);
+});

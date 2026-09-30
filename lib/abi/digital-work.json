@@ -12,6 +12,19 @@
   },
   {
     "type": "function",
+    "name": "MIN_REVIEW_WINDOW",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint64",
+        "internalType": "uint64"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "accept",
     "inputs": [
       {

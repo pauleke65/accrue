@@ -25,7 +25,9 @@ type Form = {
   title: string;
   brief: string;
   requiredText: string;
+  pageHost: string;
   repository: string;
+  authorLogin: string;
   endpointPath: string;
   expectedStatus: number;
   expectedJsonKey: string;
@@ -44,7 +46,9 @@ const blank: Form = {
   title: "",
   brief: "",
   requiredText: "",
+  pageHost: "",
   repository: "",
+  authorLogin: "",
   endpointPath: "/api/health",
   expectedStatus: 200,
   expectedJsonKey: "ok",
@@ -72,7 +76,9 @@ function fromDraft(draft: DigitalDraft): Form {
     title: String(p.title ?? ""),
     brief: String(p.brief ?? ""),
     requiredText: String(p.requiredText ?? ""),
+    pageHost: String(p.pageHost ?? ""),
     repository: String(p.repository ?? ""),
+    authorLogin: String(p.authorLogin ?? ""),
     endpointPath: String(p.endpointPath ?? blank.endpointPath),
     expectedStatus: Number(p.expectedStatus ?? 200),
     expectedJsonKey: String(p.expectedJsonKey ?? blank.expectedJsonKey),
@@ -89,8 +95,10 @@ function fromDraft(draft: DigitalDraft): Form {
 
 function toPolicy(form: Form): DigitalPolicy {
   const common = { title: form.title, brief: form.brief, passThreshold: 0.9 as const, failThreshold: 0.1 as const };
-  const raw = form.kind === "webpage" ? { type: "webpage", ...common, requiredText: form.requiredText }
-    : form.kind === "pull_request" ? { type: "pull_request", ...common, repository: form.repository.replace(/^https:\/\/github\.com\//, "").replace(/\/$/, "") }
+  // The evidence has to be tied to this job: the site the page lives on, or
+  // the worker's own pull request opened after the job was written.
+  const raw = form.kind === "webpage" ? { type: "webpage", ...common, requiredText: form.requiredText, pageHost: form.pageHost.trim().toLowerCase().replace(/^https?:\/\//, "").replace(/\/.*$/, "") }
+    : form.kind === "pull_request" ? { type: "pull_request", ...common, repository: form.repository.replace(/^https:\/\/github\.com\//, "").replace(/\/$/, ""), authorLogin: form.authorLogin.trim().replace(/^@/, ""), openedAfter: new Date().toISOString() }
     : { ...common, endpointPath: form.endpointPath, expectedStatus: form.expectedStatus, expectedJsonKey: form.expectedJsonKey, expectedJsonValue: form.expectedJsonValue };
   return parseDigitalPolicy(raw);
 }
@@ -210,11 +218,13 @@ export function DigitalWorkBuilder({
             <label>Job title<Input value={form.title} maxLength={120} onChange={(e) => set({ title: e.target.value })} placeholder={form.kind === "webpage" ? "Write and publish our pricing page" : form.kind === "pull_request" ? "Fix the mobile checkout bug" : "Build a live exchange-rate endpoint"} required /></label>
             <label>Describe the work<Textarea value={form.brief} maxLength={2000} onChange={(e) => set({ brief: e.target.value })} placeholder="What should be delivered, and what would make you happy with it? Reviewers read this." required /><small className="field-hint">At least 15 characters. Proof Engine&apos;s AI and the reviewers judge the evidence against this.</small></label>
 
-            {form.kind === "webpage" && (
+            {form.kind === "webpage" && (<>
               <label>Text the live page must contain<Input value={form.requiredText} maxLength={200} onChange={(e) => set({ requiredText: e.target.value })} placeholder="Plans start at $9 a month" required /><small className="field-hint">A phrase that only appears once the work is really done, like a headline or price.</small></label>
+                <label>Your site<Input value={form.pageHost} onChange={(e) => set({ pageHost: e.target.value })} placeholder="acme.com" required /><small className="field-hint">The page must be on this domain, so any page with the phrase won&apos;t do.</small></label></>
             )}
-            {form.kind === "pull_request" && (
+            {form.kind === "pull_request" && (<>
               <label>Your GitHub repository<Input value={form.repository} onChange={(e) => set({ repository: e.target.value })} placeholder="acme/shop" required /><small className="field-hint">Owner and name, as in github.com/<b>acme/shop</b>. The repository must be public, and the pull request must be merged into it.</small></label>
+                <label>Worker&apos;s GitHub username<Input value={form.authorLogin} onChange={(e) => set({ authorLogin: e.target.value })} placeholder="kofi-dev" required /><small className="field-hint">The pull request must be theirs and opened after this job is posted.</small></label></>
             )}
             {form.kind === "api" && (
               <>
