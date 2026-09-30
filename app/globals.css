@@ -2747,3 +2747,18 @@ a.identity-chip:hover { border-color: var(--m-purple-bright); }
 .home-review-card { cursor: default; }
 .home-review-form { display: flex; gap: 8px; margin-top: 4px; }
 .home-review-form .secondary { padding: 10px 14px; }
+
+/* Job messages. */
+.job-thread { margin-top: 24px; }
+.job-thread h2 { display: inline-flex; align-items: center; gap: 8px; font-size: 16px; }
+.job-thread > .fine-print { margin: 6px 0 16px; }
+.thread-list { list-style: none; display: grid; gap: 10px; margin: 0 0 16px; padding: 0; }
+.thread-list li { max-width: 80%; padding: 10px 14px; border: 1px solid var(--m-hairline); background: var(--m-raised); }
+.thread-list li.mine { margin-left: auto; border-color: color-mix(in srgb, var(--m-purple-bright) 50%, transparent); background: color-mix(in srgb, var(--m-purple) 12%, var(--m-surface)); }
+.thread-who { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; color: var(--m-ink); font-size: 13px; font-weight: 600; }
+.thread-who em { color: var(--m-purple-300); font-family: var(--m-mono); font-size: 10px; font-style: normal; letter-spacing: .12em; text-transform: uppercase; }
+.thread-who time { color: var(--m-ink-dim); font-size: 12px; font-weight: 400; }
+.thread-list p { margin-top: 4px; font-size: 14px; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; }
+.thread-form { display: grid; gap: 10px; }
+.thread-form .primary { justify-self: end; }
+@media (max-width: 640px) { .thread-list li { max-width: 100%; } }

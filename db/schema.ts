@@ -232,3 +232,13 @@ export const reviewers = sqliteTable("reviewers", {
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
 });
+
+/** Messages between the people on one job. Readable only by them. */
+export const jobMessages = sqliteTable("job_messages", {
+  id: text("id").primaryKey(),
+  jobKind: text("job_kind").notNull(),
+  jobId: text("job_id").notNull(),
+  authorAddress: text("author_address").notNull(),
+  body: text("body").notNull(),
+  createdAt: text("created_at").notNull(),
+}, (table) => [index("job_messages_job").on(table.jobKind, table.jobId, table.createdAt)]);

@@ -9,6 +9,7 @@ import { DigitalWorkStatus, readDigitalVote } from "@/lib/digital-work-chain";
 import { useWallet } from "../wallet-context";
 import type { DigitalJob, DigitalManualVote, DigitalRun, DigitalSubmission, useDigitalWork } from "../use-digital-work";
 import { ProofEngineReport } from "./proof-engine-report";
+import { JobThread } from "./job-thread";
 import { deliverableKind, type DigitalManifest } from "@/lib/digital-work-policy";
 import { proofActions } from "@/lib/next-actions";
 
@@ -195,6 +196,18 @@ export function DigitalWorkDetail({
       {job.chain.status === DigitalWorkStatus.refunded && <section className="action-banner"><div><h3>Review expired. Reserved funds returned.</h3><p>The payer can withdraw the reward and unused verifier fees. Votes already cast remain paid.</p></div><Clock3 size={26} /></section>}
       {reviewExpired && (job.chain.status === DigitalWorkStatus.funded || job.chain.status === DigitalWorkStatus.submitted || job.chain.status === DigitalWorkStatus.needsChanges) && <section className="action-banner"><div><h3>The review window closed.</h3><p>Anyone can finalize the agreed refund path.</p></div><button className="primary" disabled={digital.busy} onClick={() => void doAction(() => digital.expire(job))}>Finalize refund</button></section>}
       {digital.claimable > 0n && <section className="action-banner"><div><h3>{formatAmount(digital.claimable)} {token.symbol} available</h3><p>Withdraw your earned reward, verifier fee, or returned funds.</p></div><button className="primary" disabled={digital.busy} onClick={() => void doAction(() => digital.withdraw())}>Withdraw</button></section>}
+
+      <JobThread
+        kind="proof"
+        id={job.id}
+        roles={{
+          [job.payer.toLowerCase()]: "client",
+          [job.worker.toLowerCase()]: "worker",
+          [job.verifiers[0].toLowerCase()]: "Proof Engine",
+          [job.verifiers[1].toLowerCase()]: "reviewer",
+          [job.verifiers[2].toLowerCase()]: "reviewer",
+        }}
+      />
     </>
   );
 }

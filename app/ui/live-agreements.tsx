@@ -4,6 +4,7 @@ import { SignInCard } from "./home";
 import { HiringLinkDone } from "./hiring-link";
 import { useOffers } from "../use-offers";
 import { ReviewerSuggestions } from "./reviewer-suggestions";
+import { JobThread } from "./job-thread";
 import { milestoneActions } from "@/lib/next-actions";
 import {
   ArrowLeft,
@@ -816,6 +817,15 @@ function Detail({
           {shortAddress(escrow.address)} <ArrowUpRight size={13} />
         </a>
       </div>
+      <JobThread
+        kind="milestone"
+        id={agreement.id}
+        roles={{
+          [agreement.payer.toLowerCase()]: "client",
+          [agreement.worker.toLowerCase()]: "worker",
+          ...(/^0x0{40}$/i.test(a.verifier) ? {} : { [a.verifier.toLowerCase()]: "reviewer" }),
+        }}
+      />
     </>
   );
 }
