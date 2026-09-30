@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, ArrowUpRight, Check, Clock3, Copy, Hourglass, ScanSearch, ShieldCheck } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -91,6 +91,21 @@ export function DigitalWorkDetail({
     votedCurrentVersion: isVerifier ? alreadyVoted : null,
   }, wallet.address, BigInt(Math.floor(now / 1000)))[0];
 
+  // Backstop for the automatic review after submission: if this version has
+  // evidence but no review yet (the worker closed the tab, or the AI was
+  // rate limited), start one when a participant opens the job. Once per
+  // version per visit; the server's lock stops duplicates across visitors.
+  const autoReviewed = useRef<number | null>(null);
+  const submittedVersion = job.chain.status === DigitalWorkStatus.submitted ? job.chain.version : null;
+  const needsReview = submittedVersion !== null && !!currentSubmission && !currentRun && !reviewExpired;
+  useEffect(() => {
+    if (!needsReview || autoReviewed.current === submittedVersion || digital.busy) return;
+    autoReviewed.current = submittedVersion;
+    void digital.verify(job).then(() => refreshDetail().catch(() => undefined));
+    // refreshDetail and digital are rebuilt every render; the version guard above is what matters.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [needsReview, submittedVersion]);
+
   const doAction = async (action: () => Promise<unknown>) => {
     await action();
     try { await refreshDetail(); } catch { /* The chain action's result is still shown by the main refresh. */ }
@@ -115,6 +130,7 @@ export function DigitalWorkDetail({
         </div>
       )}
       {(digital.error || detailError) && <div role="alert" className="error-banner">{digital.error || detailError}<button className="text-button" onClick={() => { digital.setError(""); setDetailError(""); }}>Dismiss</button></div>}
+      {digital.notice && <div className="success-banner" role="status"><Check size={17} aria-hidden />{digital.notice}<button aria-label="Dismiss" onClick={() => digital.setNotice("")}>×</button></div>}
       {digital.progress.status !== "idle" && digital.busy && <div className="notice"><Clock3 size={16} /><p>Transaction: {digital.progress.status.replaceAll("-", " ")}</p></div>}
 
       <div className="dw-detail-grid">

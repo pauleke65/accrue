@@ -109,6 +109,7 @@ export function useDigitalWork() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const [progress, setProgress] = useState<TransactionState>({ status: "idle" });
 
   useEffect(() => {
@@ -218,6 +219,12 @@ export function useDigitalWork() {
     await refresh();
   });
 
+  /** Asks the server to run Proof Engine on one evidence version. */
+  const runReview = useCallback(async (onchainId: string, version: number) => {
+    const proofs = await proveParticipation();
+    return postJson("/api/digital-work/verify", { onchainId, version, proofs });
+  }, [proveParticipation]);
+
   const submit = (job: DigitalJob, raw: DigitalManifest) => run(async (account) => {
     const manifest = parseDigitalManifest(raw);
     const digest = evidenceHash(job.id, job.policyHash, manifest);
@@ -230,14 +237,21 @@ export function useDigitalWork() {
     await postJson("/api/digital-work/submissions", {
       onchainId: job.onchainId, version, manifest, worker: account.address, signature,
     });
+    // Start Proof Engine straight away rather than waiting for someone to
+    // find a button. The submission already stands if this part fails (an AI
+    // rate limit, say); the job page retries when a participant opens it.
+    try {
+      await runReview(job.onchainId, version);
+      setNotice("Evidence submitted. Proof Engine has reviewed it.");
+    } catch (cause) {
+      setNotice(`Evidence submitted. Proof Engine will retry: ${cause instanceof Error ? cause.message : "review did not start"}`);
+    }
     await refresh();
   });
 
+
   const verify = (job: DigitalJob) => run(async () => {
-    const proofs = await proveParticipation();
-    const result = await postJson("/api/digital-work/verify", {
-      onchainId: job.onchainId, version: job.chain.version, proofs,
-    });
+    const result = await runReview(job.onchainId, job.chain.version);
     await refresh();
     return result;
   });
@@ -293,7 +307,7 @@ export function useDigitalWork() {
   }, [proveParticipation]);
 
   return {
-    config, jobs, claimable, loading, busy, error, setError, progress,
+    config, jobs, claimable, loading, busy, error, setError, notice, setNotice, progress,
     refresh, create, accept, fund, submit, verify, vote, expire, withdraw, loadDetail,
     token,
   };
