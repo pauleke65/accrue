@@ -382,8 +382,9 @@ export function useLiveAgreements() {
       await fetch("/api/job-messages", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ kind: "milestone", id: agreement.id, body: body.slice(0, 2000), proofs }),
+        body: JSON.stringify({ kind: "milestone", id: agreement.id, body: body.slice(0, 2000), author: w.address, proofs }),
       });
+      window.dispatchEvent(new Event("accrue:thread-posted"));
     } catch {
       /* The thread is a courtesy copy; the chain record is what counts. */
     }

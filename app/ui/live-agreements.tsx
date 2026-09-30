@@ -47,7 +47,9 @@ import {
   token,
   explorer,
   escrow,
+  network,
 } from "@/lib/chain";
+import { getAddress } from "viem";
 
 /**
  * Milestone agreements funded with real AUSD through the deployed escrow.
@@ -141,9 +143,12 @@ export function LiveAgreements({
           const id = await live.create(draft);
           if (id !== null) {
             clearDraft("milestone");
-            if (offer) await offers.update(offer.token, "created", String(id)).catch(() => undefined);
+            // The app's id for the new job, which is what opens it.
+            const rowId = `${network.chainId}:${getAddress(escrow.address)}:${id}`;
+            if (offer) await offers.update(offer.token, "created", rowId).catch(() => undefined);
             setCreating(false);
             setInitialDraft(undefined);
+            setOpen(rowId);
           }
         }}
       />

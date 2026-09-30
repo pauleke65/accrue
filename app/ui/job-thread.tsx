@@ -9,6 +9,9 @@ import { useWallet } from "../wallet-context";
 
 type Message = { id: string; author: string; tag: string | null; body: string; at: string };
 
+/** Fired after something posts to a job's thread, so an open thread reloads. */
+export const THREAD_POSTED = "accrue:thread-posted";
+
 /**
  * The conversation on one job. Refreshes every 30 seconds while open, so a
  * reply shows up without a reload. Roles come from the job itself, so each
@@ -37,7 +40,10 @@ export function JobThread({ kind, id, roles }: { kind: JobKind; id: string; role
   useEffect(() => {
     void Promise.resolve().then(load);
     const timer = window.setInterval(() => void load(), 30_000);
-    return () => window.clearInterval(timer);
+    // Actions elsewhere on the page (a submission, a send-back) post here too.
+    const onPosted = () => void load();
+    window.addEventListener(THREAD_POSTED, onPosted);
+    return () => { window.clearInterval(timer); window.removeEventListener(THREAD_POSTED, onPosted); };
   }, [load]);
 
   const send = async () => {
@@ -49,7 +55,7 @@ export function JobThread({ kind, id, roles }: { kind: JobKind; id: string; role
       const response = await fetch("/api/job-messages", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ kind, id, body: draft, proofs }),
+        body: JSON.stringify({ kind, id, body: draft, author: wallet.address, proofs }),
       });
       const data = (await response.json()) as { error?: string };
       if (!response.ok) throw new Error(data.error ?? "Message not sent.");

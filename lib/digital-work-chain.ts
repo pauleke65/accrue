@@ -7,7 +7,7 @@ import {
   type Hash,
 } from "viem";
 import abi from "./abi/digital-work.json" with { type: "json" };
-import { chain, token, type TransactionState } from "./chain";
+import { announceSettled, chain, token, type TransactionState } from "./chain";
 import { publicClient, readableError, walletClient } from "./ausd";
 
 export const digitalWorkAbi = abi;
@@ -128,8 +128,10 @@ export async function ensureDigitalAllowance(
     args: [spender, amount], chain, account,
   });
   report?.({ status: "submitted", hash });
+  const sentAt = Date.now();
   const receipt = await publicClient().waitForTransactionReceipt({ hash, timeout: 40_000 });
   if (receipt.status !== "success") throw new Error("AUSD approval did not confirm.");
+  announceSettled(hash, sentAt);
   report?.({ status: "confirmed", hash });
 }
 
@@ -173,8 +175,10 @@ export async function sendDigitalAction(options: {
     return state;
   }
   report?.({ status: "submitted", hash });
+  const sentAt = Date.now();
   try {
     const receipt = await publicClient().waitForTransactionReceipt({ hash, timeout: 40_000 });
+    if (receipt.status === "success") announceSettled(hash, sentAt);
     const state: TransactionState = receipt.status === "success"
       ? { status: "confirmed", hash }
       : { status: "failed", hash, error: "The contract rejected this action." };

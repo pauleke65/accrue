@@ -73,7 +73,7 @@ export function SignInCard() {
         <div className="dev-signin">
           <span className="mono-label">Developer sign-in · localhost only</span>
           <div>
-            {["client", "worker", "reviewer-1", "reviewer-2"].map((p) => (
+            {["client", "worker", "reviewer-1", "reviewer-2", "judge"].map((p) => (
               <button key={p} className="text-button" disabled={wallet.connecting} onClick={() => void wallet.connect(`dev:${p}`)}>Test {p}</button>
             ))}
           </div>

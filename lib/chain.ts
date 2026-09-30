@@ -129,6 +129,19 @@ export type TransactionStatus =
   | "failed"
   | "unknown";
 
+/**
+ * Fired in the browser when a transaction this page sent is confirmed, with
+ * the time from submission to receipt. It is Monad's settlement time as the
+ * person experienced it, shown so the speed is something they see rather
+ * than a claim they read.
+ */
+export const SETTLED_EVENT = "accrue:settled";
+
+export function announceSettled(hash: `0x${string}`, sentAt: number): void {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new CustomEvent(SETTLED_EVENT, { detail: { hash, ms: Date.now() - sentAt } }));
+}
+
 export type TransactionState = {
   status: TransactionStatus;
   hash?: `0x${string}`;

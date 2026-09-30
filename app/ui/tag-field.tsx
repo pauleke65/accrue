@@ -111,8 +111,8 @@ export function TagField({
         )}
         {state.kind === "found" && (
           <>
-            <Check size={13} /> {state.displayName} ·{" "}
-            {shortAddress(state.address)}
+            <Check size={13} /> {state.displayName}
+            {state.displayName !== shortAddress(state.address) && <> · {shortAddress(state.address)}</>}
           </>
         )}
         {state.kind === "missing" && (

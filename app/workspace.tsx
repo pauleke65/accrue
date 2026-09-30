@@ -30,6 +30,7 @@ import type { JobKind } from "@/lib/next-actions";
 import { Choice } from "./ui/shared";
 import { InvitationAcceptModal } from "./ui/invitation-accept-modal";
 import { OfferModal } from "./ui/offer-modal";
+import { SettledToast } from "./ui/settled-toast";
 import type { TakenOffer } from "./ui/home";
 import type { DigitalDraft } from "./use-digital-work";
 import type { Draft } from "./use-live-agreements";
@@ -175,9 +176,9 @@ export default function Accrue() {
                   wallet.setRole(v as "payer" | "worker" | "verifier")
                 }
                 items={[
-                  { value: "payer", label: "Payer view" },
+                  { value: "payer", label: "Client view" },
                   { value: "worker", label: "Worker view" },
-                  { value: "verifier", label: "Verifier view" },
+                  { value: "verifier", label: "Reviewer view" },
                 ]}
               />
             )}
@@ -314,6 +315,7 @@ export default function Accrue() {
           )}
         </div>
       </main>
+      <SettledToast />
       {offerToken && (
         <OfferModal
           offerToken={offerToken}

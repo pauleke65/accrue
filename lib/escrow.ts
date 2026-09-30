@@ -6,7 +6,7 @@ import {
   type Hash,
 } from "viem";
 import abi from "./abi/escrow.json" with { type: "json" };
-import { chain, escrow, token, type TransactionState } from "./chain.ts";
+import { announceSettled, chain, escrow, token, type TransactionState } from "./chain.ts";
 import { publicClient, walletClient, erc20Abi, readableError } from "./ausd.ts";
 
 /**
@@ -246,11 +246,13 @@ export async function callEscrow(options: {
     return state;
   }
   report?.({ status: "submitted", hash });
+  const sentAt = Date.now();
   try {
     const receipt = await publicClient().waitForTransactionReceipt({
       hash,
       timeout: 40_000,
     });
+    if (receipt.status === "success") announceSettled(hash, sentAt);
     const state: TransactionState =
       receipt.status === "success"
         ? { status: "confirmed", hash }
@@ -320,7 +322,9 @@ export async function approveDeposit(options: {
     return state;
   }
   report?.({ status: "submitted", hash });
+  const sentAt = Date.now();
   const receipt = await publicClient().waitForTransactionReceipt({ hash });
+  if (receipt.status === "success") announceSettled(hash, sentAt);
   const state: TransactionState =
     receipt.status === "success"
       ? { status: "confirmed", hash }

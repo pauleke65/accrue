@@ -17,6 +17,8 @@ const postSchema = z.object({
   kind,
   id: z.string().min(1).max(80),
   body: z.string().trim().min(1).max(2000),
+  /** Which of the proven accounts is speaking; the role walkthrough proves three. */
+  author: z.string().regex(/^0x[a-fA-F0-9]{40}$/).optional(),
   proofs: z.array(z.object({ address: z.string(), signature: z.string() })).min(1).max(8),
 }).strict();
 
@@ -35,11 +37,12 @@ async function participants(jobKind: "proof" | "milestone", id: string): Promise
   return row ? Object.values(row) : [];
 }
 
-/** The caller's proven address on this job, or a 403. */
-async function member(jobKind: "proof" | "milestone", id: string, proofs: ParticipantProof[] | undefined) {
+/** The caller's proven address on this job (the named one, if given), or a 403. */
+async function member(jobKind: "proof" | "milestone", id: string, proofs: ParticipantProof[] | undefined, author?: string) {
   const people = (await participants(jobKind, id)).map((a) => a.toLowerCase());
   if (!people.length) throw new HttpError(404, "Job not found.");
-  const mine = (await verifiedAddresses(proofs)).find((a) => people.includes(a.toLowerCase()));
+  const mine = (await verifiedAddresses(proofs)).find((a) =>
+    people.includes(a.toLowerCase()) && (!author || a.toLowerCase() === author.toLowerCase()));
   if (!mine) throw new HttpError(403, "Only the people on this job can read its messages.");
   return mine;
 }
@@ -71,7 +74,7 @@ export async function POST(request: Request) {
   try {
     await authorize(request);
     const body = postSchema.parse(await request.json());
-    const author = await member(body.kind, body.id, body.proofs);
+    const author = await member(body.kind, body.id, body.proofs, body.author);
     const id = crypto.randomUUID();
     await database()
       .prepare("INSERT INTO job_messages (id, job_kind, job_id, author_address, body, created_at) VALUES (?, ?, ?, ?, ?, ?)")
