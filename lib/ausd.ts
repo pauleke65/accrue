@@ -6,7 +6,7 @@ import {
   type Account,
   type Hash,
 } from "viem";
-import { chain, network, token, type TransactionState } from "./chain.ts";
+import { announceSettled, chain, network, token, type TransactionState } from "./chain.ts";
 
 /**
  * Reading and moving AUSD on Monad testnet.
@@ -111,11 +111,13 @@ type Report = (state: TransactionState) => void;
  */
 async function settle(hash: Hash, report?: Report): Promise<TransactionState> {
   report?.({ status: "submitted", hash });
+  const sentAt = Date.now();
   try {
     const receipt = await publicClient().waitForTransactionReceipt({
       hash,
       timeout: RECEIPT_TIMEOUT_MS,
     });
+    if (receipt.status === "success") announceSettled(hash, sentAt, receipt);
     const state: TransactionState =
       receipt.status === "success"
         ? { status: "confirmed", hash }

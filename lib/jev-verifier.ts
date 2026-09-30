@@ -1,9 +1,12 @@
 import { env } from "cloudflare:workers";
 import { z } from "zod";
-import { type DigitalManifest, type DigitalPolicy, deploymentProbeUrl } from "./digital-work-policy";
+import type { DigitalPolicy } from "./digital-work-policy";
+import { checkItems, type CheckReport } from "./proof-checks";
+
+export { runChecks, checkItems } from "./proof-checks";
+export type { CheckItem, CheckReport } from "./proof-checks";
 import { HttpError } from "./server";
 
-const MAX_RESPONSE_BYTES = 32_768;
 const jevSchema = z.object({
   model: z.string(),
   answers: z.object({
@@ -12,112 +15,42 @@ const jevSchema = z.object({
   }),
 }).passthrough();
 
-export type ApiCheckReport = {
-  commitUrl: string;
-  commitFound: boolean;
-  probeUrl: string;
-  responseStatus: number | null;
-  expectedStatus: number;
-  jsonKey: string;
-  expectedValue: string;
-  actualValue: string | null;
-  statusMatches: boolean;
-  bodyMatches: boolean;
-  error: string | null;
-};
-
 export type JevAssessment = {
   model: string;
   requirementsProbability: number;
   reviewProbability: number;
   recommendation: "pass" | "fail" | "manual_review";
+  /** Set when the AI model could not be reached; the probabilities are then 0 and unused. */
+  unavailable?: string;
 };
 
-async function readLimited(response: Response): Promise<string> {
-  if (!response.body) return "";
-  const reader = response.body.getReader();
-  const chunks: Uint8Array[] = [];
-  let size = 0;
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    size += value.byteLength;
-    if (size > MAX_RESPONSE_BYTES) {
-      await reader.cancel();
-      throw new Error("Response exceeded the 32 KB verification limit.");
-    }
-    chunks.push(value);
-  }
-  const combined = new Uint8Array(size);
-  let offset = 0;
-  for (const chunk of chunks) {
-    combined.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
-  return new TextDecoder().decode(combined);
-}
-
-export async function runApiChecks(
-  policy: DigitalPolicy,
-  manifest: DigitalManifest,
-  fetcher: typeof fetch = fetch,
-): Promise<ApiCheckReport> {
-  const commitUrl = new URL(manifest.commitUrl);
-  const apiCommitUrl = `https://api.github.com/repos${commitUrl.pathname.replace("/commit/", "/commits/")}`;
-  const probeUrl = deploymentProbeUrl(policy, manifest);
-  const report: ApiCheckReport = {
-    commitUrl: manifest.commitUrl,
-    commitFound: false,
-    probeUrl,
-    responseStatus: null,
-    expectedStatus: policy.expectedStatus,
-    jsonKey: policy.expectedJsonKey,
-    expectedValue: policy.expectedJsonValue,
-    actualValue: null,
-    statusMatches: false,
-    bodyMatches: false,
-    error: null,
+/**
+ * Proof Engine without its AI: when the model is not configured, out of
+ * credits or erroring, the checks still stand on their own. A check that
+ * fails is a fact, so the engine still votes fail; checks that all pass are
+ * not enough to pay on, so it steps aside and the reviewers decide, with the
+ * reason on the report. A rate limit is not handled here: it is retried.
+ */
+export function assessWithoutAi(report: CheckReport, reason: string): JevAssessment {
+  const allPassed = checkItems(report).every((item) => item.passed);
+  return {
+    model: "unavailable",
+    requirementsProbability: 0,
+    reviewProbability: 0,
+    // A check that could not run (timeout, rate limit) is not evidence of
+    // failure; a fail vote is permanent for that version, so abstain.
+    recommendation: allPassed || report.error ? "manual_review" : "fail",
+    unavailable: reason,
   };
-
-  try {
-    const commit = await fetcher(apiCommitUrl, {
-      headers: { Accept: "application/vnd.github+json", "User-Agent": "Accrue-Digital-Work" },
-      redirect: "manual",
-      signal: AbortSignal.timeout(8_000),
-    });
-    report.commitFound = commit.status === 200;
-    await commit.body?.cancel();
-  } catch (error) {
-    report.error = `Could not check the public commit: ${error instanceof Error ? error.message : "network error"}`;
-  }
-
-  try {
-    const response = await fetcher(probeUrl, {
-      headers: { Accept: "application/json" },
-      redirect: "manual",
-      signal: AbortSignal.timeout(8_000),
-    });
-    report.responseStatus = response.status;
-    report.statusMatches = response.status === policy.expectedStatus;
-    const body = JSON.parse(await readLimited(response)) as unknown;
-    if (body && typeof body === "object" && !Array.isArray(body)) {
-      const field = (body as Record<string, unknown>)[policy.expectedJsonKey];
-      report.actualValue = field == null ? null : String(field);
-      report.bodyMatches = report.actualValue === policy.expectedJsonValue;
-    }
-  } catch (error) {
-    report.error = `Could not verify the deployed endpoint: ${error instanceof Error ? error.message : "network error"}`;
-  }
-  return report;
 }
 
 async function invokeJev(state: unknown): Promise<unknown> {
   const questions = {
     requirements_met: {
       type: "noul",
-      instructions: "Given only the locked policy and test report, is the submitted API outcome verified?",
+      instructions: "Given only the locked policy and test report, is the submitted outcome verified against the brief?",
       criteria: {
-        true: "The public commit exists and the deployed endpoint matches the expected status and JSON value.",
+        true: "Every required check in the report passed and the evidence plausibly satisfies the brief.",
         false: "Any required check failed or the available evidence is insufficient.",
       },
     },
@@ -184,15 +117,16 @@ async function invokeJev(state: unknown): Promise<unknown> {
 
 export async function assessWithJev(
   policy: DigitalPolicy,
-  report: ApiCheckReport,
+  report: CheckReport,
 ): Promise<JevAssessment> {
   const raw = await invokeJev({ policy, testReport: report });
   const result = jevSchema.safeParse(raw);
   if (!result.success) throw new HttpError(502, "Proof Engine received an invalid AI evaluation response.");
   const requirementsProbability = result.data.answers.requirements_met.noul;
   const reviewProbability = result.data.answers.needs_human_review.noul;
-  const deterministicPass = report.commitFound && report.statusMatches && report.bodyMatches;
-  const recommendation = !deterministicPass || requirementsProbability <= policy.failThreshold
+  const deterministicPass = checkItems(report).every((item) => item.passed);
+  const recommendation = report.error ? "manual_review"
+    : !deterministicPass || requirementsProbability <= policy.failThreshold
     ? "fail"
     : requirementsProbability >= policy.passThreshold && reviewProbability <= policy.failThreshold
       ? "pass"

@@ -27,7 +27,7 @@ const steps = [
   {
     n: "01",
     title: "Agree the outcome",
-    body: "Describe the deliverable and the test that proves it: which endpoint, what it must return. The terms are hashed, and the worker accepts that exact version.",
+    body: "Describe the deliverable and the check that proves it: text a live page must show, a pull request merged into your repo, or data an API must return. The worker accepts that exact version.",
   },
   {
     n: "02",
@@ -37,7 +37,7 @@ const steps = [
   {
     n: "03",
     title: "Deliver the evidence",
-    body: "The worker submits a commit and a live deployment. Its fingerprint goes on-chain, so the evidence cannot change after review starts.",
+    body: "The worker submits the page link, the pull request or the deployment. Its fingerprint goes on-chain, so the evidence cannot change after review starts.",
   },
   {
     n: "04",
@@ -74,7 +74,7 @@ const flows = [
     id: "proof",
     tag: "Proof-checked job",
     title: "One deliverable. Checked, voted, paid.",
-    lead: "For a single piece of work with a testable outcome, like an API that must return the right data.",
+    lead: "For one deliverable with a checkable result: a live web page, a merged pull request, or a working API.",
     Figure: ProofPipeline,
     points: [
       "The worker accepts terms locked by hash, then the client funds the reward and a reviewer fee pool.",
@@ -117,10 +117,10 @@ const audiences = [
 ];
 
 export default async function Landing({ searchParams }: { searchParams: SearchParams }) {
-  // Invite and job links shared before the app moved to /app still land in it.
+  // Invite, job and hiring links that point at "/" still land in the app.
   const params = await searchParams;
   const forward = new URLSearchParams();
-  for (const key of ["invite", "job"]) {
+  for (const key of ["invite", "job", "proof", "offer"]) {
     const value = params[key];
     if (typeof value === "string") forward.set(key, value);
   }
@@ -137,6 +137,8 @@ export default async function Landing({ searchParams }: { searchParams: SearchPa
           <a href="#flows">Escrow flows</a>
           <a href="#scenarios">Scenarios</a>
           <a href="#proof">Proof Engine</a>
+          <a href="#hire">Hiring links</a>
+          <a href="/jobs">Open jobs</a>
         </nav>
         <a className="primary lp-nav-cta" href="/app">Open app <ArrowRight size={15} aria-hidden /></a>
       </header>
@@ -254,9 +256,9 @@ export default async function Landing({ searchParams }: { searchParams: SearchPa
             <span className="lp-label">Proof Engine</span>
             <h2 id="proof-title">An AI reviewer that knows when to step aside.</h2>
             <p>
-              Proof Engine first runs checks that cannot be argued with: does the commit exist,
-              does the live endpoint respond, does it return what the terms said. Then an AI
-              model scores the work against the brief.
+              Proof Engine first runs checks that cannot be argued with: does the page load and
+              say what was agreed, is the pull request merged into the right repository, does the
+              API return the right data. Then an AI model scores the work against the brief.
             </p>
             <p>
               It votes pass only at 90% confidence or higher with little need for human review.
@@ -283,7 +285,7 @@ export default async function Landing({ searchParams }: { searchParams: SearchPa
           <span className="lp-label">Why Monad</span>
           <h2 id="monad-title">Every step is a transaction. That has to be cheap and fast.</h2>
           <div className="lp-grid lp-grid-3">
-            <article><Zap size={20} aria-hidden /><h3>Settles in about a second</h3><p>Payment lands as fast as the checks finish, so a verified job feels paid, not pending.</p></article>
+            <article><Zap size={20} aria-hidden /><h3>Settles in about a second</h3><p>In our testnet runs, funding, votes and withdrawals confirmed in 0.3 to 1.5 seconds. The app shows the time on every transaction, so a verified job feels paid, not pending.</p></article>
             <article><Scale size={20} aria-hidden /><h3>Small jobs make sense</h3><p>Create, accept, fund, submit, three votes, withdraw. Low fees keep a five-dollar task worth putting on-chain.</p></article>
             <article><Fingerprint size={20} aria-hidden /><h3>No crypto homework</h3><p>Sign in with a passkey, no seed phrase or extension. The first network fee is sponsored, and you pay @names, not addresses.</p></article>
           </div>
@@ -303,17 +305,43 @@ export default async function Landing({ searchParams }: { searchParams: SearchPa
           </div>
         </section>
 
+        <section className="lp-section lp-split" id="hire" aria-labelledby="hire-title">
+          <div>
+            <span className="lp-label">Hiring links</span>
+            <h2 id="hire-title">Don&apos;t know who to hire yet? Share a link.</h2>
+            <p>
+              Write the job without naming anyone and Accrue gives you a link. Post it or send it.
+              Whoever takes it first sees the brief, the pay and what counts as done before they
+              commit.
+            </p>
+            <p>
+              Once someone takes it, your Home says so and the job form is already filled in. You
+              create it on chain, they accept the exact terms, you fund. Nothing moves until then.
+            </p>
+          </div>
+          <ol className="lp-hire-steps">
+            <li><b>01</b><span>You write the job and get a link</span></li>
+            <li><b>02</b><span>Someone opens it and takes the job</span></li>
+            <li><b>03</b><span>You create it for them in one click</span></li>
+            <li><b>04</b><span>They accept, you fund, work starts</span></li>
+          </ol>
+        </section>
+
         <section className="lp-cta" aria-labelledby="cta-title">
-          <h2 id="cta-title">Post your first job.</h2>
-          <p>Define the outcome, fund it with test AUSD, and watch the contract settle it.</p>
-          <a className="primary" href="/app">Open Accrue <ArrowRight size={16} aria-hidden /></a>
+          <h2 id="cta-title">Try it before you hire anyone.</h2>
+          <p>
+            Sign in with a passkey and start the walkthrough: play the client, the worker and the
+            reviewer on one device, through a real job on Monad testnet, in about three minutes.
+          </p>
+          <a className="primary" href="/app">Start the walkthrough <ArrowRight size={16} aria-hidden /></a>
         </section>
       </main>
 
       <footer className="lp-footer">
         <p>
           <Clock3 size={14} aria-hidden /> Live on Monad testnet with test AUSD. The contracts are
-          unaudited and must not hold real funds. Automated checks cover deployed APIs today.
+          unaudited and must not hold real funds. Automated checks cover live web pages, merged
+          GitHub pull requests and deployed APIs.
         </p>
         <nav aria-label="Proof links">
           <a href={EXPLORER} target="_blank" rel="noreferrer noopener">Contract <ArrowUpRight size={13} aria-hidden /></a>

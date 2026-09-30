@@ -7,12 +7,15 @@ import {
   Wallet,
   Activity,
   Settings2,
-  ArrowRight,
   RefreshCw,
   LogOut,
   CheckCircle2,
   SendHorizontal,
-  Bot,
+  House,
+  BriefcaseBusiness,
+  Layers,
+  ScanSearch,
+  Fingerprint,
 } from "lucide-react";
 import { Send as SendPage } from "./ui/send";
 import { LiveAgreements } from "./ui/live-agreements";
@@ -22,18 +25,27 @@ import { LiveActivity } from "./ui/live-activity";
 import { NetworkSwitch } from "./ui/network-switch";
 import { SessionBadge } from "./ui/session-badge";
 import { useWallet } from "./wallet-context";
-import { Fingerprint } from "lucide-react";
+import { Home, SignInCard, type HomeIntent } from "./ui/home";
+import type { JobKind } from "@/lib/next-actions";
 import { Choice } from "./ui/shared";
 import { InvitationAcceptModal } from "./ui/invitation-accept-modal";
+import { OfferModal } from "./ui/offer-modal";
+import { SettledToast } from "./ui/settled-toast";
+import type { TakenOffer } from "./ui/home";
+import type { DigitalDraft } from "./use-digital-work";
+import type { Draft } from "./use-live-agreements";
 
+// Ordered by what people come to do: see what needs them, work on jobs,
+// then money. Connections is status, not a destination, so it sits apart.
 const navigation = [
-  { id: "digital", label: "Digital work", icon: Bot },
-  { id: "jobs", label: "Legacy escrow", icon: ShieldCheck },
-  { id: "send", label: "Send", icon: SendHorizontal },
+  { id: "home", label: "Home", icon: House },
+  { id: "jobs", label: "Jobs", icon: BriefcaseBusiness },
   { id: "earnings", label: "Earnings", icon: Wallet },
   { id: "activity", label: "Activity", icon: Activity },
-  { id: "integrations", label: "Connections", icon: Settings2 },
+  { id: "send", label: "Send", icon: SendHorizontal },
 ] as const;
+
+const pageLabel: Record<string, string> = { integrations: "Connections" };
 
 export default function Accrue() {
   const wallet = useWallet();
@@ -41,6 +53,21 @@ export default function Accrue() {
   // same way sandbox's own `selected` lets its own pages do.
   const [openJob, setOpenJob] = useState<string | null>(null);
   const [inviteToken, setInviteToken] = useState<string | null>(null);
+  // Which escrow the Jobs page shows, and whether Home asked it to open the
+  // builder or one job. The nonce remounts the page so that request applies.
+  const [jobKind, setJobKind] = useState<JobKind>("proof");
+  const [jobIntent, setJobIntent] = useState<{ create: boolean; openId: string | null; offer: TakenOffer | null; draft: Record<string, unknown> | null; nonce: number }>({ create: false, openId: null, offer: null, draft: null, nonce: 0 });
+  // How many things need this person, as Home last counted them.
+  // A hiring link someone opened, shown over whatever page they land on.
+  const [offerToken, setOfferToken] = useState<string | null>(null);
+
+  /** Opens the Jobs page on one job, or on a job type's builder. */
+  const goToJobs = (kind: JobKind, target: { openId?: string; create?: boolean; offer?: TakenOffer; draft?: Record<string, unknown> } = {}) => {
+    setJobKind(kind);
+    if (kind === "milestone") setOpenJob(target.openId ?? null);
+    setJobIntent((prev) => ({ create: !!target.create, openId: target.openId ?? null, offer: target.offer ?? null, draft: target.draft ?? null, nonce: prev.nonce + 1 }));
+    navigate("jobs");
+  };
   const {
     page,
     loading,
@@ -51,17 +78,31 @@ export default function Accrue() {
     refresh,
     navigate,
   } = useWorkspace();
+  // Only Home keeps this count current, so it only shows while Home is open;
+  // elsewhere an old count would outlive the action that cleared it.
+  const [homeCount, setNeedsYou] = useState(0);
+  const needsYou = page === "home" ? homeCount : 0;
+  useEffect(() => {
+    document.title = needsYou > 0 ? `(${needsYou}) Accrue` : "Accrue — Verified payments";
+  }, [needsYou]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const job = params.get("job");
+    const proof = params.get("proof");
     const invite = params.get("invite");
+    const offer = params.get("offer");
     queueMicrotask(() => {
       if (job) {
         setOpenJob(job);
+        setJobKind("milestone");
         navigate("jobs");
+      } else if (proof) {
+        goToJobs("proof", { openId: proof });
       } else if (invite) {
         setInviteToken(invite);
+      } else if (offer) {
+        setOfferToken(offer);
       }
     });
     // Invite links are applied once on load.
@@ -72,9 +113,7 @@ export default function Accrue() {
       <aside className="rail">
         {/* A plain anchor, not next/link: the vinext link shim resolves a
             second React copy through dependency optimization and throws an
-            invalid-hook-call at render. The rule is disabled for this line
-            rather than silenced project-wide. */}
-        {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
+            invalid-hook-call at render. */}
         <a className="brand" href="/app">
           a<span>accrue</span>
         </a>
@@ -88,10 +127,23 @@ export default function Accrue() {
             >
               <Icon size={19} />
               {label}
+              {id === "home" && needsYou > 0 && (
+                <span className="nav-count" aria-label={`${needsYou} need you`}>{needsYou}</span>
+              )}
             </button>
           ))}
         </nav>
         <SessionBadge />
+        <div className="rail-links">
+          <button className={page === "integrations" ? "rail-link selected" : "rail-link"} onClick={() => navigate("integrations")}>
+            <Settings2 size={15} aria-hidden /> Connections
+          </button>
+          {!signedOut && (
+            <a className="rail-link" href="/signout-with-chatgpt?return_to=/">
+              <LogOut size={15} aria-hidden /> Leave workspace
+            </a>
+          )}
+        </div>
         <div className="rail-bottom">
           <ShieldCheck />
           <p>
@@ -104,18 +156,19 @@ export default function Accrue() {
       </aside>
       <main>
         <header className="topbar">
+          <a className="brand topbar-brand" href="/app">a<span>accrue</span></a>
           <span>
             Workspace <span className="slash">/</span>{" "}
-            <b>{navigation.find((n) => n.id === page)?.label}</b>
+            <b>{navigation.find((n) => n.id === page)?.label ?? pageLabel[page]}</b>
           </span>
           <div className="header-actions">
             {/* The disclosure has to match the page: the send screen moves
                 real testnet tokens, while everything else reads the chain
                 without moving anything. */}
-            {page === "send" || page === "jobs" || page === "digital" ? (
+            {page === "send" || page === "jobs" ? (
               <NetworkSwitch />
             ) : null}
-            {wallet.demoRoles && (
+            {wallet.demoRoles && wallet.wallet && (
               <Choice
                 label="Role"
                 value={wallet.role}
@@ -123,56 +176,31 @@ export default function Accrue() {
                   wallet.setRole(v as "payer" | "worker" | "verifier")
                 }
                 items={[
-                  { value: "payer", label: "Payer view" },
+                  { value: "payer", label: "Client view" },
                   { value: "worker", label: "Worker view" },
-                  { value: "verifier", label: "Verifier view" },
+                  { value: "verifier", label: "Reviewer view" },
                 ]}
               />
             )}
-            {wallet.wallet ? (
-              <button
-                className="text-button"
-                onClick={wallet.disconnect}
-                title={wallet.address ?? undefined}
-              >
-                {wallet.tags[wallet.role]
-                  ? `@${wallet.tags[wallet.role]!.tag}`
-                  : "Signed in"}
-              </button>
-            ) : (
+            {/* Signed out, the page body carries the sign-in card; repeating
+                the buttons up here only split attention. */}
+            {wallet.wallet && (
               <>
-                <button
-                  className="secondary"
-                  disabled={!wallet.available || wallet.connecting}
-                  onClick={() => void wallet.connect("open")}
-                >
-                  <Fingerprint size={15} />
-                  {wallet.connecting ? "Waiting…" : "Sign in"}
-                </button>
-                <button
-                  className="text-button"
-                  disabled={!wallet.available || wallet.connecting}
-                  onClick={() => void wallet.connect("create")}
-                  style={{ fontSize: "12px" }}
-                >
-                  New account
-                </button>
+                {wallet.tags[wallet.role] ? (
+                  <a className="identity-chip" href={`/u/${wallet.tags[wallet.role]!.tag}`} target="_blank" rel="noreferrer noopener" title="Your public verified-work record">
+                    @{wallet.tags[wallet.role]!.tag}
+                  </a>
+                ) : (
+                  <span className="identity-chip" title={wallet.address ?? undefined}>Signed in</span>
+                )}
+                <button className="text-button" onClick={wallet.disconnect}>Sign out</button>
               </>
-            )}
-            {!signedOut && (
-              <a
-                className="icon-button"
-                href="/signout-with-chatgpt?return_to=/"
-                aria-label="Sign out"
-                title="Sign out"
-              >
-                <LogOut size={17} />
-              </a>
             )}
           </div>
         </header>
         <nav className="mobile-nav" aria-label="Mobile navigation">
-          {navigation.map((n) => (
+          {/* The rail is hidden here, so Connections joins the strip. */}
+          {[...navigation, { id: "integrations", label: "Connections" } as const].map((n) => (
             <button
               key={n.id}
               onClick={() => navigate(n.id)}
@@ -183,6 +211,18 @@ export default function Accrue() {
           ))}
         </nav>
         <div className="content">
+          {/* Signing sessions end after 15 minutes and take the keys with
+              them. Warn early, and let one passkey tap start a fresh session
+              without leaving the page, so a half-written job survives. */}
+          {wallet.wallet && wallet.remaining > 0 && wallet.remaining < 120_000 && (
+            <div className="session-warning" role="status">
+              <Fingerprint size={16} aria-hidden />
+              <p>Your signing session ends in {Math.ceil(wallet.remaining / 1000)}s. Anything you&apos;re writing is kept.</p>
+              <button className="secondary" disabled={wallet.connecting} onClick={() => void wallet.renew()}>
+                {wallet.connecting ? "Waiting…" : "Stay signed in"}
+              </button>
+            </div>
+          )}
           {error && (
             <div role="alert" className="error-banner">
               {error}
@@ -204,71 +244,7 @@ export default function Accrue() {
             </div>
           )}
           {signedOut && !wallet.wallet ? (
-            <section className="panel" style={{ maxWidth: "680px", margin: "40px auto 0", textAlign: "center" }}>
-              <div className="eyebrow" style={{ marginBottom: "8px" }}>SECURE MILESTONE ESCROW</div>
-              <h1 style={{ fontSize: "26px", margin: "0 0 12px", color: "var(--m-ink)" }}>
-                Secure milestone payments for your projects<span className="heading-dot">.</span>
-              </h1>
-              <p className="muted" style={{ fontSize: "15px", maxWidth: "560px", margin: "0 auto 28px", lineHeight: "1.5" }}>
-                Accrue holds project funds in a secure digital vault. Money is released step-by-step only after work is verified and approved.
-              </p>
-
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "16px", marginBottom: "28px", textAlign: "left" }}>
-                <div style={{ background: "var(--m-surface)", border: "1px solid var(--m-hairline)", padding: "16px" }}>
-                  <div className="mono-label" style={{ color: "var(--m-purple-bright)", marginBottom: "6px" }}>01. SET STEPS</div>
-                  <strong style={{ display: "block", fontSize: "14px", marginBottom: "4px" }}>Define Milestones</strong>
-                  <span className="muted" style={{ fontSize: "12px", lineHeight: "1.4", display: "block" }}>
-                    Payer sets job milestones and payment amounts.
-                  </span>
-                </div>
-                <div style={{ background: "var(--m-surface)", border: "1px solid var(--m-hairline)", padding: "16px" }}>
-                  <div className="mono-label" style={{ color: "var(--m-purple-bright)", marginBottom: "6px" }}>02. LOCK FUNDS</div>
-                  <strong style={{ display: "block", fontSize: "14px", marginBottom: "4px" }}>Deposit to Vault</strong>
-                  <span className="muted" style={{ fontSize: "12px", lineHeight: "1.4", display: "block" }}>
-                    Money is locked in escrow—guaranteed, but untouchable.
-                  </span>
-                </div>
-                <div style={{ background: "var(--m-surface)", border: "1px solid var(--m-hairline)", padding: "16px" }}>
-                  <div className="mono-label" style={{ color: "var(--m-positive)", marginBottom: "6px" }}>03. VERIFY & PAY</div>
-                  <strong style={{ display: "block", fontSize: "14px", marginBottom: "4px" }}>Approve Release</strong>
-                  <span className="muted" style={{ fontSize: "12px", lineHeight: "1.4", display: "block" }}>
-                    Worker submits proof, Verifier approves, funds release.
-                  </span>
-                </div>
-              </div>
-
-              <div style={{ display: "flex", gap: "12px", justifyContent: "center", flexWrap: "wrap" }}>
-                <button
-                  className="primary"
-                  disabled={!wallet.available || wallet.connecting}
-                  onClick={() => void wallet.connect("create")}
-                  style={{ padding: "12px 24px" }}
-                >
-                  <Fingerprint size={16} />
-                  {wallet.connecting ? "Creating…" : "Create account"}
-                </button>
-                <button
-                  className="secondary"
-                  disabled={!wallet.available || wallet.connecting}
-                  onClick={() => void wallet.connect("open")}
-                  style={{ padding: "12px 24px" }}
-                >
-                  <ArrowRight size={16} />
-                  {wallet.connecting ? "Waiting…" : "Sign in with Passkey"}
-                </button>
-              </div>
-              {wallet.error && (
-                <div role="alert" className="error-banner" style={{ marginTop: "16px", textAlign: "left" }}>
-                  {wallet.error}
-                  <button className="text-button" onClick={() => wallet.setError("")}>
-                    Dismiss
-                  </button>
-                </div>
-              )}
-              <p className="muted" style={{ fontSize: "12px", marginTop: "12px" }}>
-                First time? Create an account. Your passkey is stored on your device — no passwords, no seed phrases.
-              </p>
-            </section>
+            <SignInCard />
           ) : loading ? (
             <section className="empty-state" aria-live="polite">
               <RefreshCw className="spin" />
@@ -276,32 +252,81 @@ export default function Accrue() {
             </section>
           ) : (
             <>
-              {page === "digital" && <DigitalWork />}
+              {page === "home" && (
+                <Home
+                  onCount={setNeedsYou}
+                  onIntent={(intent: HomeIntent) =>
+                    intent.type === "open"
+                      ? goToJobs(intent.kind, { openId: intent.id })
+                      : goToJobs(intent.kind, { create: true, offer: intent.offer, draft: intent.draft })}
+                />
+              )}
               {page === "jobs" && (
-                <LiveAgreements openId={openJob} onOpenChange={setOpenJob} />
+                <>
+                  {wallet.wallet && (
+                    <div className="job-kind-switch" role="tablist" aria-label="Job type">
+                      {([
+                        { id: "proof", label: "Proof-checked", icon: ScanSearch },
+                        { id: "milestone", label: "Milestone", icon: Layers },
+                      ] as const).map(({ id, label, icon: Icon }) => (
+                        <button
+                          key={id}
+                          role="tab"
+                          aria-selected={jobKind === id}
+                          onClick={() => {
+                            setJobKind(id);
+                            setJobIntent((prev) => ({ create: false, openId: null, offer: null, draft: null, nonce: prev.nonce + 1 }));
+                            if (id === "milestone") setOpenJob(null);
+                          }}
+                        >
+                          <Icon size={15} aria-hidden /> {label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {jobKind === "proof" ? (
+                    <DigitalWork
+                      key={`proof-${jobIntent.nonce}`}
+                      initialCreating={jobIntent.create}
+                      initialSelectedId={jobIntent.openId}
+                      offer={jobIntent.offer?.kind === "proof" ? { token: jobIntent.offer.token, takenBy: jobIntent.offer.takenBy, draft: jobIntent.offer.draft as unknown as DigitalDraft } : null}
+                    />
+                  ) : (
+                    <LiveAgreements
+                      key={`milestone-${jobIntent.nonce}`}
+                      openId={openJob}
+                      onOpenChange={setOpenJob}
+                      initialCreating={jobIntent.create}
+                      seedDraft={(jobIntent.draft as unknown as Draft) ?? undefined}
+                      offer={jobIntent.offer?.kind === "milestone" ? { token: jobIntent.offer.token, takenBy: jobIntent.offer.takenBy, draft: jobIntent.offer.draft as unknown as Draft } : null}
+                    />
+                  )}
+                </>
               )}
               {page === "send" && <SendPage />}
               {page === "earnings" && (
-                <LiveEarnings
-                  onOpen={(id) => {
-                    navigate("jobs");
-                    setOpenJob(id);
-                  }}
-                />
+                <LiveEarnings onOpen={(id, kind) => goToJobs(kind, { openId: id })} />
               )}
               {page === "activity" && (
-                <LiveActivity
-                  onOpen={(id) => {
-                    navigate("jobs");
-                    setOpenJob(id);
-                  }}
-                />
+                <LiveActivity onOpen={(id, source) => goToJobs(source, { openId: id })} />
               )}
               {page === "integrations" && <Connections />}
             </>
           )}
         </div>
       </main>
+      <SettledToast />
+      {offerToken && (
+        <OfferModal
+          offerToken={offerToken}
+          onClose={() => {
+            setOfferToken(null);
+            // Drop ?offer= so a refresh does not reopen it.
+            window.history.replaceState(null, "", "/app");
+            navigate("home");
+          }}
+        />
+      )}
       {inviteToken && (
         <InvitationAcceptModal
           token={inviteToken}
@@ -309,6 +334,7 @@ export default function Accrue() {
           onAccepted={(agreementId) => {
             setInviteToken(null);
             setOpenJob(agreementId);
+            setJobKind("milestone");
             navigate("jobs");
           }}
         />

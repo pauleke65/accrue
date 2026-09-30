@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { Copy, ShieldCheck, X, Check } from "lucide-react";
+import { ArrowUpRight, Copy, ShieldCheck, X, Check } from "lucide-react";
 import { shortAddress } from "@/lib/chain";
 
 export function ProfileCard({
@@ -102,9 +102,14 @@ export function ProfileCard({
           <div>Participant identities are passkey-bound and verified on Monad.</div>
         </div>
 
-        <button className="secondary wide" onClick={onClose}>
-          Close Profile
-        </button>
+        <div className="milestone-actions">
+          <a className="primary" href={`/u/${tag.replace(/^@/, "")}`} target="_blank" rel="noreferrer noopener">
+            See verified work <ArrowUpRight size={14} aria-hidden />
+          </a>
+          <button className="secondary" onClick={onClose}>
+            Close
+          </button>
+        </div>
       </div>
     </div>
   );

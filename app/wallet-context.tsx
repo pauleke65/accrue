@@ -8,10 +8,11 @@ import {
   useRef,
   useState,
 } from "react";
-import type { LocalAccount } from "viem";
+import { getAddress, isAddress, type LocalAccount } from "viem";
 import {
   createWallet,
   openWallet,
+  openDevWallet,
   forgetCredential,
   passkeysAvailable,
   ROLES,
@@ -20,6 +21,7 @@ import {
 } from "@/lib/mera-account";
 import { readBalance, readGasBalance, readableError } from "@/lib/ausd";
 import { participantProofMessage } from "@/lib/participant-proof";
+import { shortAddress } from "@/lib/chain";
 
 /**
  * The passkey account, shared by the whole application rather than owned by
@@ -44,7 +46,9 @@ type WalletState = {
   gas: Record<Role, bigint | null>;
   tags: Record<Role, TagRecord>;
   remaining: number;
-  connect: (mode: "create" | "open") => Promise<void>;
+  connect: (mode: "create" | "open" | `dev:${string}`) => Promise<void>;
+  /** Starts a fresh signing session the same way this person signed in. */
+  renew: () => Promise<void>;
   disconnect: () => void;
   refresh: () => Promise<void>;
   claimTag: (tag: string, displayName: string) => Promise<void>;
@@ -182,17 +186,23 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     if (walletRef.current) await loadFor(walletRef.current);
   }, [loadFor]);
 
+  // How this person last signed in, so renewing a session repeats it.
+  const lastMode = useRef<"open" | `dev:${string}`>("open");
+  const renew = useCallback(() => connectRef.current(lastMode.current), []);
   const connect = useCallback(
-    async (mode: "create" | "open") => {
+    async (mode: "create" | "open" | `dev:${string}`) => {
       setConnecting(true);
       setError("");
       try {
         const next =
           mode === "create"
             ? await createWallet("Accrue account")
-            : await openWallet();
+            : mode.startsWith("dev:")
+              ? await openDevWallet(mode.slice(4))
+              : await openWallet();
         walletRef.current?.end();
         walletRef.current = next;
+        lastMode.current = mode === "create" ? "open" : mode;
         setWallet(next);
         setBalances(emptyByRole<bigint | null>(null));
         await loadFor(next);
@@ -204,6 +214,9 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     },
     [loadFor],
   );
+
+  const connectRef = useRef(connect);
+  useEffect(() => { connectRef.current = connect; }, [connect]);
 
   const disconnect = useCallback(() => {
     walletRef.current?.end();
@@ -299,6 +312,17 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   }, [role, sponsor, refresh]);
 
   const resolveTag = useCallback(async (tag: string) => {
+    // A plain address is accepted wherever an @name is, as the fields' help
+    // text promises. It resolves to itself, labelled with its @name if it
+    // has one; the role walkthrough relies on this for its own accounts.
+    const raw = tag.trim();
+    if (isAddress(raw)) {
+      const address = getAddress(raw);
+      const named = await fetch(`/api/tags?address=${address}`)
+        .then((r) => (r.ok ? (r.json() as Promise<{ tag?: string; displayName?: string }>) : null))
+        .catch(() => null);
+      return { address, displayName: named?.tag ? `@${named.tag}` : shortAddress(address) };
+    }
     const clean = tag.toLowerCase().replace(/^@/, "").trim();
     const response = await fetch(`/api/tags?tag=${encodeURIComponent(clean)}`);
     if (!response.ok) return null;
@@ -348,6 +372,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       tags,
       remaining,
       connect,
+      renew,
       disconnect,
       refresh,
       claimTag,
@@ -373,6 +398,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       tags,
       remaining,
       connect,
+      renew,
       disconnect,
       refresh,
       claimTag,

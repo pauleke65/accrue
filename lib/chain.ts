@@ -54,7 +54,12 @@ export const token = {
  * agreements in this app do not use it yet.
  */
 export const escrow = {
-  address: "0xf8c44A529cd0470597C7865d2B2473abff65d0De",
+  // New milestone jobs go here. Set NEXT_PUBLIC_ACCRUE_ESCROW_ADDRESS after
+  // deploying a new version; jobs on earlier deployments keep using the
+  // address recorded with them (live_agreements.escrow). The deployment
+  // fields below describe the original deployment.
+  address: (process.env.NEXT_PUBLIC_ACCRUE_ESCROW_ADDRESS?.trim() ||
+    "0xf8c44A529cd0470597C7865d2B2473abff65d0De") as `0x${string}`,
   deploymentTx:
     "0x6ce946bbb8c807e1b6c251869b29cf5023b9da292eff4091eedb2e1e2bcfa637",
   deployedAtBlock: 62038044,
@@ -123,6 +128,24 @@ export type TransactionStatus =
   | "confirmed"
   | "failed"
   | "unknown";
+
+/**
+ * Fired in the browser when a transaction this page sent is confirmed, with
+ * the time from submission to receipt. It is Monad's settlement time as the
+ * person experienced it, shown so the speed is something they see rather
+ * than a claim they read.
+ */
+export const SETTLED_EVENT = "accrue:settled";
+
+export function announceSettled(
+  hash: `0x${string}`,
+  sentAt: number,
+  receipt?: { gasUsed: bigint; effectiveGasPrice: bigint },
+): void {
+  if (typeof window === "undefined") return;
+  const fee = receipt ? receipt.gasUsed * receipt.effectiveGasPrice : null;
+  window.dispatchEvent(new CustomEvent(SETTLED_EVENT, { detail: { hash, ms: Date.now() - sentAt, fee } }));
+}
 
 export type TransactionState = {
   status: TransactionStatus;

@@ -166,6 +166,40 @@ export async function createWallet(label: string): Promise<Wallet> {
   }
 }
 
+/**
+ * Developer sign-in, for driving the app end to end on this machine without a
+ * passkey prompt. Each named persona gets 32 random bytes, kept in this
+ * browser, standing in for a passkey's PRF output; everything downstream
+ * (derivation, signing sessions, roles) is exactly the real path.
+ *
+ * Refused everywhere but a development build served from localhost, so it can
+ * never appear in a deployed app. The keys hold testnet value only.
+ */
+export function devSignInAvailable(): boolean {
+  return (
+    process.env.NODE_ENV !== "production" &&
+    typeof window !== "undefined" &&
+    ["localhost", "127.0.0.1"].includes(window.location.hostname)
+  );
+}
+
+export async function openDevWallet(persona: string): Promise<Wallet> {
+  if (!devSignInAvailable()) throw new Error("Developer sign-in only works on localhost in development.");
+  const key = `accrue.dev.persona.${persona}`;
+  let seed: Uint8Array;
+  try {
+    const stored = window.localStorage.getItem(key);
+    if (stored) seed = Uint8Array.from(stored.match(/../g)!.map((h) => parseInt(h, 16)));
+    else {
+      seed = crypto.getRandomValues(new Uint8Array(32));
+      window.localStorage.setItem(key, Array.from(seed, (b) => b.toString(16).padStart(2, "0")).join(""));
+    }
+  } catch {
+    seed = crypto.getRandomValues(new Uint8Array(32));
+  }
+  return connect(seed);
+}
+
 /** A later visit, on this device or any other holding the passkey. */
 export async function openWallet(): Promise<Wallet> {
   if (!passkeysAvailable())

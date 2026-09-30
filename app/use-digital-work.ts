@@ -10,10 +10,12 @@ import {
   readDigitalCreatedId,
   readDigitalJob,
   readDigitalVote,
+  readDigitalRulesVersion,
+  readCancelConsents,
   sendDigitalAction,
   type DigitalJobOnChain,
 } from "@/lib/digital-work-chain";
-import { digitalJobId, digitalWriteMessage } from "@/lib/digital-work-id";
+import { contractOfJobId, digitalJobId, digitalWriteMessage } from "@/lib/digital-work-id";
 import {
   evidenceHash,
   manualVoteHash,
@@ -24,6 +26,7 @@ import {
   type DigitalPolicy,
 } from "@/lib/digital-work-policy";
 import { useWallet } from "./wallet-context";
+import type { CheckReport } from "@/lib/proof-checks";
 
 export type DigitalTerms = {
   id: string;
@@ -37,7 +40,15 @@ export type DigitalTerms = {
   createdAt: string;
 };
 
-export type DigitalJob = DigitalTerms & { chain: DigitalJobOnChain };
+export type DigitalJob = DigitalTerms & {
+  chain: DigitalJobOnChain;
+  /** The deployment this job lives on (read from its id). */
+  contract: `0x${string}`;
+  /** 1 for the original rules; 2 adds pay-on-silence and cancellation. */
+  rules: number;
+  /** Version 2: bit 1 the client, bit 2 the worker has agreed to cancel. */
+  cancelConsents: number;
+};
 
 export type DigitalConfig = {
   contractAddress: `0x${string}` | null;
@@ -69,8 +80,8 @@ export type DigitalRun = {
   version: number;
   state: string;
   report: {
-    checks: { commitFound: boolean; statusMatches: boolean; bodyMatches: boolean; probeUrl: string; error: string | null };
-    jev: { model: string; requirementsProbability: number; reviewProbability: number; recommendation: string };
+    checks: CheckReport;
+    jev: { model: string; requirementsProbability: number; reviewProbability: number; recommendation: string; unavailable?: string };
   } | null;
   reportHash: `0x${string}` | null;
   voteTx: `0x${string}` | null;
@@ -105,9 +116,11 @@ export function useDigitalWork() {
   const [config, setConfig] = useState<DigitalConfig | null>(null);
   const [jobs, setJobs] = useState<DigitalJob[]>([]);
   const [claimable, setClaimable] = useState(0n);
+  const [claimableBy, setClaimableBy] = useState<{ at: `0x${string}`; amount: bigint }[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const [progress, setProgress] = useState<TransactionState>({ status: "idle" });
 
   useEffect(() => {
@@ -130,12 +143,26 @@ export function useDigitalWork() {
       const response = await fetch(`/api/digital-work/jobs?proofs=${query}`);
       if (!response.ok) throw new Error("Could not load digital jobs.");
       const data = await response.json() as { jobs: DigitalTerms[] };
-      const hydrated = await Promise.all(data.jobs.map(async (terms) => ({
-        ...terms,
-        chain: await readDigitalJob(BigInt(terms.onchainId)),
-      })));
+      const hydrated = await Promise.all(data.jobs.map(async (terms) => {
+        const contract = contractOfJobId(terms.id);
+        const [chain, rules, cancelConsents] = await Promise.all([
+          readDigitalJob(BigInt(terms.onchainId), contract),
+          readDigitalRulesVersion(contract),
+          readCancelConsents(BigInt(terms.onchainId), contract),
+        ]);
+        return { ...terms, chain, contract, rules, cancelConsents };
+      }));
       setJobs(hydrated);
-      if (currentAddress) setClaimable(await readDigitalClaimable(currentAddress));
+      // Each deployment keeps its own balance; add up every one this person
+      // has a job on, plus the current one.
+      if (currentAddress) {
+        const contracts = [...new Set([digitalWorkAddress()!, ...hydrated.map((j) => j.contract)].map((a) => a.toLowerCase()))];
+        const balances = await Promise.all(contracts.map(async (at) => ({
+          at: at as `0x${string}`, amount: await readDigitalClaimable(currentAddress, at as `0x${string}`).catch(() => 0n),
+        })));
+        setClaimableBy(balances.filter((b) => b.amount > 0n));
+        setClaimable(balances.reduce((sum, b) => sum + b.amount, 0n));
+      }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Could not load digital jobs.");
     } finally {
@@ -200,7 +227,7 @@ export function useDigitalWork() {
   }), [config, resolve, run, refresh]);
 
   const act = useCallback((job: DigitalJob, functionName: string, args: readonly unknown[]) => run(async (account) => {
-    const transaction = await sendDigitalAction({ account, functionName, args, report: setProgress });
+    const transaction = await sendDigitalAction({ account, functionName, args, report: setProgress, at: job.contract });
     if (transaction.status !== "confirmed") throw new Error(transaction.error ?? "Transaction did not confirm.");
     await refresh();
     return transaction.hash;
@@ -208,42 +235,55 @@ export function useDigitalWork() {
 
   const accept = (job: DigitalJob) => act(job, "accept", [BigInt(job.onchainId), job.policyHash]);
   const fund = (job: DigitalJob) => run(async (account) => {
-    await ensureDigitalAllowance(account, job.chain.reward + job.chain.feePool, setProgress);
+    await ensureDigitalAllowance(account, job.chain.reward + job.chain.feePool, setProgress, job.contract);
     const transaction = await sendDigitalAction({
-      account, functionName: "fund", args: [BigInt(job.onchainId)], report: setProgress,
+      account, functionName: "fund", args: [BigInt(job.onchainId)], report: setProgress, at: job.contract,
     });
     if (transaction.status !== "confirmed") throw new Error(transaction.error ?? "Funding did not confirm.");
     await wallet.refresh();
     await refresh();
   });
 
+  /** Asks the server to run Proof Engine on one evidence version. */
+  const runReview = useCallback(async (onchainId: string, version: number, contract: string) => {
+    const proofs = await proveParticipation();
+    return postJson("/api/digital-work/verify", { onchainId, contract, version, proofs });
+  }, [proveParticipation]);
+
   const submit = (job: DigitalJob, raw: DigitalManifest) => run(async (account) => {
     const manifest = parseDigitalManifest(raw);
     const digest = evidenceHash(job.id, job.policyHash, manifest);
     const transaction = await sendDigitalAction({
-      account, functionName: "submit", args: [BigInt(job.onchainId), digest], report: setProgress,
+      account, functionName: "submit", args: [BigInt(job.onchainId), digest], report: setProgress, at: job.contract,
     });
     if (transaction.status !== "confirmed") throw new Error(transaction.error ?? "Evidence was not submitted.");
-    const version = (await readDigitalJob(BigInt(job.onchainId))).version;
+    const version = (await readDigitalJob(BigInt(job.onchainId), job.contract)).version;
     const signature = await account.signMessage({ message: digitalWriteMessage("submit", job.id, digest) });
     await postJson("/api/digital-work/submissions", {
-      onchainId: job.onchainId, version, manifest, worker: account.address, signature,
+      onchainId: job.onchainId, contract: job.contract, version, manifest, worker: account.address, signature,
     });
+    // Start Proof Engine straight away rather than waiting for someone to
+    // find a button. The submission already stands if this part fails (an AI
+    // rate limit, say); the job page retries when a participant opens it.
+    try {
+      await runReview(job.onchainId, version, job.contract);
+      setNotice("Evidence submitted. Proof Engine has reviewed it.");
+    } catch (cause) {
+      setNotice(`Evidence submitted. Proof Engine will retry: ${cause instanceof Error ? cause.message : "review did not start"}`);
+    }
     await refresh();
   });
 
+
   const verify = (job: DigitalJob) => run(async () => {
-    const proofs = await proveParticipation();
-    const result = await postJson("/api/digital-work/verify", {
-      onchainId: job.onchainId, version: job.chain.version, proofs,
-    });
+    const result = await runReview(job.onchainId, job.chain.version, job.contract);
     await refresh();
     return result;
   });
 
   const vote = (job: DigitalJob, pass: boolean, notes: string) => run(async (account) => {
     if (notes.trim().length < 3) throw new Error("Write a brief reason for your vote.");
-    const current = await readDigitalVote(BigInt(job.onchainId), account.address);
+    const current = await readDigitalVote(BigInt(job.onchainId), account.address, job.contract);
     const reportHash = manualVoteHash({
       jobId: job.id, version: job.chain.version, evidenceHash: job.chain.evidenceHash,
       verifier: account.address, pass, notes: notes.trim(),
@@ -256,28 +296,35 @@ export function useDigitalWork() {
         account, functionName: "vote",
         args: [BigInt(job.onchainId), job.chain.evidenceHash, pass, reportHash],
         report: setProgress,
+        at: job.contract,
       });
       if (transaction.status !== "confirmed") throw new Error(transaction.error ?? "Vote did not confirm.");
     }
     const signature = await account.signMessage({ message: digitalWriteMessage("vote", job.id, reportHash) });
     await postJson("/api/digital-work/manual-votes", {
-      onchainId: job.onchainId, version: job.chain.version, evidenceHash: job.chain.evidenceHash,
+      onchainId: job.onchainId, contract: job.contract, version: job.chain.version, evidenceHash: job.chain.evidenceHash,
       verifier: account.address, pass, notes: notes.trim(), signature,
     });
     await refresh();
   });
 
   const expire = (job: DigitalJob) => act(job, "expire", [BigInt(job.onchainId)]);
+  /** Rules version 2: call a draft off, or agree to cancel a funded job. */
+  const cancel = (job: DigitalJob) => act(job, "cancel", [BigInt(job.onchainId)]);
+  /** Withdraws from every deployment that owes this account something. */
   const withdraw = () => run(async (account) => {
-    const transaction = await sendDigitalAction({ account, functionName: "withdraw", args: [], report: setProgress });
-    if (transaction.status !== "confirmed") throw new Error(transaction.error ?? "Withdrawal did not confirm.");
+    const owed = claimableBy.length ? claimableBy : [{ at: digitalWorkAddress()!, amount: claimable }];
+    for (const { at } of owed) {
+      const transaction = await sendDigitalAction({ account, functionName: "withdraw", args: [], report: setProgress, at });
+      if (transaction.status !== "confirmed") throw new Error(transaction.error ?? "Withdrawal did not confirm.");
+    }
     await wallet.refresh();
     await refresh();
   });
 
   const loadDetail = useCallback(async (job: DigitalJob) => {
     const proofs = await proveParticipation();
-    const query = `onchainId=${encodeURIComponent(job.onchainId)}&proofs=${encodeURIComponent(JSON.stringify(proofs))}`;
+    const query = `onchainId=${encodeURIComponent(job.onchainId)}&contract=${job.contract}&proofs=${encodeURIComponent(JSON.stringify(proofs))}`;
     const [submissionsResponse, runsResponse, votesResponse] = await Promise.all([
       fetch(`/api/digital-work/submissions?${query}`),
       fetch(`/api/digital-work/verify?${query}`),
@@ -292,8 +339,8 @@ export function useDigitalWork() {
   }, [proveParticipation]);
 
   return {
-    config, jobs, claimable, loading, busy, error, setError, progress,
-    refresh, create, accept, fund, submit, verify, vote, expire, withdraw, loadDetail,
+    config, jobs, claimable, loading, busy, error, setError, notice, setNotice, progress,
+    refresh, create, accept, fund, submit, verify, vote, expire, cancel, withdraw, loadDetail,
     token,
   };
 }

@@ -1,5 +1,13 @@
 "use client";
 import { useEffect, useState } from "react";
+import { SignInCard } from "./home";
+import { HiringLinkDone } from "./hiring-link";
+import { useOffers } from "../use-offers";
+import { ReviewerSuggestions } from "./reviewer-suggestions";
+import { JobThread } from "./job-thread";
+import { clearDraft, loadDraft, saveDraft } from "./draft-store";
+import { milestoneActions } from "@/lib/next-actions";
+import { REVIEW_WINDOW_SECONDS } from "@/lib/escrow";
 import {
   ArrowLeft,
   ArrowUpRight,
@@ -10,6 +18,9 @@ import {
   Search,
   ShieldCheck,
   Trash2,
+  UserCheck,
+  ArrowRight,
+  Hourglass,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -36,7 +47,9 @@ import {
   token,
   explorer,
   escrow,
+  network,
 } from "@/lib/chain";
+import { getAddress } from "viem";
 
 /**
  * Milestone agreements funded with real AUSD through the deployed escrow.
@@ -58,7 +71,17 @@ const emptyDraft: Draft = {
 export function LiveAgreements({
   openId,
   onOpenChange,
+  initialCreating = false,
+  offer = null,
+  seedDraft,
 }: {
+  /** A pre-filled job, e.g. from the role walkthrough. */
+  seedDraft?: Draft;
+  /** A taken hiring link to turn into a real job. */
+  offer?: { token: string; draft: Draft; takenBy: string } | null;
+  /** Set when Home sends someone straight to the builder; Home has already
+      checked the @name gate. */
+  initialCreating?: boolean;
   /** Lets another page (Earnings, Activity) deep-link into a specific job.
       Falls back to component-local state when the caller does not care. */
   openId?: string | null;
@@ -70,8 +93,9 @@ export function LiveAgreements({
   const [localOpen, setLocalOpen] = useState<string | null>(null);
   const open = openId !== undefined ? openId : localOpen;
   const setOpen = onOpenChange ?? setLocalOpen;
-  const [creating, setCreating] = useState(false);
-  const [initialDraft, setInitialDraft] = useState<Draft | undefined>(undefined);
+  const [creating, setCreating] = useState(initialCreating);
+  const [initialDraft, setInitialDraft] = useState<Draft | undefined>(offer?.draft ?? seedDraft);
+  const offers = useOffers();
   const [profileTag, setProfileTag] = useState<{ tag: string; address?: string | null } | null>(null);
   const [filter, setFilter] = useState("all");
   const [query, setQuery] = useState("");
@@ -96,17 +120,7 @@ export function LiveAgreements({
     }
   };
 
-  if (!w.wallet)
-    return (
-      <div className="empty-state">
-        <ShieldCheck />
-        <h2>Sign in to fund a job.</h2>
-        <p>
-          Agreements hold {token.symbol} in a contract until work is verified.
-          One passkey opens the accounts that sign for each role.
-        </p>
-      </div>
-    );
+  if (!w.wallet) return <SignInCard />;
 
   const selected = live.agreements.find((a) => a.id === open) ?? null;
 
@@ -116,6 +130,8 @@ export function LiveAgreements({
     return (
       <Builder
         initialDraft={initialDraft}
+        takenBy={offer?.takenBy ?? null}
+        onHiringLink={(draft, listed) => offers.create("milestone", draft.title, draft as unknown as Record<string, unknown>, listed)}
         busy={live.busy}
         error={live.error}
         onDismissError={() => live.setError("")}
@@ -126,8 +142,13 @@ export function LiveAgreements({
         onCreate={async (draft) => {
           const id = await live.create(draft);
           if (id !== null) {
+            clearDraft("milestone");
+            // The app's id for the new job, which is what opens it.
+            const rowId = `${network.chainId}:${getAddress(escrow.address)}:${id}`;
+            if (offer) await offers.update(offer.token, "created", rowId).catch(() => undefined);
             setCreating(false);
             setInitialDraft(undefined);
+            setOpen(rowId);
           }
         }}
       />
@@ -389,6 +410,7 @@ function Detail({
 }) {
   const w = useWallet();
   const [notes, setNotes] = useState("");
+  const [feedback, setFeedback] = useState("");
   const [reviewingFunding, setReviewingFunding] = useState(false);
   const [claimingInDetail, setClaimingInDetail] = useState(false);
   const [now, setNow] = useState(() => Date.now());
@@ -430,10 +452,24 @@ function Detail({
         ? a.verifierEarned - a.verifierWithdrawn
         : 0n;
 
+  // Same rules as Home's list, so the page and Home never disagree. Prefer
+  // this person's own move; otherwise say who the job is waiting on.
+  const steps = milestoneActions({
+    id: agreement.id, title: agreement.title, payer: agreement.payer, worker: agreement.worker,
+    verifier: a.verifier,
+    milestones: agreement.milestones.map((m) => ({ title: m.title, external: !/^0x0{40}$/i.test(a.verifier) })),
+    states: agreement.states, acceptances: a.acceptances, funded: a.funded, cancelled: a.cancelled,
+    expiry: a.expiry, reserved: a.reserved, nextMilestone: Number(a.nextMilestone),
+    workerEarned: a.workerEarned, workerWithdrawn: a.workerWithdrawn,
+    verifierEarned: a.verifierEarned, verifierWithdrawn: a.verifierWithdrawn,
+    rules: agreement.rules, submittedAt: agreement.submittedAt,
+  }, w.address, BigInt(Math.floor(now / 1000)));
+  const nextStep = steps.find((x) => x.owner === "you") ?? steps[0];
+
   return (
     <>
       <button className="text-button back" onClick={onBack}>
-        <ArrowLeft size={15} /> All jobs
+        <ArrowLeft size={15} aria-hidden /> All jobs
       </button>
 
       <div className="page-heading">
@@ -468,6 +504,13 @@ function Detail({
           <ShareLinkButton agreement={agreement} />
         </div>
       </div>
+
+      {nextStep && (
+        <div className={`next-step next-step-${nextStep.owner}`} role="status">
+          <span aria-hidden>{nextStep.owner === "you" ? <ArrowRight size={16} /> : <Hourglass size={16} />}</span>
+          <div><b>{nextStep.owner === "you" ? `Your move: ${nextStep.action.toLowerCase()}` : nextStep.action}</b><p>{nextStep.detail}</p></div>
+        </div>
+      )}
 
       {live.error && (
         <div role="alert" className="error-banner">
@@ -726,23 +769,54 @@ function Detail({
                       </button>
                     </>
                   )}
+                  {state === 1 && agreement.rules >= 2 && agreement.submittedAt > 0n && (
+                    <p className="fine-print review-window">
+                      {BigInt(Math.floor(now / 1000)) < agreement.submittedAt + REVIEW_WINDOW_SECONDS
+                        ? <>Decision due by {new Date(Number(agreement.submittedAt + REVIEW_WINDOW_SECONDS) * 1000).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })}. With no decision by then, the worker can release the payment.</>
+                        : <>No decision within the 5-day review window, so this milestone can now be paid.</>}
+                    </p>
+                  )}
+                  {state === 1 && agreement.rules >= 2 && agreement.submittedAt > 0n &&
+                    BigInt(Math.floor(now / 1000)) >= agreement.submittedAt + REVIEW_WINDOW_SECONDS && acting && (
+                      <button className="primary" disabled={live.busy} onClick={() => void live.payOnSilence(agreement)}>
+                        Release payment
+                      </button>
+                    )}
                   {state === 1 &&
                     ((acting === "verifier" && agreement.verifierTag) ||
                       (acting === "payer" && !agreement.verifierTag)) && (
-                      <button
-                        className="primary"
-                        disabled={live.busy}
-                        onClick={() => void live.approve(agreement, index)}
-                      >
-                        Approve and pay{" "}
-                        {formatAmount(
-                          BigInt(m.workerAmount) + BigInt(m.verifierFee),
-                        )}
-                      </button>
+                      <>
+                        <Textarea
+                          value={feedback}
+                          onChange={(e) => setFeedback(e.target.value)}
+                          placeholder="To send it back, say what needs to change. The worker sees this in the job's messages."
+                        />
+                        <div className="milestone-actions">
+                          <button
+                            className="secondary"
+                            disabled={live.busy || feedback.trim().length < 10 ||
+                              (agreement.rules >= 2 && agreement.submittedAt > 0n &&
+                                BigInt(Math.floor(now / 1000)) >= agreement.submittedAt + REVIEW_WINDOW_SECONDS)}
+                            onClick={() => void live.requestChanges(agreement, index, feedback).then(() => setFeedback(""))}
+                          >
+                            Send back with notes
+                          </button>
+                          <button
+                            className="primary"
+                            disabled={live.busy}
+                            onClick={() => void live.approve(agreement, index)}
+                          >
+                            Approve and pay{" "}
+                            {formatAmount(
+                              BigInt(m.workerAmount) + BigInt(m.verifierFee),
+                            )}
+                          </button>
+                        </div>
+                      </>
                     )}
                   {state === 1 && acting === "worker" && (
                     <p className="fine-print">
-                      Submitted. Waiting for the verifier.
+                      Submitted. Waiting for {agreement.verifierTag ? "the reviewer" : "the client"}. Your notes are in the job&apos;s messages.
                     </p>
                   )}
                 </div>
@@ -784,12 +858,23 @@ function Detail({
           {shortAddress(escrow.address)} <ArrowUpRight size={13} />
         </a>
       </div>
+      <JobThread
+        kind="milestone"
+        id={agreement.id}
+        roles={{
+          [agreement.payer.toLowerCase()]: "client",
+          [agreement.worker.toLowerCase()]: "worker",
+          ...(/^0x0{40}$/i.test(a.verifier) ? {} : { [a.verifier.toLowerCase()]: "reviewer" }),
+        }}
+      />
     </>
   );
 }
 
 function Builder({
   initialDraft,
+  takenBy = null,
+  onHiringLink,
   onCreate,
   onCancel,
   busy,
@@ -797,19 +882,31 @@ function Builder({
   onDismissError,
 }: {
   initialDraft?: Draft;
+  /** Set when creating the job for someone who took a hiring link. */
+  takenBy?: string | null;
+  /** Saves the job as a hiring link instead; returns the link's token. */
+  onHiringLink?: (draft: Draft, listed: boolean) => Promise<string>;
   onCreate: (draft: Draft) => Promise<void>;
   onCancel: () => void;
   busy: boolean;
   error: string;
   onDismissError: () => void;
 }) {
-  const [draft, setDraft] = useState<Draft>(initialDraft ?? emptyDraft);
+  // A pre-filled job wins; otherwise pick up where this tab left off.
+  const [draft, setDraft] = useState<Draft>(() => initialDraft ?? loadDraft<Draft>("milestone") ?? emptyDraft);
+  useEffect(() => { if (!initialDraft) saveDraft("milestone", draft); }, [draft, initialDraft]);
   // Set only once someone tries to submit an incomplete form: highlighting
   // every required field red before it has even been touched would just be
   // noise, not help.
   const [showErrors, setShowErrors] = useState(false);
   const [workerFound, setWorkerFound] = useState(false);
   const [verifierFound, setVerifierFound] = useState(false);
+  const [linkToken, setLinkToken] = useState<string | null>(null);
+  const [linking, setLinking] = useState(false);
+  const [linkError, setLinkError] = useState("");
+  const [listed, setListed] = useState(true);
+  const wallet = useWallet();
+  const me = wallet.tags[wallet.role]?.tag ?? wallet.address ?? "";
   const set = (patch: Partial<Draft>) => setDraft({ ...draft, ...patch });
   const setMilestone = (
     index: number,
@@ -830,7 +927,9 @@ function Builder({
 
   const titleValid = draft.title.trim().length > 0;
   const scopeValid = draft.scope.trim().length >= 10;
-  const workerValid = workerFound;
+  // No worker yet means a hiring link, not an invalid form.
+  const hiring = !takenBy && !draft.workerTag.trim() && !!onHiringLink;
+  const workerValid = hiring || !!takenBy || workerFound;
   const verifierValid =
     !draft.verifierTag.trim() || verifierFound;
   const milestonesValid = draft.milestones.map((m) => ({
@@ -846,6 +945,8 @@ function Builder({
     milestonesValid.every((v) => v.title && v.criteria && v.amount);
   const invalid = (ok: boolean) => showErrors && !ok;
 
+  if (linkToken) return <HiringLinkDone token={linkToken} onDone={onCancel} />;
+
   return (
     <>
       <button className="text-button back" onClick={onCancel}>
@@ -853,19 +954,19 @@ function Builder({
       </button>
       <div className="page-heading">
         <div>
-          <p className="eyebrow">Fund a job</p>
-          <h1>Agree what done means.</h1>
+          <p className="eyebrow">New milestone job</p>
+          <h1>Split the project into stages.</h1>
           <p className="muted">
-            The {token.symbol} sits in the contract until the verifier confirms
-            each milestone. Payment follows verified work, never the other way
-            round.
+            The whole amount is locked when you fund. Each stage is paid when you,
+            or a reviewer you both trust, approve it. Anything never earned comes
+            back to you.
           </p>
         </div>
       </div>
 
-      {error && (
+      {(error || linkError) && (
         <div role="alert" className="error-banner">
-          {error}
+          {linkError || error}
           <button className="text-button" onClick={onDismissError}>
             Dismiss
           </button>
@@ -873,7 +974,7 @@ function Builder({
       )}
 
       <section className="panel" style={{ marginTop: 0, marginBottom: "20px" }}>
-        <p className="eyebrow" style={{ marginBottom: "12px" }}>Start from a Pilot Template</p>
+        <p className="eyebrow" style={{ marginBottom: "12px" }}>Start from a template</p>
         <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
           {PILOT_TEMPLATES.map((tmpl) => (
             <button
@@ -903,7 +1004,7 @@ function Builder({
             <Input
               value={draft.title}
               onChange={(e) => set({ title: e.target.value })}
-              placeholder="Lekki home renovation"
+              placeholder="Rebuild our online store"
               aria-invalid={invalid(titleValid)}
             />
             {invalid(titleValid) && (
@@ -915,7 +1016,7 @@ function Builder({
             <Textarea
               value={draft.scope}
               onChange={(e) => set({ scope: e.target.value })}
-              placeholder="Ground-floor living space. Excludes furniture."
+              placeholder="Shopify storefront with product pages and checkout. Excludes copywriting."
               aria-invalid={invalid(scopeValid)}
             />
             {invalid(scopeValid) && (
@@ -924,16 +1025,19 @@ function Builder({
               </p>
             )}
           </label>
+          {takenBy && (
+            <p className="taken-by"><UserCheck size={17} aria-hidden /> <span><b>{takenBy}</b> took your hiring link and will do the work. {takenBy.startsWith("@") && <a href={`/u/${takenBy.slice(1)}`} target="_blank" rel="noreferrer noopener">See their verified work</a>}</span></p>
+          )}
           <div className="form-grid">
-            <TagField
+            {!takenBy && <TagField
               label="Who is doing the work"
               value={draft.workerTag}
               onChange={(workerTag) => set({ workerTag })}
               onResolved={(found) => setWorkerFound(Boolean(found))}
               placeholder="@bola"
               invalid={invalid(workerValid)}
-              helperText="Account address or @tag of the person completing the work."
-            />
+              helperText="Their @name. Don't know who yet? Leave it empty to create a hiring link."
+            />}
             <TagField
               label="Who verifies it"
               value={draft.verifierTag}
@@ -942,11 +1046,14 @@ function Builder({
               placeholder="@ngozi"
               optional
               invalid={invalid(verifierValid)}
-              helperText="Account address or @tag of the third-party inspector who verifies work quality before funds are released."
+              helperText="Optional. Someone you both trust to approve each stage, like a senior developer. Leave empty to approve stages yourself."
             />
           </div>
+          {!draft.verifierTag.trim() && (
+            <ReviewerSuggestions exclude={[me, draft.workerTag, takenBy ?? ""]} onPick={(tag) => set({ verifierTag: tag })} />
+          )}
           <label>
-            Days until the agreement expires
+            Days until the job expires
             <Input
               value={String(draft.days)}
               onChange={(e) => set({ days: Number(e.target.value) || 1 })}
@@ -975,7 +1082,7 @@ function Builder({
               <Input
                 value={m.title}
                 onChange={(e) => setMilestone(index, { title: e.target.value })}
-                placeholder="Foundation"
+                placeholder="Wireframes"
                 aria-invalid={invalid(milestonesValid[index].title)}
               />
               {invalid(milestonesValid[index].title) && (
@@ -989,7 +1096,7 @@ function Builder({
                 onChange={(e) =>
                   setMilestone(index, { criteria: e.target.value })
                 }
-                placeholder="Foundation poured, cured 72 hours, level within 5mm."
+                placeholder="Wireframes for every agreed page, shared as a Figma link."
                 aria-invalid={invalid(milestonesValid[index].criteria)}
               />
               {invalid(milestonesValid[index].criteria) && (
@@ -1015,7 +1122,7 @@ function Builder({
                 )}
               </label>
               <label>
-                Verifier&apos;s fee ({token.symbol})
+                Reviewer&apos;s fee ({token.symbol})
                 <Input
                   value={m.fee}
                   onChange={(e) => setMilestone(index, { fee: e.target.value })}
@@ -1044,29 +1151,51 @@ function Builder({
         </button>
       </div>
 
+      {hiring && (
+        <label className="check-row">
+          <input type="checkbox" checked={listed} onChange={(e) => setListed(e.target.checked)} />
+          <span><b>List it on the public job board</b> so people looking for work can find it. Untick to share the link privately.</span>
+        </label>
+      )}
+
       <section className="action-banner">
         <div>
           <h3>
-            You will commit {total.toFixed(2)} {token.symbol}
+            {hiring ? "Share it first, fund it later." : `You will commit ${total.toFixed(2)} ${token.symbol}`}
           </h3>
           <p>
             {showErrors && !formValid
-              ? "Fill in the highlighted fields before creating this agreement."
-              : "Creating the agreement records it on the network. Funding moves the money after everyone has accepted."}
+              ? "Fill in the highlighted fields first."
+              : hiring
+                ? "You'll get a link to send. Once someone takes the job, you create it for them and fund it."
+                : "Creating the job records it on Monad. You fund it after everyone has accepted."}
           </p>
         </div>
         <button
           className="primary"
-          disabled={busy}
-          onClick={() => {
+          disabled={busy || linking}
+          onClick={async () => {
             if (!formValid) {
               setShowErrors(true);
+              return;
+            }
+            if (hiring && onHiringLink) {
+              setLinking(true);
+              setLinkError("");
+              try {
+                setLinkToken(await onHiringLink(draft, listed));
+                clearDraft("milestone");
+              } catch (cause) {
+                setLinkError(cause instanceof Error ? cause.message : "Could not create the hiring link.");
+              } finally {
+                setLinking(false);
+              }
               return;
             }
             void onCreate(draft);
           }}
         >
-          {busy ? "Creating…" : "Create agreement"}
+          {hiring ? (linking ? "Creating link…" : "Create hiring link") : busy ? "Creating…" : "Create job"}
         </button>
       </section>
     </>
@@ -1151,7 +1280,9 @@ function ActionInboxBanner({
       const pendingReview = a.states.findIndex((s) => s === 1);
       if (pendingReview !== -1) {
         const milestone = a.milestones[pendingReview];
-        const isApprover = milestone.verifierFee !== "0" ? role === "verifier" : role === "payer";
+        // The contract makes every milestone reviewer-approved once a
+        // reviewer is named, whatever its fee (see create in use-live-agreements).
+        const isApprover = a.chain.verifier !== `0x${"0".repeat(40)}` ? role === "verifier" : role === "payer";
         if (isApprover) {
           actions.push({
             id: a.id,

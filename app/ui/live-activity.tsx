@@ -42,7 +42,11 @@ type Entry = {
     | "withdrawn"
     | "cancel-consent"
     | "refunded"
-    | "correction";
+    | "correction"
+    | "vote"
+    | "settled";
+  /** Which escrow recorded it: the milestone contract or the proof-checked one. */
+  source: "milestone" | "proof";
   agreementId: string;
   agreementTitle: string;
   milestoneTitle?: string;
@@ -63,6 +67,8 @@ const ICON: Record<Entry["kind"], React.ReactNode> = {
   "cancel-consent": <ShieldAlert size={13} />,
   refunded: <Undo2 size={13} />,
   correction: <PenLine size={13} />,
+  vote: <ShieldCheck size={13} />,
+  settled: <Banknote size={13} />,
 };
 
 /** A quick visual read of what kind of event this was, at a glance. */
@@ -77,21 +83,23 @@ const TONE: Record<Entry["kind"], "" | "tone-positive" | "tone-caution" | "tone-
   "cancel-consent": "tone-negative",
   refunded: "tone-caution",
   correction: "tone-caution",
+  vote: "",
+  settled: "tone-positive",
 };
 
 function describe(e: Entry): string {
   const who = e.actor ? shortAddress(e.actor) : "";
   switch (e.kind) {
     case "created":
-      return "Agreement created on chain.";
+      return "Job created on chain.";
     case "accepted":
-      return `${who} accepted the terms.`;
+      return e.source === "proof" ? "The worker accepted the locked terms." : `${who} accepted the terms.`;
     case "funded":
       return `Funded with ${formatAmount(BigInt(e.amount ?? "0"))} ${token.symbol}.`;
     case "evidence":
-      return `Evidence submitted for ${e.milestoneTitle ?? "a milestone"}.`;
+      return e.source === "proof" ? `Evidence submitted, ${e.milestoneTitle}.` : `Evidence submitted for ${e.milestoneTitle ?? "a milestone"}.`;
     case "changes":
-      return `Changes requested on ${e.milestoneTitle ?? "a milestone"}.`;
+      return e.source === "proof" ? `Changes requested on ${e.milestoneTitle}.` : `Changes requested on ${e.milestoneTitle ?? "a milestone"}.`;
     case "approved":
       return `${e.milestoneTitle ?? "Milestone"} approved by ${who}. Worker and verifier allocations credited.`;
     case "withdrawn":
@@ -99,13 +107,17 @@ function describe(e: Entry): string {
     case "cancel-consent":
       return `${who} consented to cancellation.`;
     case "refunded":
-      return `Unused reserve of ${formatAmount(BigInt(e.amount ?? "0"))} ${token.symbol} returned to the payer.`;
+      return `${formatAmount(BigInt(e.amount ?? "0"))} ${token.symbol} returned to the client.`;
+    case "vote":
+      return `${who} voted ${e.milestoneTitle}.`;
+    case "settled":
+      return `Two of three passed. ${formatAmount(BigInt(e.amount ?? "0"))} ${token.symbol} credited to the worker.`;
     case "correction":
       return `Correction recorded by ${who} for ${e.milestoneTitle ?? "a milestone"}.`;
   }
 }
 
-export function LiveActivity({ onOpen }: { onOpen: (id: string) => void }) {
+export function LiveActivity({ onOpen }: { onOpen: (id: string, source: "milestone" | "proof") => void }) {
   const w = useWallet();
   const [entries, setEntries] = useState<Entry[]>([]);
   const [configured, setConfigured] = useState<boolean | null>(null);
@@ -174,7 +186,7 @@ export function LiveActivity({ onOpen }: { onOpen: (id: string) => void }) {
       </div>
     );
 
-  const approvals = entries.filter((e) => e.kind === "approved").length;
+  const approvals = entries.filter((e) => e.kind === "approved" || (e.kind === "vote" && e.milestoneTitle === "pass")).length;
   const corrections = entries.filter((e) => e.kind === "correction").length;
   const moved = entries
     .filter((e) => e.kind === "funded")
@@ -187,8 +199,8 @@ export function LiveActivity({ onOpen }: { onOpen: (id: string) => void }) {
           <p className="eyebrow">A SHARED RECORD</p>
           <h1>Activity & attestations</h1>
           <p className="muted">
-            Every decision, allocation, and correction, read from the contract
-            that enforced them.
+            Every decision, vote, payment and correction across both escrows,
+            read from the contracts that enforced them.
           </p>
         </div>
       </div>
@@ -200,7 +212,7 @@ export function LiveActivity({ onOpen }: { onOpen: (id: string) => void }) {
             <ShieldCheck size={17} />
           </div>
           <strong>{String(approvals).padStart(2, "0")}</strong>
-          <small>Milestones approved on chain</small>
+          <small>Milestone approvals and pass votes on chain</small>
         </section>
         <section className="metric">
           <span>Deposited</span>
@@ -248,15 +260,17 @@ export function LiveActivity({ onOpen }: { onOpen: (id: string) => void }) {
                   )}
                 </div>
                 <p className="fine-print">
-                  {e.agreementTitle} · <When iso={e.at} />
+                  {e.source === "proof" ? "Proof-checked" : "Milestone"} · {e.agreementTitle} · <When iso={e.at} />
                 </p>
                 <div className="milestone-actions">
-                  <button
-                    className="text-button"
-                    onClick={() => onOpen(e.agreementId)}
-                  >
-                    Open job
-                  </button>
+                  {e.agreementId && (
+                    <button
+                      className="text-button"
+                      onClick={() => onOpen(e.agreementId, e.source)}
+                    >
+                      Open job
+                    </button>
+                  )}
                   <a
                     className="text-button"
                     href={explorer.tx(e.hash)}

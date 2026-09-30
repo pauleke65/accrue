@@ -8,6 +8,11 @@ interface IERC20 {
 }
 
 /// @notice Prototype, non-upgradeable milestone escrow. NOT independently audited.
+/// @dev Version 2 adds a review window. Once a milestone is submitted, its approver
+/// has REVIEW_WINDOW to approve it or send it back. If they do neither, anyone can
+/// release its pay to the worker, and a refund pays it before returning the rest,
+/// so a client cannot keep delivered work by never answering. Struct layouts are
+/// unchanged from version 1; the submission time lives in its own mapping.
 /// @dev One explicitly selected, non-rebasing, exact-transfer ERC20 per deployment.
 /// Direct calls bind authorization to msg.sender and normal chain transaction replay protection.
 contract AccrueEscrow {
@@ -53,6 +58,9 @@ contract AccrueEscrow {
     }
     mapping(uint256 => Agreement) public agreements;
     mapping(uint256 => Milestone[]) private milestones;
+    /// @notice When each milestone's current evidence was submitted.
+    mapping(uint256 => mapping(uint256 => uint64)) public submittedAt;
+    uint64 public constant REVIEW_WINDOW = 5 days;
     event AgreementCreated(
         uint256 indexed id,
         address indexed payer,
@@ -77,6 +85,7 @@ contract AccrueEscrow {
     event CancellationConsent(uint256 indexed id, address indexed participant, bool cancelled);
     event Refunded(uint256 indexed id, uint256 amount);
     event Correction(uint256 indexed id, uint256 indexed milestone, address indexed approver, bytes32 correctionHash);
+    event PaidOnSilence(uint256 indexed id, uint256 indexed milestone, uint256 workerAmount);
     modifier lock() {
         require(!entered, "reentrancy");
         entered = true;
@@ -158,13 +167,16 @@ contract AccrueEscrow {
         m.evidenceHash = evidenceHash;
         m.evidenceVersion++;
         m.state = 1;
+        submittedAt[id][index] = uint64(block.timestamp);
         emit EvidenceSubmitted(id, index, m.evidenceVersion, evidenceHash);
     }
 
     function requestChanges(uint256 id, uint256 index, bytes32 evidenceHash, bytes32 feedbackHash) external lock {
         Agreement storage a = agreements[id];
-        requireActive(a);
         Milestone storage m = milestones[id][index];
+        // Sending work back is only possible inside the window: after it, silence
+        // has already become acceptance.
+        require(a.funded && !a.cancelled && block.timestamp < windowEnd(id, index), "review window closed");
         require(
             msg.sender == approver(a, m) && m.state == 1 && m.evidenceHash == evidenceHash
                 && feedbackHash != bytes32(0),
@@ -176,8 +188,13 @@ contract AccrueEscrow {
 
     function approve(uint256 id, uint256 index, bytes32 evidenceHash) external lock {
         Agreement storage a = agreements[id];
-        requireActive(a);
         Milestone storage m = milestones[id][index];
+        // Approval stays open until expiry, and past it while a late submission's
+        // window runs, so every submission gets a full window.
+        require(
+            a.funded && !a.cancelled && (block.timestamp < a.expiry || block.timestamp < windowEnd(id, index)),
+            "not active"
+        );
         require(
             msg.sender == approver(a, m) && index == a.nextMilestone && m.state == 1 && m.evidenceHash == evidenceHash,
             "invalid approval"
@@ -216,9 +233,31 @@ contract AccrueEscrow {
         emit CancellationConsent(id, msg.sender, a.cancelled);
     }
 
+    /// @notice Releases a submitted milestone whose approver let the review window
+    /// pass without approving it or sending it back. Anyone may call it. The approver's
+    /// fee for that milestone is not earned and stays reserved for the payer.
+    function payOnSilence(uint256 id) external lock {
+        Agreement storage a = agreements[id];
+        require(a.funded && !a.cancelled, "not payable");
+        require(settleSilent(a, id), "nothing lapsed");
+    }
+
     function refund(uint256 id) external lock {
         Agreement storage a = agreements[id];
-        require(msg.sender == a.payer && a.funded && (a.cancelled || block.timestamp >= a.expiry), "not refundable");
+        // Also once every milestone is settled: anything left (a fee nobody
+        // earned) has no reason to wait for expiry.
+        require(
+            msg.sender == a.payer && a.funded &&
+                (a.cancelled || block.timestamp >= a.expiry || a.nextMilestone == milestones[id].length),
+            "not refundable"
+        );
+        // Delivered work the approver never answered is paid before anything returns.
+        // Work still inside its review window has to be decided first.
+        if (!a.cancelled) {
+            uint256 index = a.nextMilestone;
+            if (index < milestones[id].length && milestones[id][index].state == 1)
+                require(settleSilent(a, id), "review window open");
+        }
         uint256 amount = a.reserved;
         require(amount > 0, "nothing reserved");
         a.reserved = 0;
@@ -244,6 +283,29 @@ contract AccrueEscrow {
 
     function requireActive(Agreement storage a) private view {
         require(a.funded && !a.cancelled && block.timestamp < a.expiry, "not active");
+    }
+
+    function windowEnd(uint256 id, uint256 index) private view returns (uint256) {
+        return uint256(submittedAt[id][index]) + REVIEW_WINDOW;
+    }
+
+    /// @dev Pays the current milestone if it was submitted and its window lapsed.
+    function settleSilent(Agreement storage a, uint256 id) private returns (bool) {
+        uint256 index = a.nextMilestone;
+        if (index >= milestones[id].length) return false;
+        Milestone storage m = milestones[id][index];
+        if (m.state != 1 || block.timestamp < windowEnd(id, index)) return false;
+        m.state = 2;
+        a.nextMilestone++;
+        a.reserved -= m.workerAmount;
+        a.workerEarned += m.workerAmount;
+        emit PaidOnSilence(id, index, m.workerAmount);
+        return true;
+    }
+
+    /// @notice 1 for the original rules; 2 adds the review window and pay-on-silence.
+    function rulesVersion() external pure returns (uint256) {
+        return 2;
     }
 
     function roleBit(Agreement storage a, address actor) private view returns (uint8) {
