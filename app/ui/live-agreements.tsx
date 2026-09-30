@@ -1,6 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
 import { SignInCard } from "./home";
+import { HiringLinkDone } from "./hiring-link";
+import { useOffers } from "../use-offers";
 import {
   ArrowLeft,
   ArrowUpRight,
@@ -11,6 +13,7 @@ import {
   Search,
   ShieldCheck,
   Trash2,
+  UserCheck,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -60,7 +63,10 @@ export function LiveAgreements({
   openId,
   onOpenChange,
   initialCreating = false,
+  offer = null,
 }: {
+  /** A taken hiring link to turn into a real job. */
+  offer?: { token: string; draft: Draft; takenBy: string } | null;
   /** Set when Home sends someone straight to the builder; Home has already
       checked the @name gate. */
   initialCreating?: boolean;
@@ -76,7 +82,8 @@ export function LiveAgreements({
   const open = openId !== undefined ? openId : localOpen;
   const setOpen = onOpenChange ?? setLocalOpen;
   const [creating, setCreating] = useState(initialCreating);
-  const [initialDraft, setInitialDraft] = useState<Draft | undefined>(undefined);
+  const [initialDraft, setInitialDraft] = useState<Draft | undefined>(offer?.draft);
+  const offers = useOffers();
   const [profileTag, setProfileTag] = useState<{ tag: string; address?: string | null } | null>(null);
   const [filter, setFilter] = useState("all");
   const [query, setQuery] = useState("");
@@ -111,6 +118,8 @@ export function LiveAgreements({
     return (
       <Builder
         initialDraft={initialDraft}
+        takenBy={offer?.takenBy ?? null}
+        onHiringLink={(draft) => offers.create("milestone", draft.title, draft as unknown as Record<string, unknown>)}
         busy={live.busy}
         error={live.error}
         onDismissError={() => live.setError("")}
@@ -121,6 +130,7 @@ export function LiveAgreements({
         onCreate={async (draft) => {
           const id = await live.create(draft);
           if (id !== null) {
+            if (offer) await offers.update(offer.token, "created", String(id)).catch(() => undefined);
             setCreating(false);
             setInitialDraft(undefined);
           }
@@ -785,6 +795,8 @@ function Detail({
 
 function Builder({
   initialDraft,
+  takenBy = null,
+  onHiringLink,
   onCreate,
   onCancel,
   busy,
@@ -792,6 +804,10 @@ function Builder({
   onDismissError,
 }: {
   initialDraft?: Draft;
+  /** Set when creating the job for someone who took a hiring link. */
+  takenBy?: string | null;
+  /** Saves the job as a hiring link instead; returns the link's token. */
+  onHiringLink?: (draft: Draft) => Promise<string>;
   onCreate: (draft: Draft) => Promise<void>;
   onCancel: () => void;
   busy: boolean;
@@ -805,6 +821,9 @@ function Builder({
   const [showErrors, setShowErrors] = useState(false);
   const [workerFound, setWorkerFound] = useState(false);
   const [verifierFound, setVerifierFound] = useState(false);
+  const [linkToken, setLinkToken] = useState<string | null>(null);
+  const [linking, setLinking] = useState(false);
+  const [linkError, setLinkError] = useState("");
   const set = (patch: Partial<Draft>) => setDraft({ ...draft, ...patch });
   const setMilestone = (
     index: number,
@@ -825,7 +844,9 @@ function Builder({
 
   const titleValid = draft.title.trim().length > 0;
   const scopeValid = draft.scope.trim().length >= 10;
-  const workerValid = workerFound;
+  // No worker yet means a hiring link, not an invalid form.
+  const hiring = !takenBy && !draft.workerTag.trim() && !!onHiringLink;
+  const workerValid = hiring || !!takenBy || workerFound;
   const verifierValid =
     !draft.verifierTag.trim() || verifierFound;
   const milestonesValid = draft.milestones.map((m) => ({
@@ -841,6 +862,8 @@ function Builder({
     milestonesValid.every((v) => v.title && v.criteria && v.amount);
   const invalid = (ok: boolean) => showErrors && !ok;
 
+  if (linkToken) return <HiringLinkDone token={linkToken} onDone={onCancel} />;
+
   return (
     <>
       <button className="text-button back" onClick={onCancel}>
@@ -848,19 +871,19 @@ function Builder({
       </button>
       <div className="page-heading">
         <div>
-          <p className="eyebrow">Fund a job</p>
-          <h1>Agree what done means.</h1>
+          <p className="eyebrow">New milestone job</p>
+          <h1>Split the project into stages.</h1>
           <p className="muted">
-            The {token.symbol} sits in the contract until the verifier confirms
-            each milestone. Payment follows verified work, never the other way
-            round.
+            The whole amount is locked when you fund. Each stage is paid when you,
+            or a reviewer you both trust, approve it. Anything never earned comes
+            back to you.
           </p>
         </div>
       </div>
 
-      {error && (
+      {(error || linkError) && (
         <div role="alert" className="error-banner">
-          {error}
+          {linkError || error}
           <button className="text-button" onClick={onDismissError}>
             Dismiss
           </button>
@@ -868,7 +891,7 @@ function Builder({
       )}
 
       <section className="panel" style={{ marginTop: 0, marginBottom: "20px" }}>
-        <p className="eyebrow" style={{ marginBottom: "12px" }}>Start from a Pilot Template</p>
+        <p className="eyebrow" style={{ marginBottom: "12px" }}>Start from a template</p>
         <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
           {PILOT_TEMPLATES.map((tmpl) => (
             <button
@@ -898,7 +921,7 @@ function Builder({
             <Input
               value={draft.title}
               onChange={(e) => set({ title: e.target.value })}
-              placeholder="Lekki home renovation"
+              placeholder="Rebuild our online store"
               aria-invalid={invalid(titleValid)}
             />
             {invalid(titleValid) && (
@@ -910,7 +933,7 @@ function Builder({
             <Textarea
               value={draft.scope}
               onChange={(e) => set({ scope: e.target.value })}
-              placeholder="Ground-floor living space. Excludes furniture."
+              placeholder="Shopify storefront with product pages and checkout. Excludes copywriting."
               aria-invalid={invalid(scopeValid)}
             />
             {invalid(scopeValid) && (
@@ -919,16 +942,19 @@ function Builder({
               </p>
             )}
           </label>
+          {takenBy && (
+            <p className="taken-by"><UserCheck size={17} aria-hidden /> <span><b>{takenBy}</b> took your hiring link and will do the work.</span></p>
+          )}
           <div className="form-grid">
-            <TagField
+            {!takenBy && <TagField
               label="Who is doing the work"
               value={draft.workerTag}
               onChange={(workerTag) => set({ workerTag })}
               onResolved={(found) => setWorkerFound(Boolean(found))}
               placeholder="@bola"
               invalid={invalid(workerValid)}
-              helperText="Account address or @tag of the person completing the work."
-            />
+              helperText="Their @name. Don't know who yet? Leave it empty to create a hiring link."
+            />}
             <TagField
               label="Who verifies it"
               value={draft.verifierTag}
@@ -937,11 +963,11 @@ function Builder({
               placeholder="@ngozi"
               optional
               invalid={invalid(verifierValid)}
-              helperText="Account address or @tag of the third-party inspector who verifies work quality before funds are released."
+              helperText="Optional. Someone you both trust to approve each stage, like a senior developer. Leave empty to approve stages yourself."
             />
           </div>
           <label>
-            Days until the agreement expires
+            Days until the job expires
             <Input
               value={String(draft.days)}
               onChange={(e) => set({ days: Number(e.target.value) || 1 })}
@@ -970,7 +996,7 @@ function Builder({
               <Input
                 value={m.title}
                 onChange={(e) => setMilestone(index, { title: e.target.value })}
-                placeholder="Foundation"
+                placeholder="Wireframes"
                 aria-invalid={invalid(milestonesValid[index].title)}
               />
               {invalid(milestonesValid[index].title) && (
@@ -984,7 +1010,7 @@ function Builder({
                 onChange={(e) =>
                   setMilestone(index, { criteria: e.target.value })
                 }
-                placeholder="Foundation poured, cured 72 hours, level within 5mm."
+                placeholder="Wireframes for every agreed page, shared as a Figma link."
                 aria-invalid={invalid(milestonesValid[index].criteria)}
               />
               {invalid(milestonesValid[index].criteria) && (
@@ -1010,7 +1036,7 @@ function Builder({
                 )}
               </label>
               <label>
-                Verifier&apos;s fee ({token.symbol})
+                Reviewer&apos;s fee ({token.symbol})
                 <Input
                   value={m.fee}
                   onChange={(e) => setMilestone(index, { fee: e.target.value })}
@@ -1042,26 +1068,40 @@ function Builder({
       <section className="action-banner">
         <div>
           <h3>
-            You will commit {total.toFixed(2)} {token.symbol}
+            {hiring ? "Share it first, fund it later." : `You will commit ${total.toFixed(2)} ${token.symbol}`}
           </h3>
           <p>
             {showErrors && !formValid
-              ? "Fill in the highlighted fields before creating this agreement."
-              : "Creating the agreement records it on the network. Funding moves the money after everyone has accepted."}
+              ? "Fill in the highlighted fields first."
+              : hiring
+                ? "You'll get a link to send. Once someone takes the job, you create it for them and fund it."
+                : "Creating the job records it on Monad. You fund it after everyone has accepted."}
           </p>
         </div>
         <button
           className="primary"
-          disabled={busy}
-          onClick={() => {
+          disabled={busy || linking}
+          onClick={async () => {
             if (!formValid) {
               setShowErrors(true);
+              return;
+            }
+            if (hiring && onHiringLink) {
+              setLinking(true);
+              setLinkError("");
+              try {
+                setLinkToken(await onHiringLink(draft));
+              } catch (cause) {
+                setLinkError(cause instanceof Error ? cause.message : "Could not create the hiring link.");
+              } finally {
+                setLinking(false);
+              }
               return;
             }
             void onCreate(draft);
           }}
         >
-          {busy ? "Creating…" : "Create agreement"}
+          {hiring ? (linking ? "Creating link…" : "Create hiring link") : busy ? "Creating…" : "Create job"}
         </button>
       </section>
     </>
@@ -1146,7 +1186,9 @@ function ActionInboxBanner({
       const pendingReview = a.states.findIndex((s) => s === 1);
       if (pendingReview !== -1) {
         const milestone = a.milestones[pendingReview];
-        const isApprover = milestone.verifierFee !== "0" ? role === "verifier" : role === "payer";
+        // The contract makes every milestone reviewer-approved once a
+        // reviewer is named, whatever its fee (see create in use-live-agreements).
+        const isApprover = a.chain.verifier !== `0x${"0".repeat(40)}` ? role === "verifier" : role === "payer";
         if (isApprover) {
           actions.push({
             id: a.id,

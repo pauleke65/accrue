@@ -2,7 +2,7 @@ import { getAddress, isAddress } from "viem";
 import { z } from "zod";
 import { digitalJobId, readAuthorizedDigitalJob, verifyDigitalWrite } from "@/lib/digital-work-access";
 import { readDigitalJob } from "@/lib/digital-work-chain";
-import { evidenceHash, parseDigitalManifest } from "@/lib/digital-work-policy";
+import { assertManifestFits, evidenceHash, parseDigitalManifest, parseDigitalPolicy } from "@/lib/digital-work-policy";
 import { parseProofsParam } from "@/lib/live-agreements-access";
 import { authorize, database, failure, HttpError } from "@/lib/server";
 
@@ -45,9 +45,14 @@ export async function POST(request: Request) {
     const worker = getAddress(body.worker);
     const id = digitalJobId(body.onchainId);
     const manifest = parseDigitalManifest(body.manifest);
-    const row = await database().prepare("SELECT policy_hash FROM digital_jobs WHERE id=?")
-      .bind(id).first<{ policy_hash: `0x${string}` }>();
+    const row = await database().prepare("SELECT policy_hash, policy_json FROM digital_jobs WHERE id=?")
+      .bind(id).first<{ policy_hash: `0x${string}`; policy_json: string }>();
     if (!row) throw new HttpError(404, "Readable job policy not found.");
+    try {
+      assertManifestFits(parseDigitalPolicy(JSON.parse(row.policy_json)), manifest);
+    } catch (error) {
+      throw new HttpError(400, error instanceof Error ? error.message : "Evidence does not fit this job.");
+    }
     const digest = evidenceHash(id, row.policy_hash, manifest);
     const chainJob = await readDigitalJob(BigInt(body.onchainId));
     if (chainJob.worker.toLowerCase() !== worker.toLowerCase() ||

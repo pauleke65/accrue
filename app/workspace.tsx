@@ -28,6 +28,10 @@ import { Home, SignInCard, type HomeIntent } from "./ui/home";
 import type { JobKind } from "@/lib/next-actions";
 import { Choice } from "./ui/shared";
 import { InvitationAcceptModal } from "./ui/invitation-accept-modal";
+import { OfferModal } from "./ui/offer-modal";
+import type { TakenOffer } from "./ui/home";
+import type { DigitalDraft } from "./use-digital-work";
+import type { Draft } from "./use-live-agreements";
 
 // Ordered by what people come to do: see what needs them, work on jobs,
 // then money. Connections is status, not a destination, so it sits apart.
@@ -50,13 +54,15 @@ export default function Accrue() {
   // Which escrow the Jobs page shows, and whether Home asked it to open the
   // builder or one job. The nonce remounts the page so that request applies.
   const [jobKind, setJobKind] = useState<JobKind>("proof");
-  const [jobIntent, setJobIntent] = useState<{ create: boolean; openId: string | null; nonce: number }>({ create: false, openId: null, nonce: 0 });
+  const [jobIntent, setJobIntent] = useState<{ create: boolean; openId: string | null; offer: TakenOffer | null; nonce: number }>({ create: false, openId: null, offer: null, nonce: 0 });
+  // A hiring link someone opened, shown over whatever page they land on.
+  const [offerToken, setOfferToken] = useState<string | null>(null);
 
   /** Opens the Jobs page on one job, or on a job type's builder. */
-  const goToJobs = (kind: JobKind, target: { openId?: string; create?: boolean } = {}) => {
+  const goToJobs = (kind: JobKind, target: { openId?: string; create?: boolean; offer?: TakenOffer } = {}) => {
     setJobKind(kind);
     if (kind === "milestone") setOpenJob(target.openId ?? null);
-    setJobIntent((prev) => ({ create: !!target.create, openId: target.openId ?? null, nonce: prev.nonce + 1 }));
+    setJobIntent((prev) => ({ create: !!target.create, openId: target.openId ?? null, offer: target.offer ?? null, nonce: prev.nonce + 1 }));
     navigate("jobs");
   };
   const {
@@ -73,14 +79,20 @@ export default function Accrue() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const job = params.get("job");
+    const proof = params.get("proof");
     const invite = params.get("invite");
+    const offer = params.get("offer");
     queueMicrotask(() => {
       if (job) {
         setOpenJob(job);
         setJobKind("milestone");
         navigate("jobs");
+      } else if (proof) {
+        goToJobs("proof", { openId: proof });
       } else if (invite) {
         setInviteToken(invite);
+      } else if (offer) {
+        setOfferToken(offer);
       }
     });
     // Invite links are applied once on load.
@@ -216,7 +228,7 @@ export default function Accrue() {
                   onIntent={(intent: HomeIntent) =>
                     intent.type === "open"
                       ? goToJobs(intent.kind, { openId: intent.id })
-                      : goToJobs(intent.kind, { create: true })}
+                      : goToJobs(intent.kind, { create: true, offer: intent.offer })}
                 />
               )}
               {page === "jobs" && (
@@ -233,7 +245,7 @@ export default function Accrue() {
                           aria-selected={jobKind === id}
                           onClick={() => {
                             setJobKind(id);
-                            setJobIntent((prev) => ({ create: false, openId: null, nonce: prev.nonce + 1 }));
+                            setJobIntent((prev) => ({ create: false, openId: null, offer: null, nonce: prev.nonce + 1 }));
                             if (id === "milestone") setOpenJob(null);
                           }}
                         >
@@ -247,6 +259,7 @@ export default function Accrue() {
                       key={`proof-${jobIntent.nonce}`}
                       initialCreating={jobIntent.create}
                       initialSelectedId={jobIntent.openId}
+                      offer={jobIntent.offer?.kind === "proof" ? { token: jobIntent.offer.token, takenBy: jobIntent.offer.takenBy, draft: jobIntent.offer.draft as unknown as DigitalDraft } : null}
                     />
                   ) : (
                     <LiveAgreements
@@ -254,6 +267,7 @@ export default function Accrue() {
                       openId={openJob}
                       onOpenChange={setOpenJob}
                       initialCreating={jobIntent.create}
+                      offer={jobIntent.offer?.kind === "milestone" ? { token: jobIntent.offer.token, takenBy: jobIntent.offer.takenBy, draft: jobIntent.offer.draft as unknown as Draft } : null}
                     />
                   )}
                 </>
@@ -270,6 +284,17 @@ export default function Accrue() {
           )}
         </div>
       </main>
+      {offerToken && (
+        <OfferModal
+          offerToken={offerToken}
+          onClose={() => {
+            setOfferToken(null);
+            // Drop ?offer= so a refresh does not reopen it.
+            window.history.replaceState(null, "", "/app");
+            navigate("home");
+          }}
+        />
+      )}
       {inviteToken && (
         <InvitationAcceptModal
           token={inviteToken}

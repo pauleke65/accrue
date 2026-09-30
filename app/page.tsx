@@ -117,10 +117,10 @@ const audiences = [
 ];
 
 export default async function Landing({ searchParams }: { searchParams: SearchParams }) {
-  // Invite and job links shared before the app moved to /app still land in it.
+  // Invite, job and hiring links that point at "/" still land in the app.
   const params = await searchParams;
   const forward = new URLSearchParams();
-  for (const key of ["invite", "job"]) {
+  for (const key of ["invite", "job", "proof", "offer"]) {
     const value = params[key];
     if (typeof value === "string") forward.set(key, value);
   }

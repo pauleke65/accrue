@@ -24,6 +24,7 @@ import {
   type DigitalPolicy,
 } from "@/lib/digital-work-policy";
 import { useWallet } from "./wallet-context";
+import type { CheckReport } from "@/lib/proof-checks";
 
 export type DigitalTerms = {
   id: string;
@@ -69,7 +70,7 @@ export type DigitalRun = {
   version: number;
   state: string;
   report: {
-    checks: { commitFound: boolean; statusMatches: boolean; bodyMatches: boolean; probeUrl: string; error: string | null };
+    checks: CheckReport;
     jev: { model: string; requirementsProbability: number; reviewProbability: number; recommendation: string };
   } | null;
   reportHash: `0x${string}` | null;

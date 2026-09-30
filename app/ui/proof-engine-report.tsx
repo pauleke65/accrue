@@ -3,6 +3,7 @@
 import { ArrowUpRight, Check, ScanSearch, X } from "lucide-react";
 import { explorer } from "@/lib/chain";
 import type { DigitalRun } from "../use-digital-work";
+import { checkItems } from "@/lib/proof-checks";
 
 export function ProofEngineReport({ run, provider }: { run: DigitalRun; provider: string }) {
   if (!run.report) return null;
@@ -22,9 +23,13 @@ export function ProofEngineReport({ run, provider }: { run: DigitalRun; provider
       </div>
 
       <div className="dw-proof-checks">
-        <div><span className={checks.commitFound ? "" : "failed"}>{checks.commitFound ? <Check size={17} /> : <X size={17} />}</span><strong>Public commit</strong><small>{checks.commitFound ? "Found" : "Not found"}</small></div>
-        <div><span className={checks.statusMatches ? "" : "failed"}>{checks.statusMatches ? <Check size={17} /> : <X size={17} />}</span><strong>HTTP response</strong><small>{checks.statusMatches ? "Matched" : "Mismatch"}</small></div>
-        <div><span className={checks.bodyMatches ? "" : "failed"}>{checks.bodyMatches ? <Check size={17} /> : <X size={17} />}</span><strong>JSON result</strong><small>{checks.bodyMatches ? "Matched" : "Mismatch"}</small></div>
+        {checkItems(checks).map((item) => (
+          <div key={item.label}>
+            <span className={item.passed ? "" : "failed"}>{item.passed ? <Check size={17} aria-hidden /> : <X size={17} aria-hidden />}</span>
+            <strong>{item.label}</strong>
+            <small>{item.detail}</small>
+          </div>
+        ))}
       </div>
 
       <div className="dw-proof-signals">

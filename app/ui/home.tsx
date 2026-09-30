@@ -19,12 +19,19 @@ import { readDigitalVote } from "@/lib/digital-work-chain";
 import { milestoneActions, proofActions, ProofStatus, type JobKind, type NextAction } from "@/lib/next-actions";
 import { useDigitalWork } from "../use-digital-work";
 import { useLiveAgreements } from "../use-live-agreements";
+import { offerUrl, useOffers, type Offer } from "../use-offers";
 import { useWallet } from "../wallet-context";
 import { useTagGate } from "./tag-gate";
 
+/** A hiring link someone took, carried into the builder to become a job. */
+export type TakenOffer = { token: string; kind: JobKind; takenBy: string; draft: Record<string, unknown> };
+
 export type HomeIntent =
   | { type: "open"; kind: JobKind; id: string }
-  | { type: "create"; kind: JobKind };
+  | { type: "create"; kind: JobKind; offer?: TakenOffer };
+
+/** One line in "Needs you" or "Waiting on others", from a job or a hiring link. */
+type Row = { key: string; owner: "you" | "waiting"; meta: string; action: string; detail: string; cta: string; onOpen: () => void };
 
 /**
  * The first screen after sign-in: what needs this person, what they are
@@ -73,6 +80,8 @@ function SignedInHome({ onIntent }: { onIntent: (intent: HomeIntent) => void }) 
   const gate = useTagGate();
   const digital = useDigitalWork();
   const live = useLiveAgreements();
+  const offers = useOffers();
+  const [copiedOffer, setCopiedOffer] = useState<string | null>(null);
   const me = wallet.address;
   const tag = wallet.tags[wallet.role];
   const [votes, setVotes] = useState<Record<string, boolean>>({});
@@ -118,7 +127,9 @@ function SignedInHome({ onIntent }: { onIntent: (intent: HomeIntent) => void }) 
         payer: a.payer,
         worker: a.worker,
         verifier: a.chain.verifier,
-        milestones: a.milestones.map((m) => ({ title: m.title, external: m.verifierFee !== "0" })),
+        // Reviewer-approved whenever a reviewer is named, whatever the fee:
+        // that is how the builder sets externalVerifier on every milestone.
+        milestones: a.milestones.map((m) => ({ title: m.title, external: !/^0x0{40}$/i.test(a.chain.verifier) })),
         states: a.states,
         acceptances: a.chain.acceptances,
         funded: a.chain.funded,
@@ -135,9 +146,48 @@ function SignedInHome({ onIntent }: { onIntent: (intent: HomeIntent) => void }) 
     return list;
   }, [digital.jobs, live.agreements, me, now, votes]);
 
-  const yours = actions.filter((a) => a.owner === "you");
-  const waiting = actions.filter((a) => a.owner === "waiting");
-  const jobCount = digital.jobs.length + live.agreements.length;
+  const jobRow = (a: NextAction): Row => ({
+    key: a.key, owner: a.owner, meta: `${a.kind === "proof" ? "Proof-checked" : "Milestone"} · ${a.title}`,
+    action: a.action, detail: a.detail, cta: "Open", onOpen: () => onIntent({ type: "open", kind: a.kind, id: a.jobId }),
+  });
+
+  // Hiring links move the other way: the client acts once someone takes one.
+  const offerRow = (o: Offer): Row | null => {
+    const kindLabel = o.kind === "proof" ? "Hiring link · proof-checked" : "Hiring link · milestone";
+    const taker = o.takerTag ? `@${o.takerTag}` : "Someone";
+    if (o.viewer === "client" && o.status === "taken") {
+      // The worker is fixed on chain at creation, so it goes into the draft now.
+      const draft = o.kind === "proof"
+        ? { ...o.draft, worker: o.takerAddress ?? "" }
+        : { ...o.draft, workerTag: o.takerTag ?? o.takerAddress ?? "" };
+      return {
+        key: `offer:${o.token}`, owner: "you", meta: `${kindLabel} · ${o.title}`,
+        action: `Create the job for ${taker}`,
+        detail: `${taker} took your hiring link. Create the job so they can accept the terms, then fund it.`,
+        cta: "Create", onOpen: () => onIntent({ type: "create", kind: o.kind, offer: { token: o.token, kind: o.kind, takenBy: taker, draft } }),
+      };
+    }
+    if (o.viewer === "client" && o.status === "open")
+      return {
+        key: `offer:${o.token}`, owner: "waiting", meta: `${kindLabel} · ${o.title}`,
+        action: "Hiring link is open", detail: "Nobody has taken it yet. Copy the link to share it again.",
+        cta: copiedOffer === o.token ? "Copied" : "Copy link",
+        onOpen: () => { void navigator.clipboard.writeText(offerUrl(o.token)).then(() => setCopiedOffer(o.token)); },
+      };
+    if (o.viewer === "taker" && o.status === "taken")
+      return {
+        key: `offer:${o.token}`, owner: "waiting", meta: `${kindLabel} · ${o.title}`,
+        action: `Waiting for ${o.clientTag ? `@${o.clientTag}` : "the client"} to create the job`,
+        detail: "You took this job. Once the client locks the terms on chain, you'll be asked to accept them here.",
+        cta: "", onOpen: () => undefined,
+      };
+    return null;
+  };
+
+  const rows = [...offers.offers.map(offerRow).filter((r): r is Row => r !== null), ...actions.map(jobRow)];
+  const yours = rows.filter((r) => r.owner === "you");
+  const waiting = rows.filter((r) => r.owner === "waiting");
+  const jobCount = digital.jobs.length + live.agreements.length + offers.offers.length;
   const loading = digital.loading || live.loading;
 
   const lower = me?.toLowerCase();
@@ -234,7 +284,7 @@ function SignedInHome({ onIntent }: { onIntent: (intent: HomeIntent) => void }) 
           </ul>
         ) : yours.length ? (
           <ul className="home-actions">
-            {yours.map((a) => <ActionRow key={a.key} action={a} onOpen={() => onIntent({ type: "open", kind: a.kind, id: a.jobId })} />)}
+            {yours.map((r) => <ActionRow key={r.key} row={r} />)}
           </ul>
         ) : (
           <div className="home-empty">
@@ -251,7 +301,7 @@ function SignedInHome({ onIntent }: { onIntent: (intent: HomeIntent) => void }) 
             <span className="muted">{waiting.length}</span>
           </div>
           <ul className="home-actions">
-            {waiting.map((a) => <ActionRow key={a.key} action={a} onOpen={() => onIntent({ type: "open", kind: a.kind, id: a.jobId })} />)}
+            {waiting.map((r) => <ActionRow key={r.key} row={r} />)}
           </ul>
         </section>
       )}
@@ -277,18 +327,23 @@ function SignedInHome({ onIntent }: { onIntent: (intent: HomeIntent) => void }) 
   );
 }
 
-function ActionRow({ action, onOpen }: { action: NextAction; onOpen: () => void }) {
+function ActionRow({ row }: { row: Row }) {
+  const body = (
+    <>
+      <span className="home-action-icon" aria-hidden>{row.owner === "you" ? <ArrowRight size={16} /> : <Hourglass size={16} />}</span>
+      <span className="home-action-body">
+        <span className="home-action-meta">{row.meta}</span>
+        <b>{row.action}</b>
+        <span className="home-action-detail">{row.detail}</span>
+      </span>
+      {row.cta && <span className="home-action-cta">{row.cta}</span>}
+    </>
+  );
   return (
     <li>
-      <button className={`home-action home-action-${action.owner}`} onClick={onOpen}>
-        <span className="home-action-icon" aria-hidden>{action.owner === "you" ? <ArrowRight size={16} /> : <Hourglass size={16} />}</span>
-        <span className="home-action-body">
-          <span className="home-action-meta">{action.kind === "proof" ? "Proof-checked" : "Milestone"} · {action.title}</span>
-          <b>{action.action}</b>
-          <span className="home-action-detail">{action.detail}</span>
-        </span>
-        <span className="home-action-cta">Open</span>
-      </button>
+      {row.cta
+        ? <button className={`home-action home-action-${row.owner}`} onClick={row.onOpen}>{body}</button>
+        : <div className={`home-action home-action-${row.owner}`}>{body}</div>}
     </li>
   );
 }

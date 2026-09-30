@@ -5,7 +5,8 @@ import { ArrowUpRight, CheckCircle2, Clock3, Plus, ScanSearch, ShieldCheck } fro
 import { formatAmount, shortAddress, token } from "@/lib/chain";
 import { DigitalWorkStatus } from "@/lib/digital-work-chain";
 import { digitalJobId } from "@/lib/digital-work-id";
-import { useDigitalWork, type DigitalJob } from "../use-digital-work";
+import { useDigitalWork, type DigitalDraft, type DigitalJob } from "../use-digital-work";
+import { useOffers } from "../use-offers";
 import { useWallet } from "../wallet-context";
 import { DigitalWorkBuilder } from "./digital-work-builder";
 import { DigitalWorkDetail } from "./digital-work-detail";
@@ -23,13 +24,16 @@ function statusLabel(job: DigitalJob): string {
   }
 }
 
-export function DigitalWork({ initialCreating = false, initialSelectedId = null }: {
+export function DigitalWork({ initialCreating = false, initialSelectedId = null, offer = null }: {
   /** Set when Home sends someone straight to the builder or to one job. */
   initialCreating?: boolean;
   initialSelectedId?: string | null;
+  /** A taken hiring link to turn into a real job. */
+  offer?: { token: string; draft: DigitalDraft; takenBy: string } | null;
 } = {}) {
   const wallet = useWallet();
   const digital = useDigitalWork();
+  const offers = useOffers();
   const [creating, setCreating] = useState(initialCreating);
   const [selectedId, setSelectedId] = useState<string | null>(initialSelectedId);
   const selected = digital.jobs.find((job) => job.id === selectedId) ?? null;
@@ -44,10 +48,15 @@ export function DigitalWork({ initialCreating = false, initialSelectedId = null 
       config={digital.config}
       busy={digital.busy}
       error={digital.error}
+      initialDraft={offer?.draft}
+      takenBy={offer?.takenBy ?? null}
       onBack={() => setCreating(false)}
+      onHiringLink={(title, draft) => offers.create("proof", title, draft as unknown as Record<string, unknown>)}
       onCreate={async (draft) => {
         const id = await digital.create(draft);
         if (id) {
+          // The offer has done its job; stop showing it as waiting on the client.
+          if (offer) await offers.update(offer.token, "created", digitalJobId(id)).catch(() => undefined);
           setCreating(false);
           setSelectedId(digitalJobId(id));
         }

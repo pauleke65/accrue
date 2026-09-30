@@ -198,3 +198,26 @@ export const digitalManualVotes = sqliteTable("digital_manual_votes", {
   reportHash: text("report_hash").notNull(),
   createdAt: text("created_at").notNull(),
 }, (table) => [primaryKey({ columns: [table.jobId, table.version, table.verifierAddress] })]);
+
+/**
+ * Hiring links: a job the client has written but not yet put on chain,
+ * because both escrow contracts fix the worker's address at creation. The
+ * link lets someone take the job first; the client then creates it for them.
+ */
+export const jobOffers = sqliteTable("job_offers", {
+  token: text("token").primaryKey(),
+  kind: text("kind").notNull(),
+  owner: text("owner").notNull(),
+  clientAddress: text("client_address").notNull(),
+  title: text("title").notNull(),
+  draftJson: text("draft_json").notNull(),
+  status: text("status").notNull(),
+  takerAddress: text("taker_address"),
+  jobId: text("job_id"),
+  expiresAt: text("expires_at").notNull(),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+}, (table) => [
+  index("job_offers_client").on(table.clientAddress),
+  index("job_offers_taker").on(table.takerAddress),
+]);
