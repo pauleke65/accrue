@@ -13,6 +13,9 @@ const kindLabel = (job: BoardJob) =>
 const kindIcon = (job: BoardJob) =>
   job.kind === "milestone" ? Layers : job.deliverable === "webpage" ? FileText : job.deliverable === "pull_request" ? GitPullRequest : Code2;
 
+// Live data on every request: open jobs and on-chain records change constantly.
+export const dynamic = "force-dynamic";
+
 export default async function JobBoard() {
   const jobs = await loadBoard().catch(() => null);
   return (

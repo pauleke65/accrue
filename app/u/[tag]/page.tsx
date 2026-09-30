@@ -18,6 +18,9 @@ function describe(item: ProfileItem): { title: string; icon: typeof FileText } {
 
 const day = (iso: string) => new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 
+// Live data on every request: open jobs and on-chain records change constantly.
+export const dynamic = "force-dynamic";
+
 export default async function PublicProfile({ params }: { params: Promise<{ tag: string }> }) {
   const { tag } = await params;
   const profile = await loadProfile(decodeURIComponent(tag)).catch(() => null);
