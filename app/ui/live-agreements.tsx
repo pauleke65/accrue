@@ -64,7 +64,10 @@ export function LiveAgreements({
   onOpenChange,
   initialCreating = false,
   offer = null,
+  seedDraft,
 }: {
+  /** A pre-filled job, e.g. from the role walkthrough. */
+  seedDraft?: Draft;
   /** A taken hiring link to turn into a real job. */
   offer?: { token: string; draft: Draft; takenBy: string } | null;
   /** Set when Home sends someone straight to the builder; Home has already
@@ -82,7 +85,7 @@ export function LiveAgreements({
   const open = openId !== undefined ? openId : localOpen;
   const setOpen = onOpenChange ?? setLocalOpen;
   const [creating, setCreating] = useState(initialCreating);
-  const [initialDraft, setInitialDraft] = useState<Draft | undefined>(offer?.draft);
+  const [initialDraft, setInitialDraft] = useState<Draft | undefined>(offer?.draft ?? seedDraft);
   const offers = useOffers();
   const [profileTag, setProfileTag] = useState<{ tag: string; address?: string | null } | null>(null);
   const [filter, setFilter] = useState("all");

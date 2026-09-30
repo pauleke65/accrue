@@ -22,13 +22,14 @@ import { useLiveAgreements } from "../use-live-agreements";
 import { offerUrl, useOffers, type Offer } from "../use-offers";
 import { useWallet } from "../wallet-context";
 import { useTagGate } from "./tag-gate";
+import { DemoGuide, DemoInvite } from "./demo-guide";
 
 /** A hiring link someone took, carried into the builder to become a job. */
 export type TakenOffer = { token: string; kind: JobKind; takenBy: string; draft: Record<string, unknown> };
 
 export type HomeIntent =
   | { type: "open"; kind: JobKind; id: string }
-  | { type: "create"; kind: JobKind; offer?: TakenOffer };
+  | { type: "create"; kind: JobKind; offer?: TakenOffer; draft?: Record<string, unknown> };
 
 /** One line in "Needs you" or "Waiting on others", from a job or a hiring link. */
 type Row = { key: string; owner: "you" | "waiting"; meta: string; action: string; detail: string; cta: string; onOpen: () => void };
@@ -239,6 +240,8 @@ function SignedInHome({ onIntent }: { onIntent: (intent: HomeIntent) => void }) 
         </button>
       </header>
 
+      {wallet.demoRoles && <DemoGuide agreements={live.agreements} onIntent={onIntent} />}
+
       <section className="home-balances" aria-label="Your money">
         <div><span>Wallet</span><strong>{wallet.ausdBalance === null ? "—" : formatAmount(wallet.ausdBalance)}</strong><small>{token.symbol} you can spend</small></div>
         <div><span>Locked in escrow</span><strong>{formatAmount(inEscrow)}</strong><small>{token.symbol} you funded, not yet paid out</small></div>
@@ -247,7 +250,7 @@ function SignedInHome({ onIntent }: { onIntent: (intent: HomeIntent) => void }) 
         </div>
       </section>
 
-      {!setupDone && (
+      {!setupDone && !wallet.demoRoles && (
         <section className="home-panel" aria-labelledby="home-setup-title">
           <div className="home-panel-head">
             <h2 id="home-setup-title">Get set up</h2>
@@ -323,6 +326,8 @@ function SignedInHome({ onIntent }: { onIntent: (intent: HomeIntent) => void }) 
           </button>
         </div>
       </section>
+
+      {!wallet.demoRoles && <DemoInvite />}
     </div>
   );
 }

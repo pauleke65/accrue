@@ -54,15 +54,15 @@ export default function Accrue() {
   // Which escrow the Jobs page shows, and whether Home asked it to open the
   // builder or one job. The nonce remounts the page so that request applies.
   const [jobKind, setJobKind] = useState<JobKind>("proof");
-  const [jobIntent, setJobIntent] = useState<{ create: boolean; openId: string | null; offer: TakenOffer | null; nonce: number }>({ create: false, openId: null, offer: null, nonce: 0 });
+  const [jobIntent, setJobIntent] = useState<{ create: boolean; openId: string | null; offer: TakenOffer | null; draft: Record<string, unknown> | null; nonce: number }>({ create: false, openId: null, offer: null, draft: null, nonce: 0 });
   // A hiring link someone opened, shown over whatever page they land on.
   const [offerToken, setOfferToken] = useState<string | null>(null);
 
   /** Opens the Jobs page on one job, or on a job type's builder. */
-  const goToJobs = (kind: JobKind, target: { openId?: string; create?: boolean; offer?: TakenOffer } = {}) => {
+  const goToJobs = (kind: JobKind, target: { openId?: string; create?: boolean; offer?: TakenOffer; draft?: Record<string, unknown> } = {}) => {
     setJobKind(kind);
     if (kind === "milestone") setOpenJob(target.openId ?? null);
-    setJobIntent((prev) => ({ create: !!target.create, openId: target.openId ?? null, offer: target.offer ?? null, nonce: prev.nonce + 1 }));
+    setJobIntent((prev) => ({ create: !!target.create, openId: target.openId ?? null, offer: target.offer ?? null, draft: target.draft ?? null, nonce: prev.nonce + 1 }));
     navigate("jobs");
   };
   const {
@@ -228,7 +228,7 @@ export default function Accrue() {
                   onIntent={(intent: HomeIntent) =>
                     intent.type === "open"
                       ? goToJobs(intent.kind, { openId: intent.id })
-                      : goToJobs(intent.kind, { create: true, offer: intent.offer })}
+                      : goToJobs(intent.kind, { create: true, offer: intent.offer, draft: intent.draft })}
                 />
               )}
               {page === "jobs" && (
@@ -245,7 +245,7 @@ export default function Accrue() {
                           aria-selected={jobKind === id}
                           onClick={() => {
                             setJobKind(id);
-                            setJobIntent((prev) => ({ create: false, openId: null, offer: null, nonce: prev.nonce + 1 }));
+                            setJobIntent((prev) => ({ create: false, openId: null, offer: null, draft: null, nonce: prev.nonce + 1 }));
                             if (id === "milestone") setOpenJob(null);
                           }}
                         >
@@ -267,6 +267,7 @@ export default function Accrue() {
                       openId={openJob}
                       onOpenChange={setOpenJob}
                       initialCreating={jobIntent.create}
+                      seedDraft={(jobIntent.draft as unknown as Draft) ?? undefined}
                       offer={jobIntent.offer?.kind === "milestone" ? { token: jobIntent.offer.token, takenBy: jobIntent.offer.takenBy, draft: jobIntent.offer.draft as unknown as Draft } : null}
                     />
                   )}

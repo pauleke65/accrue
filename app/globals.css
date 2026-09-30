@@ -2647,3 +2647,29 @@ div.home-action { cursor: default; }
   .hiring-link-copy { flex-direction: column; }
   .hiring-link-done { padding: 22px 18px; }
 }
+
+/* Role walkthrough. */
+.demo-invite { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 16px; align-items: center; padding: 20px; }
+.demo-invite > svg { color: var(--m-purple-300); }
+.demo-invite h2 { font-size: 16px; margin-bottom: 4px; }
+.demo-invite p { font-size: 14px; line-height: 1.55; }
+.demo-guide { border-color: var(--m-purple-bright); }
+.demo-guide-now { padding: 14px 20px 4px; color: var(--m-ink-dim); font-size: 14px; }
+.demo-guide-now b { color: var(--m-purple-300); }
+.demo-guide > .error-banner { margin: 12px 20px 0; }
+.demo-steps { list-style: none; margin: 0; padding: 8px 0; }
+.demo-steps li { display: grid; grid-template-columns: 30px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 10px 20px; color: var(--m-ink-dim); }
+.demo-steps li.active { background: var(--m-raised); color: var(--m-ink); }
+.demo-steps li.done b { text-decoration: line-through; text-decoration-color: var(--m-ink-faint); }
+.demo-steps b { font-size: 14px; font-weight: 600; }
+.demo-steps p { margin-top: 4px; font-size: 13px; line-height: 1.55; color: var(--m-ink-dim); }
+.demo-step-icon { display: grid; place-items: center; width: 30px; height: 30px; border: 1px solid var(--m-hairline-strong); }
+.demo-steps li.done .demo-step-icon { border-color: var(--m-positive); background: var(--m-positive-bg); color: var(--m-positive); }
+.demo-steps li.active .demo-step-icon { border-color: var(--m-purple-bright); color: var(--m-purple-300); }
+.demo-steps .primary, .demo-steps .secondary { padding: 10px 14px; }
+.demo-guide-done { padding: 4px 20px 20px; font-size: 14px; line-height: 1.6; }
+@media (max-width: 760px) {
+  .demo-invite { grid-template-columns: 1fr; }
+  .demo-steps li { grid-template-columns: 30px minmax(0, 1fr); }
+  .demo-steps li > button { grid-column: 2; justify-self: start; }
+}

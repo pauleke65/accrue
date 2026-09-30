@@ -8,7 +8,7 @@ import {
   useRef,
   useState,
 } from "react";
-import type { LocalAccount } from "viem";
+import { getAddress, isAddress, type LocalAccount } from "viem";
 import {
   createWallet,
   openWallet,
@@ -20,6 +20,7 @@ import {
 } from "@/lib/mera-account";
 import { readBalance, readGasBalance, readableError } from "@/lib/ausd";
 import { participantProofMessage } from "@/lib/participant-proof";
+import { shortAddress } from "@/lib/chain";
 
 /**
  * The passkey account, shared by the whole application rather than owned by
@@ -299,6 +300,17 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   }, [role, sponsor, refresh]);
 
   const resolveTag = useCallback(async (tag: string) => {
+    // A plain address is accepted wherever an @name is, as the fields' help
+    // text promises. It resolves to itself, labelled with its @name if it
+    // has one; the role walkthrough relies on this for its own accounts.
+    const raw = tag.trim();
+    if (isAddress(raw)) {
+      const address = getAddress(raw);
+      const named = await fetch(`/api/tags?address=${address}`)
+        .then((r) => (r.ok ? (r.json() as Promise<{ tag?: string; displayName?: string }>) : null))
+        .catch(() => null);
+      return { address, displayName: named?.tag ? `@${named.tag}` : shortAddress(address) };
+    }
     const clean = tag.toLowerCase().replace(/^@/, "").trim();
     const response = await fetch(`/api/tags?tag=${encodeURIComponent(clean)}`);
     if (!response.ok) return null;
