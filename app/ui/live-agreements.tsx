@@ -5,6 +5,7 @@ import { HiringLinkDone } from "./hiring-link";
 import { useOffers } from "../use-offers";
 import { ReviewerSuggestions } from "./reviewer-suggestions";
 import { JobThread } from "./job-thread";
+import { clearDraft, loadDraft, saveDraft } from "./draft-store";
 import { milestoneActions } from "@/lib/next-actions";
 import {
   ArrowLeft,
@@ -138,6 +139,7 @@ export function LiveAgreements({
         onCreate={async (draft) => {
           const id = await live.create(draft);
           if (id !== null) {
+            clearDraft("milestone");
             if (offer) await offers.update(offer.token, "created", String(id)).catch(() => undefined);
             setCreating(false);
             setInitialDraft(undefined);
@@ -851,7 +853,9 @@ function Builder({
   error: string;
   onDismissError: () => void;
 }) {
-  const [draft, setDraft] = useState<Draft>(initialDraft ?? emptyDraft);
+  // A pre-filled job wins; otherwise pick up where this tab left off.
+  const [draft, setDraft] = useState<Draft>(() => initialDraft ?? loadDraft<Draft>("milestone") ?? emptyDraft);
+  useEffect(() => { if (!initialDraft) saveDraft("milestone", draft); }, [draft, initialDraft]);
   // Set only once someone tries to submit an incomplete form: highlighting
   // every required field red before it has even been touched would just be
   // noise, not help.
@@ -1141,6 +1145,7 @@ function Builder({
               setLinkError("");
               try {
                 setLinkToken(await onHiringLink(draft, listed));
+                clearDraft("milestone");
               } catch (cause) {
                 setLinkError(cause instanceof Error ? cause.message : "Could not create the hiring link.");
               } finally {

@@ -2762,3 +2762,8 @@ a.identity-chip:hover { border-color: var(--m-purple-bright); }
 .thread-form { display: grid; gap: 10px; }
 .thread-form .primary { justify-self: end; }
 @media (max-width: 640px) { .thread-list li { max-width: 100%; } }
+
+.session-warning { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; margin-bottom: 20px; padding: 12px 16px; border: 1px solid var(--m-caution); background: var(--m-caution-bg); }
+.session-warning p { flex: 1; min-width: 200px; font-size: 14px; }
+.session-warning svg { color: var(--m-caution); }
+.session-warning .secondary { padding: 10px 14px; }

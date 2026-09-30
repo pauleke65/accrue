@@ -15,6 +15,7 @@ import {
   BriefcaseBusiness,
   Layers,
   ScanSearch,
+  Fingerprint,
 } from "lucide-react";
 import { Send as SendPage } from "./ui/send";
 import { LiveAgreements } from "./ui/live-agreements";
@@ -206,6 +207,18 @@ export default function Accrue() {
           ))}
         </nav>
         <div className="content">
+          {/* Signing sessions end after 15 minutes and take the keys with
+              them. Warn early, and let one passkey tap start a fresh session
+              without leaving the page, so a half-written job survives. */}
+          {wallet.wallet && wallet.remaining > 0 && wallet.remaining < 120_000 && (
+            <div className="session-warning" role="status">
+              <Fingerprint size={16} aria-hidden />
+              <p>Your signing session ends in {Math.ceil(wallet.remaining / 1000)}s. Anything you&apos;re writing is kept.</p>
+              <button className="secondary" disabled={wallet.connecting} onClick={() => void wallet.connect("open")}>
+                {wallet.connecting ? "Waiting…" : "Stay signed in"}
+              </button>
+            </div>
+          )}
           {error && (
             <div role="alert" className="error-banner">
               {error}

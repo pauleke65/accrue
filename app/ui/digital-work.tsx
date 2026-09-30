@@ -7,6 +7,7 @@ import { DigitalWorkStatus } from "@/lib/digital-work-chain";
 import { digitalJobId } from "@/lib/digital-work-id";
 import { useDigitalWork, type DigitalDraft, type DigitalJob } from "../use-digital-work";
 import { useOffers } from "../use-offers";
+import { clearDraft } from "./draft-store";
 import { useWallet } from "../wallet-context";
 import { DigitalWorkBuilder } from "./digital-work-builder";
 import { DigitalWorkDetail } from "./digital-work-detail";
@@ -55,6 +56,7 @@ export function DigitalWork({ initialCreating = false, initialSelectedId = null,
       onCreate={async (draft) => {
         const id = await digital.create(draft);
         if (id) {
+          clearDraft("proof");
           // The offer has done its job; stop showing it as waiting on the client.
           if (offer) await offers.update(offer.token, "created", digitalJobId(id)).catch(() => undefined);
           setCreating(false);

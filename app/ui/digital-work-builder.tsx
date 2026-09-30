@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowLeft, Code2, FileText, GitPullRequest, Link2, ScanSearch, UserCheck } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -8,6 +8,7 @@ import { token } from "@/lib/chain";
 import { deliverableKind, parseDigitalPolicy, type DeliverableKind, type DigitalPolicy } from "@/lib/digital-work-policy";
 import type { DigitalConfig, DigitalDraft } from "../use-digital-work";
 import { HiringLinkDone } from "./hiring-link";
+import { clearDraft, loadDraft, saveDraft } from "./draft-store";
 import { ReviewerSuggestions } from "./reviewer-suggestions";
 import { useWallet } from "../wallet-context";
 
@@ -130,7 +131,10 @@ export function DigitalWorkBuilder({
   /** Set when creating the job for someone who took a hiring link. */
   takenBy?: string | null;
 }) {
-  const [form, setForm] = useState<Form>(initialDraft ? fromDraft(initialDraft) : blank);
+  // A pre-filled job (from a hiring link) wins; otherwise pick up where this
+  // tab left off, e.g. after the signing session timed out.
+  const [form, setForm] = useState<Form>(() => initialDraft ? fromDraft(initialDraft) : { ...blank, ...(loadDraft<Form>("proof") ?? {}) });
+  useEffect(() => { if (!initialDraft) saveDraft("proof", form); }, [form, initialDraft]);
   const [problem, setProblem] = useState("");
   const [linkToken, setLinkToken] = useState<string | null>(null);
   const [linking, setLinking] = useState(false);
@@ -162,6 +166,7 @@ export function DigitalWorkBuilder({
       setLinking(true);
       try {
         setLinkToken(await onHiringLink(form.title, draft, listed));
+        clearDraft("proof");
       } catch (cause) {
         setProblem(cause instanceof Error ? cause.message : "Could not create the hiring link.");
       } finally {
