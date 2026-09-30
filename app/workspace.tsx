@@ -51,6 +51,14 @@ export default function Accrue() {
   // builder or one job. The nonce remounts the page so that request applies.
   const [jobKind, setJobKind] = useState<JobKind>("proof");
   const [jobIntent, setJobIntent] = useState<{ create: boolean; openId: string | null; nonce: number }>({ create: false, openId: null, nonce: 0 });
+
+  /** Opens the Jobs page on one job, or on a job type's builder. */
+  const goToJobs = (kind: JobKind, target: { openId?: string; create?: boolean } = {}) => {
+    setJobKind(kind);
+    if (kind === "milestone") setOpenJob(target.openId ?? null);
+    setJobIntent((prev) => ({ create: !!target.create, openId: target.openId ?? null, nonce: prev.nonce + 1 }));
+    navigate("jobs");
+  };
   const {
     page,
     loading,
@@ -205,16 +213,10 @@ export default function Accrue() {
             <>
               {page === "home" && (
                 <Home
-                  onIntent={(intent: HomeIntent) => {
-                    setJobKind(intent.kind);
-                    if (intent.kind === "milestone" && intent.type === "open") setOpenJob(intent.id);
-                    setJobIntent((prev) => ({
-                      create: intent.type === "create",
-                      openId: intent.type === "open" ? intent.id : null,
-                      nonce: prev.nonce + 1,
-                    }));
-                    navigate("jobs");
-                  }}
+                  onIntent={(intent: HomeIntent) =>
+                    intent.type === "open"
+                      ? goToJobs(intent.kind, { openId: intent.id })
+                      : goToJobs(intent.kind, { create: true })}
                 />
               )}
               {page === "jobs" && (
@@ -258,22 +260,10 @@ export default function Accrue() {
               )}
               {page === "send" && <SendPage />}
               {page === "earnings" && (
-                <LiveEarnings
-                  onOpen={(id) => {
-                    setJobKind("milestone");
-                    navigate("jobs");
-                    setOpenJob(id);
-                  }}
-                />
+                <LiveEarnings onOpen={(id, kind) => goToJobs(kind, { openId: id })} />
               )}
               {page === "activity" && (
-                <LiveActivity
-                  onOpen={(id) => {
-                    setJobKind("milestone");
-                    navigate("jobs");
-                    setOpenJob(id);
-                  }}
-                />
+                <LiveActivity onOpen={(id, source) => goToJobs(source, { openId: id })} />
               )}
               {page === "integrations" && <Connections />}
             </>

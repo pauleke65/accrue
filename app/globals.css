@@ -2593,3 +2593,5 @@ h3 {
   .topbar-brand { display: flex; }
   .topbar { min-height: 64px; }
 }
+
+.section-heading { margin: 34px 0 14px; font-size: 16px; }
