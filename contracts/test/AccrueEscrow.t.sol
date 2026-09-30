@@ -246,4 +246,91 @@ contract AccrueTest {
         escrow.refund(id);
         invariantCheck();
     }
+
+    // ---- Version 2: the review window and pay-on-silence ----
+
+    function submitFirst() internal {
+        vm.prank(worker);
+        escrow.submitEvidence(id, 0, evidence);
+    }
+
+    function testSilencePaysAfterWindow() public {
+        fund();
+        submitFirst();
+        vm.expectRevert();
+        escrow.payOnSilence(id);
+        vm.warp(block.timestamp + 5 days);
+        vm.prank(stranger);
+        escrow.payOnSilence(id);
+        AccrueEscrow.Agreement memory a = escrow.getAgreement(id);
+        require(a.workerEarned == 10000 && a.verifierEarned == 0, "wrong split");
+        require(a.nextMilestone == 1, "did not advance");
+        invariantCheck();
+    }
+
+    function testCannotSendBackAfterWindow() public {
+        fund();
+        submitFirst();
+        vm.warp(block.timestamp + 5 days);
+        vm.prank(verifier);
+        vm.expectRevert();
+        escrow.requestChanges(id, 0, evidence, keccak256("too late"));
+    }
+
+    function testLateApprovalBeforeExpiryStillPays() public {
+        fund();
+        submitFirst();
+        vm.warp(block.timestamp + 6 days);
+        vm.prank(verifier);
+        escrow.approve(id, 0, evidence);
+        require(escrow.getAgreement(id).verifierEarned == 300, "decision not paid");
+        invariantCheck();
+    }
+
+    function testRefundWaitsForOpenWindowThenPaysSilence() public {
+        fund();
+        vm.warp(escrow.getAgreement(id).expiry - 1 days);
+        submitFirst();
+        vm.warp(escrow.getAgreement(id).expiry);
+        vm.expectRevert();
+        escrow.refund(id);
+        // The late submission still gets its full window past expiry.
+        vm.warp(escrow.getAgreement(id).expiry + 5 days);
+        escrow.refund(id);
+        AccrueEscrow.Agreement memory a = escrow.getAgreement(id);
+        require(a.workerEarned == 10000, "delivered work not paid");
+        require(a.refunded == 10600, "wrong refund");
+        invariantCheck();
+    }
+
+    function testApprovalPastExpiryInsideWindow() public {
+        fund();
+        vm.warp(escrow.getAgreement(id).expiry - 1 hours);
+        submitFirst();
+        vm.warp(escrow.getAgreement(id).expiry + 1 days);
+        vm.prank(verifier);
+        escrow.approve(id, 0, evidence);
+        require(escrow.getAgreement(id).workerEarned == 10000, "late approval failed");
+        invariantCheck();
+    }
+
+    function testCancellationSkipsSilencePay() public {
+        fund();
+        submitFirst();
+        escrow.consentCancellation(id);
+        vm.prank(worker);
+        escrow.consentCancellation(id);
+        vm.prank(verifier);
+        escrow.consentCancellation(id);
+        vm.warp(block.timestamp + 5 days);
+        vm.expectRevert();
+        escrow.payOnSilence(id);
+        escrow.refund(id);
+        require(escrow.getAgreement(id).refunded == 20600, "cancelled job paid out");
+        invariantCheck();
+    }
+
+    function testRulesVersion() public view {
+        require(escrow.rulesVersion() == 2, "version");
+    }
 }

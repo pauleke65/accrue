@@ -143,4 +143,82 @@ contract AccrueDigitalWorkTest {
         vm.expectRevert();
         work.create(WORKER, verifiers, 1_000, 90, uint64(block.timestamp + 1 days), uint64(block.timestamp + 2 days), POLICY);
     }
+
+    // ---- Version 2: silence is not a no, and cancellation by agreement ----
+
+    function testSilencePaysWorker() public {
+        fundAndSubmit();
+        vm.warp(block.timestamp + 2 days + 1);
+        work.expire(id);
+        require(work.getJob(id).status == AccrueDigitalWork.Status.Paid, "silence did not pay");
+        require(work.claimable(WORKER) == 1_000, "worker not paid");
+        require(work.claimable(address(this)) == 90, "unearned fees not returned");
+    }
+
+    function testOnePassAndNoFailPaysAtDeadline() public {
+        fundAndSubmit();
+        voteAs(JEV_OPERATOR, true, EVIDENCE);
+        vm.warp(block.timestamp + 2 days + 1);
+        work.expire(id);
+        require(work.getJob(id).status == AccrueDigitalWork.Status.Paid, "not paid");
+        require(work.claimable(WORKER) == 1_000 && work.claimable(JEV_OPERATOR) == 30, "wrong split");
+        require(work.claimable(address(this)) == 60, "wrong fee return");
+    }
+
+    function testNothingSubmittedRefundsInFull() public {
+        vm.prank(WORKER);
+        work.accept(id, POLICY);
+        work.fund(id);
+        vm.warp(block.timestamp + 2 days + 1);
+        work.expire(id);
+        require(work.getJob(id).status == AccrueDigitalWork.Status.Refunded, "not refunded");
+        require(work.claimable(address(this)) == 1_090, "wrong refund");
+        require(work.claimable(WORKER) == 0, "paid for nothing");
+    }
+
+    function testCancelAfterFundingNeedsBoth() public {
+        vm.prank(WORKER);
+        work.accept(id, POLICY);
+        work.fund(id);
+        work.cancel(id);
+        require(work.getJob(id).status == AccrueDigitalWork.Status.Funded, "one side cancelled");
+        vm.expectRevert();
+        work.cancel(id);
+        vm.prank(WORKER);
+        work.cancel(id);
+        require(work.getJob(id).status == AccrueDigitalWork.Status.Cancelled, "not cancelled");
+        require(work.claimable(address(this)) == 1_090, "wrong return");
+    }
+
+    function testCancelKeepsFeesAlreadyEarned() public {
+        fundAndSubmit();
+        voteAs(JEV_OPERATOR, false, EVIDENCE);
+        work.cancel(id);
+        vm.prank(WORKER);
+        work.cancel(id);
+        require(work.claimable(address(this)) == 1_060, "wrong return");
+        require(work.claimable(JEV_OPERATOR) == 30, "earned fee erased");
+        // A cancelled job cannot be revived by a late vote.
+        vm.prank(REVIEWER);
+        vm.expectRevert();
+        work.vote(id, EVIDENCE, true, REPORT);
+    }
+
+    function testEitherPartyCancelsADraft() public {
+        vm.prank(WORKER);
+        work.cancel(id);
+        require(work.getJob(id).status == AccrueDigitalWork.Status.Cancelled, "not cancelled");
+        vm.expectRevert();
+        work.fund(id);
+    }
+
+    function testStrangersCannotCancel() public {
+        vm.prank(REVIEWER);
+        vm.expectRevert();
+        work.cancel(id);
+    }
+
+    function testRulesVersion() public view {
+        require(work.rulesVersion() == 2, "version");
+    }
 }

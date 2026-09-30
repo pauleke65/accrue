@@ -9,8 +9,14 @@ interface IDigitalWorkToken {
 
 /// @notice One deliverable, three independent verifiers, and conditional AUSD settlement.
 /// @dev Prototype for testnet use. The token must transfer exact amounts without rebasing.
+/// Version 2 adds two rules. Silence is not a no: work submitted on time that no
+/// verifier voted down by the review deadline pays the worker, so a client cannot
+/// get delivered work for free by picking reviewers who never vote. And a funded job
+/// can be cancelled when client and worker both agree. Job and Vote layouts are
+/// unchanged from version 1, so readers of either version decode jobs the same way.
 contract AccrueDigitalWork {
-    enum Status { Draft, Funded, Submitted, NeedsChanges, Paid, Refunded }
+    // Cancelled is appended so earlier values keep their numbers.
+    enum Status { Draft, Funded, Submitted, NeedsChanges, Paid, Refunded, Cancelled }
 
     struct Job {
         address payer;
@@ -44,6 +50,8 @@ contract AccrueDigitalWork {
     mapping(uint256 => mapping(address => Vote)) public votes;
     mapping(uint256 => mapping(address => bool)) public feeEarned;
     mapping(address => uint256) public claimable;
+    /// @notice Consent to cancel a funded job: bit 1 the payer, bit 2 the worker.
+    mapping(uint256 => uint8) public cancelConsents;
 
     event JobCreated(uint256 indexed id, address indexed payer, address indexed worker, bytes32 policyHash);
     event WorkerAccepted(uint256 indexed id);
@@ -54,6 +62,8 @@ contract AccrueDigitalWork {
     event Settled(uint256 indexed id, bytes32 evidenceHash, uint256 workerAmount);
     event Refunded(uint256 indexed id, uint256 payerAmount);
     event Withdrawn(address indexed beneficiary, uint256 amount);
+    event CancellationConsent(uint256 indexed id, address indexed party);
+    event Cancelled(uint256 indexed id, uint256 payerAmount);
 
     modifier lock() {
         require(!entered, "reentrancy");
@@ -165,6 +175,10 @@ contract AccrueDigitalWork {
         }
     }
 
+    /// @notice Closes a job once its review deadline has passed. Anyone may call it.
+    /// Evidence submitted on time with no fail vote on that version pays the worker:
+    /// reviewers had the whole review window to object. Otherwise the payer is refunded
+    /// the reward and every fee nobody earned.
     function expire(uint256 id) external {
         Job storage job = jobs[id];
         require(block.timestamp > job.reviewDeadline, "review still open");
@@ -172,11 +186,52 @@ contract AccrueDigitalWork {
             job.status == Status.Funded || job.status == Status.Submitted || job.status == Status.NeedsChanges,
             "not refundable"
         );
+        if (job.status == Status.Submitted && job.failVotes == 0) {
+            job.status = Status.Paid;
+            claimable[job.worker] += job.reward;
+            claimable[job.payer] += job.remainingFees;
+            job.remainingFees = 0;
+            emit Settled(id, job.evidenceHash, job.reward);
+            return;
+        }
         job.status = Status.Refunded;
         uint256 amount = uint256(job.reward) + job.remainingFees;
         job.remainingFees = 0;
         claimable[job.payer] += amount;
         emit Refunded(id, amount);
+    }
+
+    /// @notice Calls a job off. Before funding, either party may do it alone, since
+    /// nothing is held. After funding it needs both payer and worker; then the payer
+    /// is owed the reward and every fee not already earned by a verifier's vote.
+    function cancel(uint256 id) external {
+        Job storage job = jobs[id];
+        require(msg.sender == job.payer || msg.sender == job.worker, "not a party");
+        if (job.status == Status.Draft) {
+            job.status = Status.Cancelled;
+            emit Cancelled(id, 0);
+            return;
+        }
+        require(
+            job.status == Status.Funded || job.status == Status.Submitted || job.status == Status.NeedsChanges,
+            "cannot cancel"
+        );
+        uint8 bit = msg.sender == job.payer ? 1 : 2;
+        require(cancelConsents[id] & bit == 0, "already consented");
+        cancelConsents[id] |= bit;
+        emit CancellationConsent(id, msg.sender);
+        if (cancelConsents[id] == 3) {
+            job.status = Status.Cancelled;
+            uint256 amount = uint256(job.reward) + job.remainingFees;
+            job.remainingFees = 0;
+            claimable[job.payer] += amount;
+            emit Cancelled(id, amount);
+        }
+    }
+
+    /// @notice 1 for the original rules; 2 adds pay-on-silence and cancellation.
+    function rulesVersion() external pure returns (uint256) {
+        return 2;
     }
 
     function withdraw() external lock {
