@@ -1,4 +1,43 @@
-# Accrue Proof Engine walkthrough
+# Demo: hire, prove, pay in three minutes
+
+Everything below runs on Monad testnet with test AUSD. Nothing is simulated:
+each step is a transaction you can open on the explorer, and the app shows
+how long each one took to confirm (typically under a second).
+
+## The three-minute path for a judge
+
+One person can play every side. A passkey derives a client, a worker and a
+reviewer account, and a guided walkthrough switches between them.
+
+| # | Where | What you do | What to notice |
+| --- | --- | --- | --- |
+| 1 | `/` | Read the hero and scroll to Scenarios | The story: hire for digital work, pay when it's proven done |
+| 2 | `/app` | Create an account (one passkey prompt) | No seed phrase, no extension, no gas to buy |
+| 3 | Home | "Start the walkthrough", then "Claim test funds" | 10,000 test AUSD in a few seconds; the network fee is sponsored |
+| 4 | Walkthrough | "Open the job form", then "Create job" | A two-stage job, already filled in with your worker and reviewer accounts |
+| 5 | Walkthrough | Accept as worker, then as reviewer; fund as client | Funding is blocked until everyone accepted the exact terms |
+| 6 | Walkthrough | Submit the first stage as worker | The note lands in the job's messages; its hash is on chain |
+| 7 | Walkthrough | Approve as reviewer (or "Send back with notes") | Approval pays worker and reviewer in one transaction |
+| 8 | Walkthrough | Withdraw as worker | The second stage's money is still locked, safe for the client |
+
+Watch the bottom-right corner after each step: "Confirmed on Monad in 311 ms".
+
+## Then look around
+
+- **Hiring links and the job board.** Create a proof-checked job without a worker. You get a link, and with the box ticked it appears on [`/jobs`](http://localhost:5173/jobs). Whoever takes it shows up on your Home as "Create the job for @name", with the form filled in.
+- **Proof Engine.** A proof-checked job can require a live web page containing agreed text, a GitHub pull request merged into your repository, or an API returning agreed data. It runs as soon as the worker submits. If its AI model is unavailable, the checks still stand and the reviewers decide, and the report says why.
+- **Verified work.** `/u/<name>` is a public record of someone's paid jobs and review decisions, read from the chain, with job titles kept private.
+- **Reviewer pool.** Anyone can offer to review for a fee from Home. The job forms suggest them.
+
+## If something goes wrong in a live demo
+
+- **A step seems stuck:** Refresh on Home re-reads the chain; state lives in the contracts, not the page.
+- **Signed out mid-demo:** signing sessions last 15 minutes, and a banner offers "Stay signed in" two minutes before the end. Half-written job forms are kept.
+- **Proof Engine says the AI review didn't run:** that's the provider, not the job. The reviewers can still decide.
+
+---
+
+## The recorded run: proof-checked job #6
 
 [Watch the 70-second product video](./videos/accrue-verifiable-work/renders/video.mp4) or [follow job #6 step by step](./public/demo.html). The recording shows real use of Accrue on Monad testnet. It uses test AUSD, a live public API, a real AI provider response, and on-chain agreement, vote, settlement, and withdrawal transactions.
 
