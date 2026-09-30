@@ -5,14 +5,28 @@ import { UserPlus } from "lucide-react";
 
 export type PoolReviewer = { address: string; tag: string; displayName: string; skills: string };
 
-/** Everyone who has joined the reviewer pool. Cached per page load. */
-let cached: Promise<PoolReviewer[]> | null = null;
+/**
+ * Everyone who has joined the reviewer pool. Shared by the forms and Home for
+ * a short while, so opening a form doesn't refetch, but a pool that changed
+ * (someone joined a minute ago) shows up the next time a form opens.
+ */
+let cached: { at: number; list: Promise<PoolReviewer[]> } | null = null;
+const FRESH_MS = 15_000;
 export function loadReviewerPool(): Promise<PoolReviewer[]> {
-  cached ??= fetch("/api/reviewers")
-    .then((r) => (r.ok ? (r.json() as Promise<{ reviewers: PoolReviewer[] }>) : { reviewers: [] }))
-    .then((d) => d.reviewers)
-    .catch(() => []);
-  return cached;
+  if (!cached || Date.now() - cached.at > FRESH_MS)
+    cached = {
+      at: Date.now(),
+      list: fetch("/api/reviewers", { cache: "no-store" })
+        .then((r) => (r.ok ? (r.json() as Promise<{ reviewers: PoolReviewer[] }>) : { reviewers: [] }))
+        .then((d) => d.reviewers)
+        .catch(() => []),
+    };
+  return cached.list;
+}
+
+/** Call after joining or leaving so the next read is fresh. */
+export function forgetReviewerPool(): void {
+  cached = null;
 }
 
 /**

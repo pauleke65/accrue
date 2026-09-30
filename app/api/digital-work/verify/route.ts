@@ -7,7 +7,7 @@ import { chain, network } from "@/lib/chain";
 import { readAuthorizedDigitalJob } from "@/lib/digital-work-access";
 import { digitalWorkAbi, DigitalWorkStatus } from "@/lib/digital-work-chain";
 import { parseDigitalManifest, parseDigitalPolicy } from "@/lib/digital-work-policy";
-import { assessWithJev, runChecks } from "@/lib/jev-verifier";
+import { assessWithJev, assessWithoutAi, runChecks } from "@/lib/jev-verifier";
 import { parseProofsParam, type ParticipantProof } from "@/lib/live-agreements-access";
 import { authorize, database, failure, HttpError } from "@/lib/server";
 
@@ -131,7 +131,14 @@ export async function POST(request: Request) {
       const policy = parseDigitalPolicy(JSON.parse(row.policy_json));
       const manifest = parseDigitalManifest(JSON.parse(submission.manifest_json));
       const checks = await runChecks(policy, manifest);
-      const jev = await assessWithJev(policy, checks);
+      let jev;
+      try {
+        jev = await assessWithJev(policy, checks);
+      } catch (cause) {
+        // Retry later on a rate limit; otherwise let the checks stand alone.
+        if (!(cause instanceof HttpError) || cause.status === 429) throw cause;
+        jev = assessWithoutAi(checks, cause.message);
+      }
       const report = {
         onchainId: body.onchainId,
         version: body.version,

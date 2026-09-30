@@ -104,7 +104,10 @@ export function DigitalWorkDetail({
   // version per visit; the server's lock stops duplicates across visitors.
   const autoReviewed = useRef<number | null>(null);
   const submittedVersion = job.chain.status === DigitalWorkStatus.submitted ? job.chain.version : null;
-  const needsReview = submittedVersion !== null && !!currentSubmission && !currentRun && !reviewExpired;
+  // No review yet, or one that failed (the server allows a retry a minute on).
+  const needsReview = submittedVersion !== null && !!currentSubmission && !reviewExpired &&
+    (!currentRun || (currentRun.state === "failed" && !currentRun.report &&
+      Date.now() - new Date(currentRun.updatedAt).getTime() > 60_000));
   useEffect(() => {
     if (!needsReview || autoReviewed.current === submittedVersion || digital.busy) return;
     autoReviewed.current = submittedVersion;
@@ -171,7 +174,7 @@ export function DigitalWorkDetail({
         </section>
       </div>
 
-      {job.chain.status === DigitalWorkStatus.draft && <section className="action-banner"><div><h3>{job.chain.workerAccepted ? "The worker accepted." : "The worker must accept."}</h3><p>The payer funds {formatAmount(job.chain.reward + job.chain.feePool)} {token.symbol} only after the worker accepts the policy hash.</p></div><div className="milestone-actions">{isWorker && !job.chain.workerAccepted && <button className="primary" disabled={digital.busy} onClick={() => void doAction(() => digital.accept(job))}>Accept policy</button>}{isPayer && job.chain.workerAccepted && <button className="primary" disabled={digital.busy} onClick={() => void doAction(() => digital.fund(job))}>Fund job</button>}</div></section>}
+      {job.chain.status === DigitalWorkStatus.draft && <section className="action-banner"><div><h3>{job.chain.workerAccepted ? "The worker accepted." : "The worker must accept."}</h3><p>The payer funds {formatAmount(job.chain.reward + job.chain.feePool)} {token.symbol} only after the worker accepts the policy hash.</p></div><div className="milestone-actions">{isWorker && !job.chain.workerAccepted && <button className="primary" disabled={digital.busy} onClick={() => void doAction(() => digital.accept(job))}>Accept these terms</button>}{isPayer && job.chain.workerAccepted && <button className="primary" disabled={digital.busy} onClick={() => void doAction(() => digital.fund(job))}>Fund job</button>}</div></section>}
 
       {(job.chain.status === DigitalWorkStatus.funded || job.chain.status === DigitalWorkStatus.needsChanges) && <section className="panel dw-action-card"><div className="dw-section-head"><span>03</span><div><h2>{job.chain.status === DigitalWorkStatus.needsChanges ? "Submit corrected work" : "Submit the work"}</h2><p>{kind === "webpage" ? "Link the live page." : kind === "pull_request" ? "Link the pull request." : "Pin the public commit and deployment."} Its fingerprint goes on chain, so it can&apos;t change during review.</p></div></div>{isWorker ? <div className="form-stack">
         {kind === "webpage" && <label>Link to the live page<Input type="url" value={evidence.pageUrl} onChange={(event) => setEvidence({ ...evidence, pageUrl: event.target.value })} placeholder="https://yoursite.com/pricing" /><small className="field-hint">Must be public HTTPS and contain &ldquo;{policy.requiredText}&rdquo;.</small></label>}

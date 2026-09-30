@@ -20,7 +20,27 @@ export type JevAssessment = {
   requirementsProbability: number;
   reviewProbability: number;
   recommendation: "pass" | "fail" | "manual_review";
+  /** Set when the AI model could not be reached; the probabilities are then 0 and unused. */
+  unavailable?: string;
 };
+
+/**
+ * Proof Engine without its AI: when the model is not configured, out of
+ * credits or erroring, the checks still stand on their own. A check that
+ * fails is a fact, so the engine still votes fail; checks that all pass are
+ * not enough to pay on, so it steps aside and the reviewers decide, with the
+ * reason on the report. A rate limit is not handled here: it is retried.
+ */
+export function assessWithoutAi(report: CheckReport, reason: string): JevAssessment {
+  const allPassed = checkItems(report).every((item) => item.passed);
+  return {
+    model: "unavailable",
+    requirementsProbability: 0,
+    reviewProbability: 0,
+    recommendation: allPassed ? "manual_review" : "fail",
+    unavailable: reason,
+  };
+}
 
 async function invokeJev(state: unknown): Promise<unknown> {
   const questions = {

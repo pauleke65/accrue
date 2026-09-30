@@ -81,7 +81,7 @@ export type DigitalRun = {
   state: string;
   report: {
     checks: CheckReport;
-    jev: { model: string; requirementsProbability: number; reviewProbability: number; recommendation: string };
+    jev: { model: string; requirementsProbability: number; reviewProbability: number; recommendation: string; unavailable?: string };
   } | null;
   reportHash: `0x${string}` | null;
   voteTx: `0x${string}` | null;

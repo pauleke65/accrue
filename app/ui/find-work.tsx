@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { ArrowUpRight, BriefcaseBusiness, Scale } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useWallet } from "../wallet-context";
-import { loadReviewerPool } from "./reviewer-suggestions";
+import { forgetReviewerPool, loadReviewerPool } from "./reviewer-suggestions";
 import { useTagGate } from "./tag-gate";
 
 /**
@@ -45,6 +45,7 @@ export function FindWork() {
       const data = (await response.json()) as { error?: string };
       if (!response.ok) throw new Error(data.error ?? "That did not save.");
       setJoined(method === "PUT" ? skills.trim() : null);
+      forgetReviewerPool();
     } catch (e) {
       setError(e instanceof Error ? e.message : "That did not save.");
     } finally {

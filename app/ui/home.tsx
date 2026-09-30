@@ -23,6 +23,7 @@ import { useLiveAgreements } from "../use-live-agreements";
 import { offerUrl, useOffers, type Offer } from "../use-offers";
 import { useWallet } from "../wallet-context";
 import { useTagGate } from "./tag-gate";
+import { devSignInAvailable } from "@/lib/mera-account";
 import { DemoGuide, DemoInvite } from "./demo-guide";
 import { FindWork } from "./find-work";
 
@@ -68,6 +69,16 @@ export function SignInCard() {
         </button>
       </div>
       {!wallet.available && <p className="muted">This browser cannot create passkeys. Try a recent Chrome, Safari or Edge.</p>}
+      {devSignInAvailable() && (
+        <div className="dev-signin">
+          <span className="mono-label">Developer sign-in · localhost only</span>
+          <div>
+            {["client", "worker", "reviewer-1", "reviewer-2"].map((p) => (
+              <button key={p} className="text-button" disabled={wallet.connecting} onClick={() => void wallet.connect(`dev:${p}`)}>Test {p}</button>
+            ))}
+          </div>
+        </div>
+      )}
       {wallet.error && (
         <div role="alert" className="error-banner">
           {wallet.error}
@@ -194,7 +205,21 @@ function SignedInHome({ onIntent, onCount }: { onIntent: (intent: HomeIntent) =>
     return null;
   };
 
-  const rows = [...offers.offers.map(offerRow).filter((r): r is Row => r !== null), ...actions.map(jobRow)];
+  // Proof-checked pay, fees and refunds pool into one balance per account
+  // rather than sitting on a job, so no job row covers taking them out.
+  const withdrawRow: Row | null = digital.claimable > 0n ? {
+    key: "withdraw-proof", owner: "you", meta: "Proof-checked jobs · pay, review fees and refunds",
+    action: `Withdraw ${formatAmount(digital.claimable)} ${token.symbol}`,
+    detail: "Approved pay collects here until you take it out. One withdrawal moves it all to your wallet.",
+    cta: digital.busy ? "Withdrawing…" : "Withdraw",
+    onOpen: () => { if (!digital.busy) void digital.withdraw(); },
+  } : null;
+
+  const rows = [
+    ...(withdrawRow ? [withdrawRow] : []),
+    ...offers.offers.map(offerRow).filter((r): r is Row => r !== null),
+    ...actions.map(jobRow),
+  ];
   const yours = rows.filter((r) => r.owner === "you");
   const waiting = rows.filter((r) => r.owner === "waiting");
   const yourKeys = yours.map((r) => r.key).join("|");
@@ -369,7 +394,7 @@ function SignedInHome({ onIntent, onCount }: { onIntent: (intent: HomeIntent) =>
           <button className="home-start-card" onClick={() => start("proof")} disabled={!digital.config?.contractAddress || !digital.config?.jevAddress}>
             <ScanSearch size={22} aria-hidden />
             <b>Proof-checked job</b>
-            <p>One deliverable with a testable outcome, like an API. Automated checks and two reviewers decide, and payment releases on two of three pass votes.</p>
+            <p>One deliverable with a checkable result: a live web page, merged code, or a working API. Proof Engine and two reviewers decide; two of three pass votes release payment.</p>
             <span>{digital.config && (!digital.config.contractAddress || !digital.config.jevAddress) ? "Not configured on this deployment" : "Create"} <ArrowRight size={14} aria-hidden /></span>
           </button>
           <button className="home-start-card" onClick={() => start("milestone")}>

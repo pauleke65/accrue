@@ -32,15 +32,29 @@ export function ProofEngineReport({ run, provider }: { run: DigitalRun; provider
         ))}
       </div>
 
-      <div className="dw-proof-signals">
-        <div className="dw-proof-signal"><div><span>Requirements confidence</span><strong>{requirements}%</strong></div><div className="dw-proof-bar"><span style={{ width: `${requirements}%` }} /></div></div>
-        <div className="dw-proof-signal"><div><span>Human review need</span><strong>{review}%</strong></div><div className="dw-proof-bar review"><span style={{ width: `${review}%` }} /></div><small>Agreement limit: 10%</small></div>
-      </div>
+      {jev.unavailable ? (
+        <div className={`dw-proof-conclusion ${reviewNeeded ? "needs-review" : "failed"}`}>
+          <strong>{reviewNeeded ? "The checks passed; the AI review didn't run." : "A check failed, so the engine voted fail."}</strong>
+          <p>
+            {reviewNeeded
+              ? "Proof Engine couldn't reach its AI model, and passing checks alone aren't enough to pay on, so it stepped aside. The two named reviewers decide."
+              : "A failed check is a fact, so no AI opinion was needed. The worker can fix it and resubmit before the delivery deadline."}
+            {" "}<span className="muted">({jev.unavailable})</span>
+          </p>
+        </div>
+      ) : (
+        <>
+          <div className="dw-proof-signals">
+            <div className="dw-proof-signal"><div><span>Requirements confidence</span><strong>{requirements}%</strong></div><div className="dw-proof-bar"><span style={{ width: `${requirements}%` }} /></div></div>
+            <div className="dw-proof-signal"><div><span>Human review need</span><strong>{review}%</strong></div><div className="dw-proof-bar review"><span style={{ width: `${review}%` }} /></div><small>Agreement limit: 10%</small></div>
+          </div>
 
-      <div className={`dw-proof-conclusion ${reviewNeeded ? "needs-review" : jev.recommendation === "pass" ? "passed" : "failed"}`}>
-        <strong>{reviewNeeded ? "The engine abstained." : jev.recommendation === "pass" ? "The automated reviewer voted pass." : "The automated reviewer voted fail."}</strong>
-        <p>{reviewNeeded ? `Human review need is ${review}%, above the agreement’s 10% limit. Two named reviewers can decide the result.` : "The result follows the threshold locked into this agreement before funding."}</p>
-      </div>
+          <div className={`dw-proof-conclusion ${reviewNeeded ? "needs-review" : jev.recommendation === "pass" ? "passed" : "failed"}`}>
+            <strong>{reviewNeeded ? "The engine abstained." : jev.recommendation === "pass" ? "The automated reviewer voted pass." : "The automated reviewer voted fail."}</strong>
+            <p>{reviewNeeded ? `Human review need is ${review}%, above the agreement’s 10% limit. Two named reviewers can decide the result.` : "The result follows the threshold locked into this agreement before funding."}</p>
+          </div>
+        </>
+      )}
       {checks.error && <p className="dw-proof-error">Check error: {checks.error}</p>}
       <details className="dw-proof-technical"><summary>Technical record</summary><p>Model: {jev.model} · Provider: {provider}</p>{run.reportHash && <p>Report hash: {run.reportHash}</p>}{run.voteTx && <a href={explorer.tx(run.voteTx)} target="_blank" rel="noreferrer noopener">View automated vote on Monad <ArrowUpRight size={13} /></a>}</details>
     </section>

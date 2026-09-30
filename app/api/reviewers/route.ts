@@ -28,7 +28,7 @@ export async function GET() {
       .all<ReviewerRow>();
     return Response.json({
       reviewers: result.results.map((r) => ({ address: r.address, tag: r.tag, displayName: r.display_name, skills: r.skills })),
-    }, { headers: { "Cache-Control": "public, max-age=30" } });
+    }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     return failure(error);
   }

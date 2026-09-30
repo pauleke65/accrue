@@ -2771,3 +2771,5 @@ a.identity-chip:hover { border-color: var(--m-purple-bright); }
 .cancel-panel h3 { margin-bottom: 4px; }
 .cancel-panel p { font-size: 14px; max-width: 60ch; }
 .review-window { flex-basis: 100%; }
+.dev-signin { margin-top: 20px; padding: 12px 14px; border: 1px dashed var(--m-caution); }
+.dev-signin > div { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 6px; }

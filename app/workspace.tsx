@@ -57,10 +57,6 @@ export default function Accrue() {
   const [jobKind, setJobKind] = useState<JobKind>("proof");
   const [jobIntent, setJobIntent] = useState<{ create: boolean; openId: string | null; offer: TakenOffer | null; draft: Record<string, unknown> | null; nonce: number }>({ create: false, openId: null, offer: null, draft: null, nonce: 0 });
   // How many things need this person, as Home last counted them.
-  const [needsYou, setNeedsYou] = useState(0);
-  useEffect(() => {
-    document.title = needsYou > 0 ? `(${needsYou}) Accrue` : "Accrue — Verified payments";
-  }, [needsYou]);
   // A hiring link someone opened, shown over whatever page they land on.
   const [offerToken, setOfferToken] = useState<string | null>(null);
 
@@ -81,6 +77,13 @@ export default function Accrue() {
     refresh,
     navigate,
   } = useWorkspace();
+  // Only Home keeps this count current, so it only shows while Home is open;
+  // elsewhere an old count would outlive the action that cleared it.
+  const [homeCount, setNeedsYou] = useState(0);
+  const needsYou = page === "home" ? homeCount : 0;
+  useEffect(() => {
+    document.title = needsYou > 0 ? `(${needsYou}) Accrue` : "Accrue — Verified payments";
+  }, [needsYou]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -214,7 +217,7 @@ export default function Accrue() {
             <div className="session-warning" role="status">
               <Fingerprint size={16} aria-hidden />
               <p>Your signing session ends in {Math.ceil(wallet.remaining / 1000)}s. Anything you&apos;re writing is kept.</p>
-              <button className="secondary" disabled={wallet.connecting} onClick={() => void wallet.connect("open")}>
+              <button className="secondary" disabled={wallet.connecting} onClick={() => void wallet.renew()}>
                 {wallet.connecting ? "Waiting…" : "Stay signed in"}
               </button>
             </div>
