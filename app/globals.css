@@ -2677,3 +2677,15 @@ div.home-action { cursor: default; }
 .nav-count { margin-left: auto; min-width: 20px; padding: 1px 6px; background: var(--m-purple); color: var(--m-paper); font-family: var(--m-mono); font-size: 11px; line-height: 18px; text-align: center; }
 .home-greeting-actions { display: flex; flex-wrap: wrap; gap: 4px 14px; justify-content: flex-end; }
 .home-greeting-actions .text-button { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; }
+
+.lp-hire-steps { list-style: none; margin: 0; padding: 0; border: 1px solid var(--m-hairline-strong); background: var(--m-surface); }
+.lp-hire-steps li { display: flex; gap: 16px; align-items: baseline; padding: 18px 20px; }
+.lp-hire-steps li + li { border-top: 1px solid var(--m-hairline); }
+.lp-hire-steps b { color: var(--m-purple-300); font-family: var(--m-display); font-size: 20px; font-weight: 400; }
+.lp-hire-steps span { font-size: 15px; }
+.lp-cta p { max-width: 58ch; margin-left: auto; margin-right: auto; }
+/* Five section links need desktop width; below it the page scrolls fine without them. */
+@media (max-width: 1000px) {
+  .lp-nav nav { display: none; }
+  .lp-nav-cta { margin-left: auto; }
+}
