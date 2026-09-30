@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowRight,
   AtSign,
+  Bell,
   Check,
   CheckCircle2,
   Coins,
@@ -39,11 +40,13 @@ type Row = { key: string; owner: "you" | "waiting"; meta: string; action: string
  * waiting on, how to start, and where their money is. Both escrow types feed
  * one list, so nobody has to check two pages to find out what to do next.
  */
-export function Home({ onIntent }: { onIntent: (intent: HomeIntent) => void }) {
+export function Home({ onIntent, onCount }: { onIntent: (intent: HomeIntent) => void; onCount?: (count: number) => void }) {
   const wallet = useWallet();
   if (!wallet.wallet) return <SignInCard />;
-  return <SignedInHome onIntent={onIntent} />;
+  return <SignedInHome onIntent={onIntent} onCount={onCount} />;
 }
+
+const REFRESH_MS = 90_000;
 
 export function SignInCard() {
   const wallet = useWallet();
@@ -76,7 +79,7 @@ export function SignInCard() {
   );
 }
 
-function SignedInHome({ onIntent }: { onIntent: (intent: HomeIntent) => void }) {
+function SignedInHome({ onIntent, onCount }: { onIntent: (intent: HomeIntent) => void; onCount?: (count: number) => void }) {
   const wallet = useWallet();
   const gate = useTagGate();
   const digital = useDigitalWork();
@@ -188,6 +191,44 @@ function SignedInHome({ onIntent }: { onIntent: (intent: HomeIntent) => void }) 
   const rows = [...offers.offers.map(offerRow).filter((r): r is Row => r !== null), ...actions.map(jobRow)];
   const yours = rows.filter((r) => r.owner === "you");
   const waiting = rows.filter((r) => r.owner === "waiting");
+  const yourKeys = yours.map((r) => r.key).join("|");
+  const listLoading = digital.loading || live.loading || offers.loading;
+
+  // Keep the list current while Home is open, so a turn that arrives while
+  // someone waits shows up without them reloading.
+  const { refresh: refreshDigital } = digital;
+  const { refresh: refreshLive } = live;
+  const { refresh: refreshOffers } = offers;
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      void refreshDigital();
+      void refreshLive();
+      void refreshOffers();
+    }, REFRESH_MS);
+    return () => window.clearInterval(timer);
+  }, [refreshDigital, refreshLive, refreshOffers]);
+
+  // Report the count to the shell (nav badge, tab title), and raise a
+  // browser alert for anything new while the tab is in the background.
+  const seen = useRef<Set<string> | null>(null);
+  useEffect(() => {
+    onCount?.(yours.length);
+    const keys = new Set(yourKeys ? yourKeys.split("|") : []);
+    if (seen.current && document.hidden && typeof Notification !== "undefined" && Notification.permission === "granted") {
+      const fresh = yours.filter((r) => !seen.current!.has(r.key));
+      if (fresh.length)
+        new Notification(fresh.length === 1 ? fresh[0].action : `${fresh.length} things need you on Accrue`, {
+          body: fresh.length === 1 ? fresh[0].meta : fresh.map((r) => r.action).join(" · "),
+          tag: "accrue-needs-you",
+        });
+    }
+    if (!listLoading) seen.current = keys;
+    // yourKeys stands in for the list's identity; yours itself is rebuilt every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [yourKeys, listLoading, onCount]);
+
+  const [alerts, setAlerts] = useState<NotificationPermission | "unsupported">(() =>
+    typeof Notification === "undefined" ? "unsupported" : Notification.permission);
   const jobCount = digital.jobs.length + live.agreements.length + offers.offers.length;
   const loading = digital.loading || live.loading;
 
@@ -235,9 +276,16 @@ function SignedInHome({ onIntent }: { onIntent: (intent: HomeIntent) => void }) 
               : "Hire someone, or get paid for work, with the money held in escrow."}
           </p>
         </div>
-        <button className="text-button" onClick={() => { void digital.refresh(); void live.refresh(); void wallet.refresh(); }} disabled={loading}>
-          <RefreshCw size={14} aria-hidden className={loading ? "spin" : undefined} /> Refresh
-        </button>
+        <div className="home-greeting-actions">
+          {alerts === "default" && (
+            <button className="text-button" onClick={() => { void Notification.requestPermission().then(setAlerts); }}>
+              <Bell size={14} aria-hidden /> Alert me when it&apos;s my turn
+            </button>
+          )}
+          <button className="text-button" onClick={() => { void digital.refresh(); void live.refresh(); void offers.refresh(); void wallet.refresh(); }} disabled={loading}>
+            <RefreshCw size={14} aria-hidden className={loading ? "spin" : undefined} /> Refresh
+          </button>
+        </div>
       </header>
 
       {wallet.demoRoles && <DemoGuide agreements={live.agreements} onIntent={onIntent} />}

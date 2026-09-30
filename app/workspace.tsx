@@ -55,6 +55,11 @@ export default function Accrue() {
   // builder or one job. The nonce remounts the page so that request applies.
   const [jobKind, setJobKind] = useState<JobKind>("proof");
   const [jobIntent, setJobIntent] = useState<{ create: boolean; openId: string | null; offer: TakenOffer | null; draft: Record<string, unknown> | null; nonce: number }>({ create: false, openId: null, offer: null, draft: null, nonce: 0 });
+  // How many things need this person, as Home last counted them.
+  const [needsYou, setNeedsYou] = useState(0);
+  useEffect(() => {
+    document.title = needsYou > 0 ? `(${needsYou}) Accrue` : "Accrue — Verified payments";
+  }, [needsYou]);
   // A hiring link someone opened, shown over whatever page they land on.
   const [offerToken, setOfferToken] = useState<string | null>(null);
 
@@ -117,6 +122,9 @@ export default function Accrue() {
             >
               <Icon size={19} />
               {label}
+              {id === "home" && needsYou > 0 && (
+                <span className="nav-count" aria-label={`${needsYou} need you`}>{needsYou}</span>
+              )}
             </button>
           ))}
         </nav>
@@ -225,6 +233,7 @@ export default function Accrue() {
             <>
               {page === "home" && (
                 <Home
+                  onCount={setNeedsYou}
                   onIntent={(intent: HomeIntent) =>
                     intent.type === "open"
                       ? goToJobs(intent.kind, { openId: intent.id })

@@ -2673,3 +2673,7 @@ div.home-action { cursor: default; }
   .demo-steps li { grid-template-columns: 30px minmax(0, 1fr); }
   .demo-steps li > button { grid-column: 2; justify-self: start; }
 }
+
+.nav-count { margin-left: auto; min-width: 20px; padding: 1px 6px; background: var(--m-purple); color: var(--m-paper); font-family: var(--m-mono); font-size: 11px; line-height: 18px; text-align: center; }
+.home-greeting-actions { display: flex; flex-wrap: wrap; gap: 4px 14px; justify-content: flex-end; }
+.home-greeting-actions .text-button { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; }
