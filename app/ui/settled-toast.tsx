@@ -4,9 +4,15 @@ import { useEffect, useRef, useState } from "react";
 import { ArrowUpRight, Zap } from "lucide-react";
 import { explorer, SETTLED_EVENT } from "@/lib/chain";
 
-type Settled = { hash: `0x${string}`; ms: number };
+type Settled = { hash: `0x${string}`; ms: number; fee: bigint | null };
 
 const seconds = (ms: number) => (ms < 1000 ? `${ms} ms` : `${(ms / 1000).toFixed(1)} s`);
+
+/** A fee in MON with enough digits to not read as zero. */
+const formatMon = (wei: bigint) => {
+  const mon = Number(wei) / 1e18;
+  return mon >= 0.01 ? mon.toFixed(3) : mon.toPrecision(2);
+};
 
 /**
  * "Confirmed on Monad in 0.8 s": every transaction this page sends reports
@@ -38,6 +44,7 @@ export function SettledToast() {
           <Zap size={16} aria-hidden />
           <div>
             <b>Confirmed on Monad in {seconds(last.ms)}</b>
+            {last.fee !== null && <span>Network fee {formatMon(last.fee)} MON</span>}
             {stats.count > 1 && <span>{stats.count} transactions this session, {seconds(Math.round(stats.total / stats.count))} on average</span>}
           </div>
           <a href={explorer.tx(last.hash)} target="_blank" rel="noreferrer noopener" aria-label="View this transaction on the Monad explorer">

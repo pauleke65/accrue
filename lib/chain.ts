@@ -137,9 +137,14 @@ export type TransactionStatus =
  */
 export const SETTLED_EVENT = "accrue:settled";
 
-export function announceSettled(hash: `0x${string}`, sentAt: number): void {
+export function announceSettled(
+  hash: `0x${string}`,
+  sentAt: number,
+  receipt?: { gasUsed: bigint; effectiveGasPrice: bigint },
+): void {
   if (typeof window === "undefined") return;
-  window.dispatchEvent(new CustomEvent(SETTLED_EVENT, { detail: { hash, ms: Date.now() - sentAt } }));
+  const fee = receipt ? receipt.gasUsed * receipt.effectiveGasPrice : null;
+  window.dispatchEvent(new CustomEvent(SETTLED_EVENT, { detail: { hash, ms: Date.now() - sentAt, fee } }));
 }
 
 export type TransactionState = {

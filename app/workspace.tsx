@@ -168,7 +168,7 @@ export default function Accrue() {
             {page === "send" || page === "jobs" ? (
               <NetworkSwitch />
             ) : null}
-            {wallet.demoRoles && (
+            {wallet.demoRoles && wallet.wallet && (
               <Choice
                 label="Role"
                 value={wallet.role}

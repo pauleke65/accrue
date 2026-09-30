@@ -252,7 +252,7 @@ export async function callEscrow(options: {
       hash,
       timeout: 40_000,
     });
-    if (receipt.status === "success") announceSettled(hash, sentAt);
+    if (receipt.status === "success") announceSettled(hash, sentAt, receipt);
     const state: TransactionState =
       receipt.status === "success"
         ? { status: "confirmed", hash }
@@ -324,7 +324,7 @@ export async function approveDeposit(options: {
   report?.({ status: "submitted", hash });
   const sentAt = Date.now();
   const receipt = await publicClient().waitForTransactionReceipt({ hash });
-  if (receipt.status === "success") announceSettled(hash, sentAt);
+  if (receipt.status === "success") announceSettled(hash, sentAt, receipt);
   const state: TransactionState =
     receipt.status === "success"
       ? { status: "confirmed", hash }

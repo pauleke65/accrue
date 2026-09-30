@@ -117,7 +117,7 @@ async function settle(hash: Hash, report?: Report): Promise<TransactionState> {
       hash,
       timeout: RECEIPT_TIMEOUT_MS,
     });
-    if (receipt.status === "success") announceSettled(hash, sentAt);
+    if (receipt.status === "success") announceSettled(hash, sentAt, receipt);
     const state: TransactionState =
       receipt.status === "success"
         ? { status: "confirmed", hash }

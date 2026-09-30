@@ -131,7 +131,7 @@ export async function ensureDigitalAllowance(
   const sentAt = Date.now();
   const receipt = await publicClient().waitForTransactionReceipt({ hash, timeout: 40_000 });
   if (receipt.status !== "success") throw new Error("AUSD approval did not confirm.");
-  announceSettled(hash, sentAt);
+  announceSettled(hash, sentAt, receipt);
   report?.({ status: "confirmed", hash });
 }
 
@@ -178,7 +178,7 @@ export async function sendDigitalAction(options: {
   const sentAt = Date.now();
   try {
     const receipt = await publicClient().waitForTransactionReceipt({ hash, timeout: 40_000 });
-    if (receipt.status === "success") announceSettled(hash, sentAt);
+    if (receipt.status === "success") announceSettled(hash, sentAt, receipt);
     const state: TransactionState = receipt.status === "success"
       ? { status: "confirmed", hash }
       : { status: "failed", hash, error: "The contract rejected this action." };
