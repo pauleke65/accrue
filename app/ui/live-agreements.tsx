@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { SignInCard } from "./home";
 import { HiringLinkDone } from "./hiring-link";
 import { useOffers } from "../use-offers";
+import { milestoneActions } from "@/lib/next-actions";
 import {
   ArrowLeft,
   ArrowUpRight,
@@ -14,6 +15,8 @@ import {
   ShieldCheck,
   Trash2,
   UserCheck,
+  ArrowRight,
+  Hourglass,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -438,10 +441,23 @@ function Detail({
         ? a.verifierEarned - a.verifierWithdrawn
         : 0n;
 
+  // Same rules as Home's list, so the page and Home never disagree. Prefer
+  // this person's own move; otherwise say who the job is waiting on.
+  const steps = milestoneActions({
+    id: agreement.id, title: agreement.title, payer: agreement.payer, worker: agreement.worker,
+    verifier: a.verifier,
+    milestones: agreement.milestones.map((m) => ({ title: m.title, external: !/^0x0{40}$/i.test(a.verifier) })),
+    states: agreement.states, acceptances: a.acceptances, funded: a.funded, cancelled: a.cancelled,
+    expiry: a.expiry, reserved: a.reserved, nextMilestone: Number(a.nextMilestone),
+    workerEarned: a.workerEarned, workerWithdrawn: a.workerWithdrawn,
+    verifierEarned: a.verifierEarned, verifierWithdrawn: a.verifierWithdrawn,
+  }, w.address, BigInt(Math.floor(now / 1000)));
+  const nextStep = steps.find((x) => x.owner === "you") ?? steps[0];
+
   return (
     <>
       <button className="text-button back" onClick={onBack}>
-        <ArrowLeft size={15} /> All jobs
+        <ArrowLeft size={15} aria-hidden /> All jobs
       </button>
 
       <div className="page-heading">
@@ -476,6 +492,13 @@ function Detail({
           <ShareLinkButton agreement={agreement} />
         </div>
       </div>
+
+      {nextStep && (
+        <div className={`next-step next-step-${nextStep.owner}`} role="status">
+          <span aria-hidden>{nextStep.owner === "you" ? <ArrowRight size={16} /> : <Hourglass size={16} />}</span>
+          <div><b>{nextStep.owner === "you" ? `Your move: ${nextStep.action.toLowerCase()}` : nextStep.action}</b><p>{nextStep.detail}</p></div>
+        </div>
+      )}
 
       {live.error && (
         <div role="alert" className="error-banner">
