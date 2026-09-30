@@ -8,6 +8,8 @@ import { token } from "@/lib/chain";
 import { deliverableKind, parseDigitalPolicy, type DeliverableKind, type DigitalPolicy } from "@/lib/digital-work-policy";
 import type { DigitalConfig, DigitalDraft } from "../use-digital-work";
 import { HiringLinkDone } from "./hiring-link";
+import { ReviewerSuggestions } from "./reviewer-suggestions";
+import { useWallet } from "../wallet-context";
 
 /**
  * Writing a proof-checked job in plain words.
@@ -123,7 +125,7 @@ export function DigitalWorkBuilder({
   onBack: () => void;
   onCreate: (draft: DigitalDraft) => Promise<void>;
   /** Saves the job as a hiring link instead; returns the link's token. */
-  onHiringLink?: (title: string, draft: DigitalDraft) => Promise<string>;
+  onHiringLink?: (title: string, draft: DigitalDraft, listed: boolean) => Promise<string>;
   initialDraft?: DigitalDraft;
   /** Set when creating the job for someone who took a hiring link. */
   takenBy?: string | null;
@@ -132,6 +134,9 @@ export function DigitalWorkBuilder({
   const [problem, setProblem] = useState("");
   const [linkToken, setLinkToken] = useState<string | null>(null);
   const [linking, setLinking] = useState(false);
+  const [listed, setListed] = useState(true);
+  const wallet = useWallet();
+  const me = wallet.tags[wallet.role]?.tag ?? wallet.address ?? "";
   const set = (patch: Partial<Form>) => setForm((current) => ({ ...current, ...patch }));
   const ready = !!config?.contractAddress && !!config?.jevAddress;
   const total = (Number(form.reward) || 0) + (Number(form.verifierFees) || 0);
@@ -156,7 +161,7 @@ export function DigitalWorkBuilder({
       if (!onHiringLink) return setProblem("Name the worker who will do this job.");
       setLinking(true);
       try {
-        setLinkToken(await onHiringLink(form.title, draft));
+        setLinkToken(await onHiringLink(form.title, draft, listed));
       } catch (cause) {
         setProblem(cause instanceof Error ? cause.message : "Could not create the hiring link.");
       } finally {
@@ -241,6 +246,10 @@ export function DigitalWorkBuilder({
               <label>Reviewer two<Input value={form.reviewerB} onChange={(e) => set({ reviewerB: e.target.value })} placeholder="@amaka" required /></label>
               <label>Reviewer three<Input value={form.reviewerC} onChange={(e) => set({ reviewerC: e.target.value })} placeholder="@tunde" required /></label>
             </div>
+            <ReviewerSuggestions
+              exclude={[me, form.worker, form.reviewerB, form.reviewerC, takenBy ?? ""]}
+              onPick={(tag) => set(form.reviewerB.trim() ? { reviewerC: tag } : { reviewerB: tag })}
+            />
             <p className="fine-print">Pick people you and the worker would both trust to judge the work, like a senior developer or an editor. They can&apos;t be you or the worker, and each is paid for voting.</p>
           </div>
         </section>
@@ -258,6 +267,13 @@ export function DigitalWorkBuilder({
             </div>
           </div>
         </section>
+
+        {hiring && (
+          <label className="check-row">
+            <input type="checkbox" checked={listed} onChange={(e) => setListed(e.target.checked)} />
+            <span><b>List it on the public job board</b> so people looking for work can find it. Untick to share the link privately.</span>
+          </label>
+        )}
 
         <div className="action-banner">
           <div>

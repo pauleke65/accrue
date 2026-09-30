@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { SignInCard } from "./home";
 import { HiringLinkDone } from "./hiring-link";
 import { useOffers } from "../use-offers";
+import { ReviewerSuggestions } from "./reviewer-suggestions";
 import { milestoneActions } from "@/lib/next-actions";
 import {
   ArrowLeft,
@@ -125,7 +126,7 @@ export function LiveAgreements({
       <Builder
         initialDraft={initialDraft}
         takenBy={offer?.takenBy ?? null}
-        onHiringLink={(draft) => offers.create("milestone", draft.title, draft as unknown as Record<string, unknown>)}
+        onHiringLink={(draft, listed) => offers.create("milestone", draft.title, draft as unknown as Record<string, unknown>, listed)}
         busy={live.busy}
         error={live.error}
         onDismissError={() => live.setError("")}
@@ -833,7 +834,7 @@ function Builder({
   /** Set when creating the job for someone who took a hiring link. */
   takenBy?: string | null;
   /** Saves the job as a hiring link instead; returns the link's token. */
-  onHiringLink?: (draft: Draft) => Promise<string>;
+  onHiringLink?: (draft: Draft, listed: boolean) => Promise<string>;
   onCreate: (draft: Draft) => Promise<void>;
   onCancel: () => void;
   busy: boolean;
@@ -850,6 +851,9 @@ function Builder({
   const [linkToken, setLinkToken] = useState<string | null>(null);
   const [linking, setLinking] = useState(false);
   const [linkError, setLinkError] = useState("");
+  const [listed, setListed] = useState(true);
+  const wallet = useWallet();
+  const me = wallet.tags[wallet.role]?.tag ?? wallet.address ?? "";
   const set = (patch: Partial<Draft>) => setDraft({ ...draft, ...patch });
   const setMilestone = (
     index: number,
@@ -992,6 +996,9 @@ function Builder({
               helperText="Optional. Someone you both trust to approve each stage, like a senior developer. Leave empty to approve stages yourself."
             />
           </div>
+          {!draft.verifierTag.trim() && (
+            <ReviewerSuggestions exclude={[me, draft.workerTag, takenBy ?? ""]} onPick={(tag) => set({ verifierTag: tag })} />
+          )}
           <label>
             Days until the job expires
             <Input
@@ -1091,6 +1098,13 @@ function Builder({
         </button>
       </div>
 
+      {hiring && (
+        <label className="check-row">
+          <input type="checkbox" checked={listed} onChange={(e) => setListed(e.target.checked)} />
+          <span><b>List it on the public job board</b> so people looking for work can find it. Untick to share the link privately.</span>
+        </label>
+      )}
+
       <section className="action-banner">
         <div>
           <h3>
@@ -1116,7 +1130,7 @@ function Builder({
               setLinking(true);
               setLinkError("");
               try {
-                setLinkToken(await onHiringLink(draft));
+                setLinkToken(await onHiringLink(draft, listed));
               } catch (cause) {
                 setLinkError(cause instanceof Error ? cause.message : "Could not create the hiring link.");
               } finally {

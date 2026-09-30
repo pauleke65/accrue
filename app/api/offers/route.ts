@@ -26,6 +26,7 @@ type OfferRow = {
   status: string;
   taker_address: string | null;
   job_id: string | null;
+  listed: number;
   expires_at: string;
   created_at: string;
   updated_at: string;
@@ -35,6 +36,7 @@ const createSchema = z.object({
   kind: z.enum(["proof", "milestone"]),
   title: z.string().trim().min(3).max(120),
   draft: z.record(z.string(), z.unknown()),
+  listed: z.boolean().optional(),
   proofs: z.array(z.object({ address: z.string(), signature: z.string() })).min(1).max(8),
 }).strict();
 
@@ -86,6 +88,7 @@ async function present(row: OfferRow, viewer: "public" | "client" | "taker") {
     takerAddress: viewer === "public" ? null : row.taker_address,
     takerTag: viewer === "public" ? null : await tagFor(row.taker_address),
     jobId: row.job_id,
+    listed: row.listed === 1,
     viewer,
     expiresAt: row.expires_at,
     createdAt: row.created_at,
@@ -96,6 +99,15 @@ export async function GET(request: Request) {
   try {
     const url = new URL(request.url);
     const token = url.searchParams.get("token");
+    if (url.searchParams.get("board") === "1") {
+      // The public job board: open links their clients chose to list.
+      const result = await database()
+        .prepare("SELECT * FROM job_offers WHERE listed = 1 AND status = 'open' AND expires_at > ? ORDER BY created_at DESC LIMIT 100")
+        .bind(new Date().toISOString())
+        .all<OfferRow>();
+      const offers = await Promise.all(result.results.map((row) => present(row, "public")));
+      return Response.json({ offers }, { headers: { "Cache-Control": "public, max-age=30" } });
+    }
     if (token) {
       if (!/^[a-f0-9]{32}$/.test(token)) throw new HttpError(404, "This hiring link does not exist.");
       return Response.json({ offer: await present(await load(token), "public") });
@@ -134,10 +146,10 @@ export async function POST(request: Request) {
     const expiresAt = new Date(Date.now() + 14 * 86_400_000).toISOString();
     await database()
       .prepare(
-        "INSERT INTO job_offers (token, kind, owner, client_address, title, draft_json, status, taker_address, job_id, expires_at, created_at, updated_at)" +
-        " VALUES (?, ?, ?, ?, ?, ?, 'open', NULL, NULL, ?, ?, ?)",
+        "INSERT INTO job_offers (token, kind, owner, client_address, title, draft_json, status, taker_address, job_id, listed, expires_at, created_at, updated_at)" +
+        " VALUES (?, ?, ?, ?, ?, ?, 'open', NULL, NULL, ?, ?, ?, ?)",
       )
-      .bind(token, body.kind, owner, client, body.title, draft, expiresAt, now, now)
+      .bind(token, body.kind, owner, client, body.title, draft, body.listed ? 1 : 0, expiresAt, now, now)
       .run();
     return Response.json({ token, expiresAt }, { status: 201 });
   } catch (error) {

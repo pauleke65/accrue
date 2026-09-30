@@ -16,6 +16,7 @@ export type Offer = {
   takerAddress: string | null;
   takerTag: string | null;
   jobId: string | null;
+  listed: boolean;
   viewer: "public" | "client" | "taker";
   expiresAt: string;
   createdAt: string;
@@ -32,6 +33,13 @@ async function send<T>(method: string, body: unknown): Promise<T> {
   const data = (await response.json()) as T & { error?: string };
   if (!response.ok) throw new Error(data.error ?? "The hiring link request failed.");
   return data;
+}
+
+/** Open hiring links their clients chose to list publicly. */
+export async function readBoard(): Promise<Offer[]> {
+  const response = await fetch("/api/offers?board=1");
+  if (!response.ok) throw new Error("The job board could not be loaded.");
+  return ((await response.json()) as { offers: Offer[] }).offers;
 }
 
 /** Reads one hiring link by token; no sign-in needed to look. */
@@ -64,9 +72,9 @@ export function useOffers() {
 
   useEffect(() => { void Promise.resolve().then(refresh); }, [refresh]);
 
-  const create = useCallback(async (kind: JobKind, title: string, draft: Record<string, unknown>) => {
+  const create = useCallback(async (kind: JobKind, title: string, draft: Record<string, unknown>, listed = false) => {
     const proofs = await proveParticipation();
-    const created = await send<{ token: string }>("POST", { kind, title, draft, proofs });
+    const created = await send<{ token: string }>("POST", { kind, title, draft, listed, proofs });
     await refresh();
     return created.token;
   }, [proveParticipation, refresh]);

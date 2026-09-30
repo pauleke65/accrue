@@ -51,7 +51,7 @@ export function DigitalWork({ initialCreating = false, initialSelectedId = null,
       initialDraft={offer?.draft}
       takenBy={offer?.takenBy ?? null}
       onBack={() => setCreating(false)}
-      onHiringLink={(title, draft) => offers.create("proof", title, draft as unknown as Record<string, unknown>)}
+      onHiringLink={(title, draft, listed) => offers.create("proof", title, draft as unknown as Record<string, unknown>, listed)}
       onCreate={async (draft) => {
         const id = await digital.create(draft);
         if (id) {

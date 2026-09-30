@@ -214,6 +214,8 @@ export const jobOffers = sqliteTable("job_offers", {
   status: text("status").notNull(),
   takerAddress: text("taker_address"),
   jobId: text("job_id"),
+  /** 1 when the client chose to show it on the public job board. */
+  listed: integer("listed").notNull().default(0),
   expiresAt: text("expires_at").notNull(),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
@@ -221,3 +223,12 @@ export const jobOffers = sqliteTable("job_offers", {
   index("job_offers_client").on(table.clientAddress),
   index("job_offers_taker").on(table.takerAddress),
 ]);
+
+/** People who have offered to review work for a fee. */
+export const reviewers = sqliteTable("reviewers", {
+  address: text("address").primaryKey(),
+  owner: text("owner").notNull(),
+  skills: text("skills").notNull(),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});

@@ -138,6 +138,7 @@ export default async function Landing({ searchParams }: { searchParams: SearchPa
           <a href="#scenarios">Scenarios</a>
           <a href="#proof">Proof Engine</a>
           <a href="#hire">Hiring links</a>
+          <a href="/jobs">Open jobs</a>
         </nav>
         <a className="primary lp-nav-cta" href="/app">Open app <ArrowRight size={15} aria-hidden /></a>
       </header>

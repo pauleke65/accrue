@@ -24,6 +24,7 @@ import { offerUrl, useOffers, type Offer } from "../use-offers";
 import { useWallet } from "../wallet-context";
 import { useTagGate } from "./tag-gate";
 import { DemoGuide, DemoInvite } from "./demo-guide";
+import { FindWork } from "./find-work";
 
 /** A hiring link someone took, carried into the builder to become a job. */
 export type TakenOffer = { token: string; kind: JobKind; takenBy: string; draft: Record<string, unknown> };
@@ -374,6 +375,8 @@ function SignedInHome({ onIntent, onCount }: { onIntent: (intent: HomeIntent) =>
           </button>
         </div>
       </section>
+
+      {!wallet.demoRoles && <FindWork />}
 
       {!wallet.demoRoles && <DemoInvite />}
     </div>
