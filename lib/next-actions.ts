@@ -37,6 +37,12 @@ export type ProofJobInput = {
   reviewDeadline: bigint;
   /** Whether this person already voted on the current version; null if not a verifier or unknown. */
   votedCurrentVersion: boolean | null;
+  /** Contract rules: 2 adds pay-on-silence and cancellation. Defaults to 1. */
+  rules?: number;
+  /** Fail votes on the current version. */
+  failVotes?: number;
+  /** Version 2: bit 1 the client, bit 2 the worker has agreed to cancel. */
+  cancelConsents?: number;
 };
 
 export type MilestoneJobInput = {
@@ -49,6 +55,10 @@ export type MilestoneJobInput = {
   milestones: { title: string; external: boolean }[];
   /** 0 pending, 1 submitted, 2 earned; mirrors MilestoneState. */
   states: number[];
+  /** Contract rules: 2 adds the review window and pay-on-silence. Defaults to 1. */
+  rules?: number;
+  /** Version 2: when the current milestone was submitted, in seconds (0 if unknown). */
+  submittedAt?: bigint;
   acceptances: number;
   funded: boolean;
   cancelled: boolean;
@@ -62,6 +72,8 @@ export type MilestoneJobInput = {
 };
 
 const ZERO = "0x0000000000000000000000000000000000000000";
+/** Mirrors REVIEW_WINDOW in AccrueEscrow version 2. */
+export const REVIEW_WINDOW = 5n * 24n * 60n * 60n;
 const same = (a: string, b: string | null) => !!b && a.toLowerCase() === b.toLowerCase();
 
 export function proofActions(job: ProofJobInput, me: string | null, nowSeconds: bigint): NextAction[] {
@@ -75,10 +87,28 @@ export function proofActions(job: ProofJobInput, me: string | null, nowSeconds: 
 
   const open = job.status === ProofStatus.funded || job.status === ProofStatus.submitted ||
     job.status === ProofStatus.needsChanges;
+  const v2 = (job.rules ?? 1) >= 2;
   if (open && nowSeconds > job.reviewDeadline) {
+    // Version 2: delivered on time and nobody voted it down means the worker is paid.
+    if (v2 && job.status === ProofStatus.submitted && (job.failVotes ?? 0) === 0) {
+      return [isWorker
+        ? out("Collect your pay", "No reviewer objected before the deadline, so the job pays you. Close it to release the money.", "you")
+        : out("Worker is owed the pay", "No reviewer objected before the deadline, so closing the job pays the worker.", "waiting")];
+    }
     return [isPayer
       ? out("Reclaim your funds", "The review deadline passed without approval. The reward and unused fees can come back to you.", "you")
       : out("Deadline passed", "This job closed without approval. The client can reclaim the funds.", "waiting")];
+  }
+
+  // Version 2: one side asked to cancel; the other decides.
+  const consents = job.cancelConsents ?? 0;
+  if (v2 && open && consents !== 0) {
+    const askedByClient = (consents & 1) !== 0;
+    if ((askedByClient && isWorker) || (!askedByClient && isPayer))
+      return [out("Answer a cancellation request",
+        `The ${askedByClient ? "client" : "worker"} asked to call this job off. If you agree, the client gets back everything not yet earned.`, "you")];
+    if (isPayer || isWorker)
+      return [out("Waiting on your cancellation request", `The ${askedByClient ? "worker" : "client"} hasn't answered yet.`, "waiting")];
   }
 
   switch (job.status) {
@@ -130,8 +160,27 @@ export function milestoneActions(job: MilestoneJobInput, me: string | null, nowS
   }
 
   const expired = nowSeconds >= job.expiry;
+  const v2 = (job.rules ?? 1) >= 2;
+  const current = job.nextMilestone;
+  const windowEnd = (job.submittedAt ?? 0n) + REVIEW_WINDOW;
+  const lapsed = v2 && job.states[current] === 1 && (job.submittedAt ?? 0n) > 0n && nowSeconds >= windowEnd;
+  // Version 2: the approver let the window pass, so the milestone can be paid.
+  if (job.funded && !job.cancelled && lapsed) {
+    const title = job.milestones[current]?.title ?? `milestone ${current + 1}`;
+    if (isWorker) add(`Release payment for ${title}`, "The approver didn't decide within 5 days of your submission, so it can be paid now.", "you");
+    else add("Milestone payable on silence", `No decision on ${title} within 5 days, so the worker can release its payment.`, "waiting");
+    return actions;
+  }
   if (job.funded && (job.cancelled || expired)) {
-    if (job.reserved > 0n) {
+    // Version 2: a submission still inside its window must be decided first.
+    if (v2 && !job.cancelled && job.states[current] === 1 && nowSeconds < windowEnd) {
+      const m = job.milestones[current];
+      const title = m?.title ?? `milestone ${current + 1}`;
+      const approverIsMe = m?.external ? isVerifier : isPayer;
+      if (approverIsMe) add(`Review milestone ${current + 1}, ${title}`, "It was submitted before the deadline, so it still gets its 5-day window. Decide before it closes, or the worker is paid.", "you");
+      else if (isPayer) add("Wait for the review window", "A milestone was submitted before the deadline. It has to be decided, or its 5-day window pass, before you can reclaim the rest.", "waiting");
+      else add("Waiting for approval", `${title} is inside its review window.`, "waiting");
+    } else if (job.reserved > 0n) {
       if (isPayer) add("Reclaim unearned funds", job.cancelled ? "Everyone agreed to cancel. Take back what was never earned." : "The deadline passed. Take back what was never earned.", "you");
       else add("Job closed", job.cancelled ? "The job was cancelled. The client can reclaim unearned funds." : "The deadline passed. The client can reclaim unearned funds.", "waiting");
     }

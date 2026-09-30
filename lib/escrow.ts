@@ -20,6 +20,39 @@ import { publicClient, walletClient, erc20Abi, readableError } from "./ausd.ts";
 
 export const escrowAbi = abi;
 
+type Address = `0x${string}`;
+
+/**
+ * Every helper below takes the escrow a job actually lives on. New jobs go to
+ * the current deployment (escrow.address); a job created on an earlier one
+ * keeps being read from and acted on there, so deploying a new version never
+ * strands existing jobs. live_agreements.escrow records which one.
+ */
+
+const rulesCache = new Map<string, Promise<number>>();
+
+/** 1 for the original rules, 2 for the review window and pay-on-silence. */
+export function readRulesVersion(at: Address = escrow.address): Promise<number> {
+  const key = at.toLowerCase();
+  if (!rulesCache.has(key))
+    rulesCache.set(key, publicClient()
+      .readContract({ address: at, abi: escrowAbi, functionName: "rulesVersion" })
+      .then((v) => Number(v))
+      .catch(() => 1)); // version 1 has no such function
+  return rulesCache.get(key)!;
+}
+
+/** When a milestone's current evidence was submitted (version 2 only), in seconds. */
+export async function readSubmittedAt(id: bigint, index: number, at: Address = escrow.address): Promise<bigint> {
+  if ((await readRulesVersion(at)) < 2) return 0n;
+  return publicClient().readContract({
+    address: at, abi: escrowAbi, functionName: "submittedAt", args: [id, BigInt(index)],
+  }) as Promise<bigint>;
+}
+
+/** Version 2's window, in seconds, for an approver to decide on a submission. */
+export const REVIEW_WINDOW_SECONDS = 5n * 24n * 60n * 60n;
+
 /**
  * The contract's own values, read from the source rather than assumed.
  * There is no distinct "changes requested" state: requestChanges returns the
@@ -77,6 +110,8 @@ export function termsHash(input: {
   expiry: bigint;
   scopeHash: `0x${string}`;
   milestones: readonly MilestoneInput[];
+  /** The escrow the job lives on; the terms hash binds to it. */
+  escrow?: `0x${string}`;
 }): `0x${string}` {
   return keccak256(
     encodeAbiParameters(
@@ -101,7 +136,7 @@ export function termsHash(input: {
       ],
       [
         BigInt(chain.id),
-        escrow.address,
+        input.escrow ?? escrow.address,
         input.id,
         input.payer,
         input.worker,
@@ -114,18 +149,18 @@ export function termsHash(input: {
   );
 }
 
-export async function readAgreement(id: bigint): Promise<OnChainAgreement> {
+export async function readAgreement(id: bigint, at: Address = escrow.address): Promise<OnChainAgreement> {
   return publicClient().readContract({
-    address: escrow.address,
+    address: at,
     abi: escrowAbi,
     functionName: "getAgreement",
     args: [id],
   }) as Promise<OnChainAgreement>;
 }
 
-export async function readMilestones(id: bigint) {
+export async function readMilestones(id: bigint, at: Address = escrow.address) {
   return publicClient().readContract({
-    address: escrow.address,
+    address: at,
     abi: escrowAbi,
     functionName: "getMilestones",
     args: [id],
@@ -187,13 +222,15 @@ export async function callEscrow(options: {
   functionName: string;
   args: readonly unknown[];
   report?: Report;
+  /** The escrow the job lives on; the current deployment if omitted. */
+  at?: Address;
 }): Promise<TransactionState & { hash?: Hash }> {
-  const { account, functionName, args, report } = options;
+  const { account, functionName, args, report, at = escrow.address } = options;
   report?.({ status: "awaiting-signature" });
   let hash: Hash;
   try {
     hash = await walletClient(account).writeContract({
-      address: escrow.address,
+      address: at,
       abi: escrowAbi,
       functionName,
       args,
@@ -245,8 +282,9 @@ export async function approveDeposit(options: {
   account: Account;
   amount: bigint;
   report?: Report;
+  at?: Address;
 }): Promise<TransactionState & { hash?: Hash }> {
-  const { account, amount, report } = options;
+  const { account, amount, report, at = escrow.address } = options;
   report?.({ status: "awaiting-signature" });
   let hash: Hash;
   try {
@@ -265,7 +303,7 @@ export async function approveDeposit(options: {
         },
       ] as const,
       functionName: "approve",
-      args: [escrow.address, amount],
+      args: [at, amount],
       chain,
       account,
     });
@@ -291,7 +329,7 @@ export async function approveDeposit(options: {
   return state;
 }
 
-export async function readAllowance(owner: `0x${string}`): Promise<bigint> {
+export async function readAllowance(owner: `0x${string}`, at: Address = escrow.address): Promise<bigint> {
   return publicClient().readContract({
     address: token.address,
     abi: [
@@ -307,7 +345,7 @@ export async function readAllowance(owner: `0x${string}`): Promise<bigint> {
       },
     ] as const,
     functionName: "allowance",
-    args: [owner, escrow.address],
+    args: [owner, at],
   });
 }
 

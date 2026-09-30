@@ -2,6 +2,7 @@ import { env } from "cloudflare:workers";
 import { authorize, failure, HttpError } from "@/lib/server";
 import { isAddress, getAddress, decodeEventLog, parseAbiItem } from "viem";
 import { network, token, escrow } from "@/lib/chain";
+import { digitalWorkAddress } from "@/lib/digital-work-chain";
 
 /**
  * Payment history, read with Envio HyperSync.
@@ -33,6 +34,15 @@ function apiToken(): string | null {
 }
 
 export async function GET(request: Request) {
+  // Both escrows, current and earlier deployments: payments into or out of
+  // any of them are jobs. Earlier ones are listed in
+  // NEXT_PUBLIC_ACCRUE_LEGACY_CONTRACTS (comma-separated) after a redeploy.
+  const escrowContracts = new Set(
+    [escrow.address, digitalWorkAddress(), ...(process.env.NEXT_PUBLIC_ACCRUE_LEGACY_CONTRACTS ?? "").split(",")]
+      .map((a) => a?.trim())
+      .filter((a): a is string => !!a && isAddress(a))
+      .map((a) => getAddress(a)),
+  );
   try {
     await authorize();
     const configured = apiToken();
@@ -136,10 +146,8 @@ export async function GET(request: Request) {
             to,
             amount: decoded.args.value.toString(),
             direction: from === account ? "out" : "in",
-            // Money moving to or from the escrow is a job, not a person.
-            counterpartyIsEscrow:
-              from === getAddress(escrow.address) ||
-              to === getAddress(escrow.address),
+            // Money moving to or from an escrow is a job, not a person.
+            counterpartyIsEscrow: escrowContracts.has(from) || escrowContracts.has(to),
           });
         } catch {
           // A log that will not decode is not worth failing the page over.

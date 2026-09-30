@@ -21,6 +21,7 @@ function statusLabel(job: DigitalJob): string {
     case DigitalWorkStatus.needsChanges: return "Changes requested";
     case DigitalWorkStatus.paid: return "Verified & paid";
     case DigitalWorkStatus.refunded: return "Refunded";
+    case DigitalWorkStatus.cancelled: return "Cancelled";
     default: return "Unknown";
   }
 }

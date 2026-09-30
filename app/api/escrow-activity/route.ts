@@ -9,7 +9,7 @@ import {
   verifiedAddresses,
 } from "@/lib/live-agreements-access";
 import { digitalWorkAbi, digitalWorkAddress } from "@/lib/digital-work-chain";
-import { digitalJobId, type DigitalJobRow } from "@/lib/digital-work-access";
+import { contractOfJobId, digitalJobId, type DigitalJobRow } from "@/lib/digital-work-access";
 import { database } from "@/lib/server";
 
 /**
@@ -42,6 +42,7 @@ type Kind =
   | "settled";
 
 type HyperLog = {
+  address: string;
   block_number: number;
   transaction_hash: string;
   log_index: number;
@@ -65,7 +66,7 @@ async function readLogs(token: string, address: string): Promise<HyperResult | n
       from_block: 0,
       logs: [{ address: [address] }],
       field_selection: {
-        log: ["block_number", "transaction_hash", "log_index", "topic0", "topic1", "topic2", "topic3", "data"],
+        log: ["address", "block_number", "transaction_hash", "log_index", "topic0", "topic1", "topic2", "topic3", "data"],
         block: ["number", "timestamp"],
       },
     }),
@@ -95,12 +96,14 @@ export async function GET(request: Request) {
     const proofs = parseProofsParam(new URL(request.url));
     const rows = await accessibleLiveAgreements(owner, proofs);
 
+    // Keyed by escrow address and on-chain id: each deployment counts from zero.
     const known = new Map<
       string,
-      { title: string; milestones: { title: string }[] }
+      { rowId: string; title: string; milestones: { title: string }[] }
     >();
     for (const row of rows)
-      known.set(row.onchain_id, {
+      known.set(`${row.escrow.toLowerCase()}:${row.onchain_id}`, {
+        rowId: row.id,
         title: row.title,
         milestones: JSON.parse(row.milestones) as { title: string }[],
       });
@@ -108,7 +111,9 @@ export async function GET(request: Request) {
     // Proof-checked jobs follow their own list's rule: visible to anyone who
     // proves they are the client, the worker or one of the three reviewers.
     const addresses = await verifiedAddresses(proofs);
+    // Keyed by contract then on-chain id: each deployment counts from zero.
     const proofJobs = new Map<string, string>();
+    const proofContracts = new Set<string>();
     if (addresses.length && digitalWorkAddress()) {
       const marks = addresses.map(() => "?").join(",");
       const result = await database()
@@ -119,7 +124,11 @@ export async function GET(request: Request) {
         )
         .bind(...addresses, ...addresses, ...addresses, ...addresses, ...addresses)
         .all<DigitalJobRow>();
-      for (const row of result.results) proofJobs.set(row.onchain_id, row.title);
+      for (const row of result.results) {
+        const contract = contractOfJobId(row.id).toLowerCase();
+        proofContracts.add(contract);
+        proofJobs.set(`${contract}:${row.onchain_id}`, row.title);
+      }
     }
     const mine = new Set(addresses.map((a) => a.toLowerCase()));
 
@@ -138,20 +147,22 @@ export async function GET(request: Request) {
         entries: [],
       });
 
-    const proofAddress = digitalWorkAddress();
-    const [result, proofResult] = await Promise.all([
-      known.size ? readLogs(configured, escrow.address) : Promise.resolve({ data: [] } as HyperResult),
-      proofJobs.size && proofAddress ? readLogs(configured, proofAddress) : Promise.resolve({ data: [] } as HyperResult),
+    // Milestone jobs may sit on earlier escrow deployments too.
+    const escrows = [...new Set([escrow.address.toLowerCase(), ...rows.map((r) => r.escrow.toLowerCase())])];
+    const [escrowResults, proofResults] = await Promise.all([
+      known.size ? Promise.all(escrows.map((a) => readLogs(configured, a))) : Promise.resolve([]),
+      Promise.all([...proofContracts].map(async (a) => ({ contract: a, result: await readLogs(configured, a) }))),
     ]);
-    if (!result || !proofResult)
+    if (escrowResults.some((r) => !r) || proofResults.some((r) => !r.result))
       return Response.json({
         configured: true,
         entries: [],
         error: "The indexer did not respond; try again shortly.",
       });
+    const result: HyperResult = { data: escrowResults.flatMap((r) => r!.data ?? []) };
 
     const times = new Map<number, number>();
-    for (const page of [...(result.data ?? []), ...(proofResult.data ?? [])])
+    for (const page of [...(result.data ?? []), ...proofResults.flatMap((r) => r.result!.data ?? [])])
       for (const block of page.blocks ?? [])
         times.set(Number(block.number), Number(block.timestamp));
 
@@ -186,7 +197,7 @@ export async function GET(request: Request) {
         const args = decoded.args as unknown as Record<string, unknown>;
         const eventName = decoded.eventName as unknown as string;
         const id = String(args.id);
-        const job = known.get(id);
+        const job = known.get(`${log.address.toLowerCase()}:${id}`);
         if (!job) continue; // Not an agreement this workspace has terms for.
 
         const at = times.get(Number(log.block_number));
@@ -195,7 +206,8 @@ export async function GET(request: Request) {
           logIndex: log.log_index,
           at: at ? new Date(at * 1000).toISOString() : new Date().toISOString(),
           source: "milestone" as const,
-          agreementId: id,
+          // The app's own id for the job, which is what opens it.
+          agreementId: job.rowId,
           agreementTitle: job.title,
         };
         const milestoneTitle = (index: unknown) =>
@@ -277,7 +289,8 @@ export async function GET(request: Request) {
       }
     }
 
-    for (const page of proofResult.data ?? []) {
+    for (const { contract, result: proofResult } of proofResults)
+    for (const page of proofResult!.data ?? []) {
       for (const log of page.logs ?? []) {
         let decoded;
         try {
@@ -304,9 +317,9 @@ export async function GET(request: Request) {
           continue;
         }
         const onchainId = String(args.id);
-        const title = proofJobs.get(onchainId);
+        const title = proofJobs.get(`${contract}:${onchainId}`);
         if (!title) continue;
-        const base = { ...stamp, agreementId: digitalJobId(onchainId), agreementTitle: title };
+        const base = { ...stamp, agreementId: digitalJobId(onchainId, contract), agreementTitle: title };
         switch (eventName) {
           case "JobCreated": entries.push({ ...base, kind: "created" }); break;
           case "WorkerAccepted": entries.push({ ...base, kind: "accepted" }); break;
@@ -318,6 +331,8 @@ export async function GET(request: Request) {
             break;
           case "Settled": entries.push({ ...base, kind: "settled", amount: String(args.workerAmount) }); break;
           case "Refunded": entries.push({ ...base, kind: "refunded", amount: String(args.payerAmount) }); break;
+          case "Cancelled": entries.push({ ...base, kind: "refunded", amount: String(args.payerAmount) }); break;
+          case "CancellationConsent": entries.push({ ...base, kind: "cancel-consent", actor: String(args.party) }); break;
         }
       }
     }

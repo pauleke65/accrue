@@ -1,6 +1,7 @@
 import { getAddress, isAddress } from "viem";
-import { escrow, explorer } from "./chain";
+import { explorer } from "./chain";
 import { digitalWorkAbi, digitalWorkAddress, DigitalWorkStatus, readDigitalJob } from "./digital-work-chain";
+import { contractOfJobId } from "./digital-work-id";
 import { deliverableKind, parseDigitalPolicy, type DeliverableKind } from "./digital-work-policy";
 import { readAgreement, readMilestones } from "./escrow";
 import { publicClient } from "./ausd";
@@ -42,7 +43,7 @@ export type Profile = {
 };
 
 type DigitalRow = {
-  onchain_id: string; policy_json: string; worker_address: string;
+  id: string; onchain_id: string; policy_json: string; worker_address: string;
   verifier_a: string; verifier_b: string; verifier_c: string; created_at: string;
 };
 type MilestoneRow = { onchain_id: string; escrow: string; worker_address: string; created_at: string };
@@ -64,24 +65,26 @@ export async function loadProfile(handle: string): Promise<Profile | null> {
   const proofAddress = digitalWorkAddress();
   if (proofAddress) {
     const jobs = await db.prepare(
-      "SELECT onchain_id, policy_json, worker_address, verifier_a, verifier_b, verifier_c, created_at FROM digital_jobs" +
+      "SELECT id, onchain_id, policy_json, worker_address, verifier_a, verifier_b, verifier_c, created_at FROM digital_jobs" +
       " WHERE lower(worker_address) = ? OR lower(verifier_a) = ? OR lower(verifier_b) = ? OR lower(verifier_c) = ?" +
       " ORDER BY created_at DESC LIMIT 100",
     ).bind(lower, lower, lower, lower).all<DigitalRow>();
     await Promise.all(jobs.results.map(async (job) => {
-      const chain = await readDigitalJob(BigInt(job.onchain_id)).catch(() => null);
+      // Each job is read from the deployment it lives on.
+      const at = contractOfJobId(job.id);
+      const chain = await readDigitalJob(BigInt(job.onchain_id), at).catch(() => null);
       if (!chain) return;
       let deliverable: DeliverableKind | null = null;
       try { deliverable = deliverableKind(parseDigitalPolicy(JSON.parse(job.policy_json))); } catch { /* unreadable policy: omit the kind */ }
       const base = {
         flow: "proof" as const, deliverable, stages: null, date: job.created_at, jobNumber: job.onchain_id,
-        contract: proofAddress, verifyUrl: explorer.address(proofAddress),
+        contract: at, verifyUrl: explorer.address(at),
       };
       if (same(job.worker_address, address) && chain.status === DigitalWorkStatus.paid)
         items.push({ ...base, key: `p-w-${job.onchain_id}`, role: "worker", amount: chain.reward.toString() });
       if ([job.verifier_a, job.verifier_b, job.verifier_c].some((v) => same(v, address))) {
         const earned = await publicClient().readContract({
-          address: proofAddress, abi: digitalWorkAbi, functionName: "feeEarned", args: [BigInt(job.onchain_id), address],
+          address: at, abi: digitalWorkAbi, functionName: "feeEarned", args: [BigInt(job.onchain_id), address],
         }).catch(() => false) as boolean;
         if (earned) items.push({ ...base, key: `p-r-${job.onchain_id}`, role: "reviewer", amount: (chain.feePool / 3n).toString() });
       }
@@ -93,15 +96,16 @@ export async function loadProfile(handle: string): Promise<Profile | null> {
     "SELECT onchain_id, escrow, worker_address, created_at FROM live_agreements" +
     " WHERE lower(worker_address) = ? OR lower(verifier_address) = ? ORDER BY created_at DESC LIMIT 100",
   ).bind(lower, lower).all<MilestoneRow>();
-  await Promise.all(milestones.results.filter((m) => same(m.escrow, escrow.address)).map(async (m) => {
-    const chain = await readAgreement(BigInt(m.onchain_id)).catch(() => null);
+  await Promise.all(milestones.results.map(async (m) => {
+    const at = m.escrow as `0x${string}`;
+    const chain = await readAgreement(BigInt(m.onchain_id), at).catch(() => null);
     if (!chain) return;
-    const list = await readMilestones(BigInt(m.onchain_id)).catch(() => null);
+    const list = await readMilestones(BigInt(m.onchain_id), at).catch(() => null);
     const total = Array.isArray(list) ? list.length : 0;
     const stages = { approved: Number(chain.nextMilestone), total };
     const base = {
       flow: "milestone" as const, deliverable: null, stages, date: m.created_at, jobNumber: m.onchain_id,
-      contract: escrow.address, verifyUrl: explorer.address(escrow.address),
+      contract: at, verifyUrl: explorer.address(at),
     };
     if (same(chain.worker, address) && chain.workerEarned > 0n)
       items.push({ ...base, key: `m-w-${m.onchain_id}`, role: "worker", amount: chain.workerEarned.toString() });

@@ -1,7 +1,7 @@
 "use client";
 import { AlertTriangle, ShieldCheck, X } from "lucide-react";
 import { useWallet } from "../wallet-context";
-import { formatAmount, token, escrow, shortAddress } from "@/lib/chain";
+import { formatAmount, token, shortAddress } from "@/lib/chain";
 import type { LiveAgreement } from "../use-live-agreements";
 
 export function FundingReviewModal({
@@ -72,7 +72,7 @@ export function FundingReviewModal({
           </div>
           <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px" }}>
             <span className="mono-label">Smart Contract:</span>
-            <span className="mono">{shortAddress(escrow.address)}</span>
+            <span className="mono">{shortAddress(agreement.escrow)}</span>
           </div>
         </div>
 

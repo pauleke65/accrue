@@ -53,6 +53,11 @@ export function DigitalWorkDetail({
   const currentVote = verifierIndex >= 0 ? votes[verifierIndex] : null;
   const alreadyVoted = currentVote?.version === job.chain.version;
   const reviewExpired = now / 1000 > Number(job.chain.reviewDeadline);
+  const open = job.chain.status === DigitalWorkStatus.funded || job.chain.status === DigitalWorkStatus.submitted ||
+    job.chain.status === DigitalWorkStatus.needsChanges;
+  // Rules version 2: evidence on time with no fail vote pays at the deadline.
+  const silencePays = job.rules >= 2 && job.chain.status === DigitalWorkStatus.submitted && job.chain.failVotes === 0;
+  const myCancelBit = isPayer ? 1 : isWorker ? 2 : 0;
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 30_000);
@@ -63,7 +68,7 @@ export function DigitalWorkDetail({
     let active = true;
     void Promise.all([
       loadDetail(job),
-      Promise.all(job.verifiers.map((verifier) => readDigitalVote(BigInt(job.onchainId), verifier))),
+      Promise.all(job.verifiers.map((verifier) => readDigitalVote(BigInt(job.onchainId), verifier, job.contract))),
     ]).then(([detail, chainVotes]) => {
       if (!active) return;
       setSubmissions(detail.submissions);
@@ -82,7 +87,7 @@ export function DigitalWorkDetail({
     setSubmissions(detail.submissions);
     setRuns(detail.runs);
     setManualVotes(detail.manualVotes);
-    setVotes(await Promise.all(job.verifiers.map((verifier) => readDigitalVote(BigInt(job.onchainId), verifier))));
+    setVotes(await Promise.all(job.verifiers.map((verifier) => readDigitalVote(BigInt(job.onchainId), verifier, job.contract))));
   };
 
   const next = proofActions({
@@ -90,6 +95,7 @@ export function DigitalWorkDetail({
     status: job.chain.status, workerAccepted: job.chain.workerAccepted,
     deliveryDeadline: job.chain.deliveryDeadline, reviewDeadline: job.chain.reviewDeadline,
     votedCurrentVersion: isVerifier ? alreadyVoted : null,
+    rules: job.rules, failVotes: job.chain.failVotes, cancelConsents: job.cancelConsents,
   }, wallet.address, BigInt(Math.floor(now / 1000)))[0];
 
   // Backstop for the automatic review after submission: if this version has
@@ -194,7 +200,40 @@ export function DigitalWorkDetail({
 
       {job.chain.status === DigitalWorkStatus.paid && <section className="action-banner"><div><h3>Verified outcome. Payment earned.</h3><p>Two independent pass votes released {formatAmount(job.chain.reward)} {token.symbol} to the worker. Every verifier vote is recorded on-chain.</p></div><Check size={26} /></section>}
       {job.chain.status === DigitalWorkStatus.refunded && <section className="action-banner"><div><h3>Review expired. Reserved funds returned.</h3><p>The payer can withdraw the reward and unused verifier fees. Votes already cast remain paid.</p></div><Clock3 size={26} /></section>}
-      {reviewExpired && (job.chain.status === DigitalWorkStatus.funded || job.chain.status === DigitalWorkStatus.submitted || job.chain.status === DigitalWorkStatus.needsChanges) && <section className="action-banner"><div><h3>The review window closed.</h3><p>Anyone can finalize the agreed refund path.</p></div><button className="primary" disabled={digital.busy} onClick={() => void doAction(() => digital.expire(job))}>Finalize refund</button></section>}
+      {reviewExpired && open && (silencePays ? (
+        <section className="action-banner">
+          <div><h3>No reviewer objected in time.</h3><p>The work was submitted before the deadline and nobody voted it down, so closing the job pays the worker. Unused review fees go back to the client. Anyone can close it.</p></div>
+          <button className="primary" disabled={digital.busy} onClick={() => void doAction(() => digital.expire(job))}>Close and pay the worker</button>
+        </section>
+      ) : (
+        <section className="action-banner">
+          <div><h3>The review window closed.</h3><p>{job.chain.status === DigitalWorkStatus.submitted ? "A reviewer voted against this version, so " : "Nothing was approved in time, so "}the reward and unused fees go back to the client. Fees already earned by voting stay with the voters. Anyone can close it.</p></div>
+          <button className="primary" disabled={digital.busy} onClick={() => void doAction(() => digital.expire(job))}>Close and refund the client</button>
+        </section>
+      ))}
+      {job.chain.status === DigitalWorkStatus.cancelled && <section className="action-banner"><div><h3>This job was called off.</h3><p>{job.chain.workerAccepted ? "Both sides agreed to cancel. The client can withdraw everything nobody had earned; fees already earned by voting stay with the voters." : "It was cancelled before any money moved."}</p></div><Clock3 size={26} aria-hidden /></section>}
+      {job.rules >= 2 && (isPayer || isWorker) && !reviewExpired && (job.chain.status === DigitalWorkStatus.draft || open) && (
+        <section className="panel cancel-panel">
+          {job.chain.status === DigitalWorkStatus.draft ? (
+            <>
+              <div><h3>Call it off</h3><p className="muted">Nothing has been funded yet, so either of you can cancel on your own.</p></div>
+              <button className="secondary" disabled={digital.busy} onClick={() => { if (window.confirm("Cancel this job? This can't be undone.")) void doAction(() => digital.cancel(job)); }}>Cancel job</button>
+            </>
+          ) : (job.cancelConsents & myCancelBit) !== 0 ? (
+            <div><h3>You asked to cancel</h3><p className="muted">Waiting for the {isPayer ? "worker" : "client"} to agree. Until then the job carries on as agreed.</p></div>
+          ) : (
+            <>
+              <div>
+                <h3>{job.cancelConsents ? `The ${isPayer ? "worker" : "client"} asked to cancel` : "Need to stop?"}</h3>
+                <p className="muted">Cancelling a funded job needs both of you. The client gets back everything not yet earned; fees already earned by voting stay with the voters.</p>
+              </div>
+              <button className="secondary" disabled={digital.busy} onClick={() => { if (window.confirm(job.cancelConsents ? "Agree to cancel this job? This can't be undone." : "Ask to cancel? The other side has to agree.")) void doAction(() => digital.cancel(job)); }}>
+                {job.cancelConsents ? "Agree to cancel" : "Ask to cancel"}
+              </button>
+            </>
+          )}
+        </section>
+      )}
       {digital.claimable > 0n && <section className="action-banner"><div><h3>{formatAmount(digital.claimable)} {token.symbol} available</h3><p>Withdraw your earned reward, verifier fee, or returned funds.</p></div><button className="primary" disabled={digital.busy} onClick={() => void doAction(() => digital.withdraw())}>Withdraw</button></section>}
 
       <JobThread

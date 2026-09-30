@@ -2767,3 +2767,7 @@ a.identity-chip:hover { border-color: var(--m-purple-bright); }
 .session-warning p { flex: 1; min-width: 200px; font-size: 14px; }
 .session-warning svg { color: var(--m-caution); }
 .session-warning .secondary { padding: 10px 14px; }
+.cancel-panel { display: flex; flex-wrap: wrap; gap: 12px 20px; justify-content: space-between; align-items: center; margin-top: 20px; }
+.cancel-panel h3 { margin-bottom: 4px; }
+.cancel-panel p { font-size: 14px; max-width: 60ch; }
+.review-window { flex-basis: 100%; }

@@ -7,6 +7,7 @@ import { ReviewerSuggestions } from "./reviewer-suggestions";
 import { JobThread } from "./job-thread";
 import { clearDraft, loadDraft, saveDraft } from "./draft-store";
 import { milestoneActions } from "@/lib/next-actions";
+import { REVIEW_WINDOW_SECONDS } from "@/lib/escrow";
 import {
   ArrowLeft,
   ArrowUpRight,
@@ -404,6 +405,7 @@ function Detail({
 }) {
   const w = useWallet();
   const [notes, setNotes] = useState("");
+  const [feedback, setFeedback] = useState("");
   const [reviewingFunding, setReviewingFunding] = useState(false);
   const [claimingInDetail, setClaimingInDetail] = useState(false);
   const [now, setNow] = useState(() => Date.now());
@@ -455,6 +457,7 @@ function Detail({
     expiry: a.expiry, reserved: a.reserved, nextMilestone: Number(a.nextMilestone),
     workerEarned: a.workerEarned, workerWithdrawn: a.workerWithdrawn,
     verifierEarned: a.verifierEarned, verifierWithdrawn: a.verifierWithdrawn,
+    rules: agreement.rules, submittedAt: agreement.submittedAt,
   }, w.address, BigInt(Math.floor(now / 1000)));
   const nextStep = steps.find((x) => x.owner === "you") ?? steps[0];
 
@@ -761,23 +764,54 @@ function Detail({
                       </button>
                     </>
                   )}
+                  {state === 1 && agreement.rules >= 2 && agreement.submittedAt > 0n && (
+                    <p className="fine-print review-window">
+                      {BigInt(Math.floor(now / 1000)) < agreement.submittedAt + REVIEW_WINDOW_SECONDS
+                        ? <>Decision due by {new Date(Number(agreement.submittedAt + REVIEW_WINDOW_SECONDS) * 1000).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })}. With no decision by then, the worker can release the payment.</>
+                        : <>No decision within the 5-day review window, so this milestone can now be paid.</>}
+                    </p>
+                  )}
+                  {state === 1 && agreement.rules >= 2 && agreement.submittedAt > 0n &&
+                    BigInt(Math.floor(now / 1000)) >= agreement.submittedAt + REVIEW_WINDOW_SECONDS && acting && (
+                      <button className="primary" disabled={live.busy} onClick={() => void live.payOnSilence(agreement)}>
+                        Release payment
+                      </button>
+                    )}
                   {state === 1 &&
                     ((acting === "verifier" && agreement.verifierTag) ||
                       (acting === "payer" && !agreement.verifierTag)) && (
-                      <button
-                        className="primary"
-                        disabled={live.busy}
-                        onClick={() => void live.approve(agreement, index)}
-                      >
-                        Approve and pay{" "}
-                        {formatAmount(
-                          BigInt(m.workerAmount) + BigInt(m.verifierFee),
-                        )}
-                      </button>
+                      <>
+                        <Textarea
+                          value={feedback}
+                          onChange={(e) => setFeedback(e.target.value)}
+                          placeholder="To send it back, say what needs to change. The worker sees this in the job's messages."
+                        />
+                        <div className="milestone-actions">
+                          <button
+                            className="secondary"
+                            disabled={live.busy || feedback.trim().length < 10 ||
+                              (agreement.rules >= 2 && agreement.submittedAt > 0n &&
+                                BigInt(Math.floor(now / 1000)) >= agreement.submittedAt + REVIEW_WINDOW_SECONDS)}
+                            onClick={() => void live.requestChanges(agreement, index, feedback).then(() => setFeedback(""))}
+                          >
+                            Send back with notes
+                          </button>
+                          <button
+                            className="primary"
+                            disabled={live.busy}
+                            onClick={() => void live.approve(agreement, index)}
+                          >
+                            Approve and pay{" "}
+                            {formatAmount(
+                              BigInt(m.workerAmount) + BigInt(m.verifierFee),
+                            )}
+                          </button>
+                        </div>
+                      </>
                     )}
                   {state === 1 && acting === "worker" && (
                     <p className="fine-print">
-                      Submitted. Waiting for the verifier.
+                      Submitted. Waiting for {agreement.verifierTag ? "the reviewer" : "the client"}. Your notes are in the job&apos;s messages.
                     </p>
                   )}
                 </div>

@@ -1,6 +1,6 @@
 import { getAddress, isAddress } from "viem";
 import { z } from "zod";
-import { digitalJobId, readAuthorizedDigitalJob, verifyDigitalWrite } from "@/lib/digital-work-access";
+import { contractOfJobId, digitalJobId, readAuthorizedDigitalJob, verifyDigitalWrite } from "@/lib/digital-work-access";
 import { readDigitalJob, readDigitalVote } from "@/lib/digital-work-chain";
 import { manualVoteHash } from "@/lib/digital-work-policy";
 import { parseProofsParam } from "@/lib/live-agreements-access";
@@ -8,6 +8,7 @@ import { authorize, database, failure, HttpError } from "@/lib/server";
 
 const voteSchema = z.object({
   onchainId: z.string().regex(/^\d{1,20}$/),
+  contract: z.string().regex(/^0x[a-fA-F0-9]{40}$/).optional(),
   version: z.number().int().min(1).max(100),
   evidenceHash: z.string().regex(/^0x[a-fA-F0-9]{64}$/),
   verifier: z.string(),
@@ -21,11 +22,12 @@ export async function GET(request: Request) {
     await authorize();
     const url = new URL(request.url);
     const onchainId = url.searchParams.get("onchainId") ?? "";
-    await readAuthorizedDigitalJob(onchainId, parseProofsParam(url));
+    const contract = url.searchParams.get("contract");
+    await readAuthorizedDigitalJob(onchainId, parseProofsParam(url), contract);
     const result = await database().prepare(
       "SELECT version,verifier_address,pass,notes,report_hash,created_at" +
       " FROM digital_manual_votes WHERE job_id=? ORDER BY version DESC,created_at ASC LIMIT 50",
-    ).bind(digitalJobId(onchainId)).all<{
+    ).bind(digitalJobId(onchainId, contract)).all<{
       version: number; verifier_address: string; pass: number; notes: string;
       report_hash: string; created_at: string;
     }>();
@@ -48,8 +50,9 @@ export async function POST(request: Request) {
     const body = voteSchema.parse(await request.json());
     if (!isAddress(body.verifier)) throw new HttpError(400, "Valid verifier address required.");
     const verifier = getAddress(body.verifier);
-    const jobId = digitalJobId(body.onchainId);
-    const chainJob = await readDigitalJob(BigInt(body.onchainId));
+    const jobId = digitalJobId(body.onchainId, body.contract);
+    const at = contractOfJobId(jobId);
+    const chainJob = await readDigitalJob(BigInt(body.onchainId), at);
     if (!chainJob.verifiers.some((address) => address.toLowerCase() === verifier.toLowerCase()))
       throw new HttpError(403, "This address is not a verifier on the job.");
     const reportHash = manualVoteHash({
@@ -57,7 +60,7 @@ export async function POST(request: Request) {
       verifier, pass: body.pass, notes: body.notes,
     });
     await verifyDigitalWrite(verifier, body.signature, "vote", jobId, reportHash);
-    const vote = await readDigitalVote(BigInt(body.onchainId), verifier);
+    const vote = await readDigitalVote(BigInt(body.onchainId), verifier, at);
     if (vote.version !== body.version || vote.pass !== body.pass || vote.reportHash.toLowerCase() !== reportHash.toLowerCase())
       throw new HttpError(409, "Readable review does not match the on-chain vote.");
     await database().prepare(

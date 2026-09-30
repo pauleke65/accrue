@@ -53,13 +53,18 @@ function Earnings({ onOpen }: { onOpen: (id: string, kind: JobKind) => void }) {
   useEffect(() => {
     if (!digitalWorkAddress()) return;
     let cancelled = false;
+    // Each deployment pools its own balance, so check every one this person
+    // has a job on, plus the current one, for every account they control.
     const addresses = mine as `0x${string}`[];
-    void Promise.all(addresses.map(async (address) => ({ address, amount: await readDigitalClaimable(address).catch(() => 0n) })))
-      .then((list) => { if (!cancelled) setPooled(list); });
+    const contracts = [...new Set([digitalWorkAddress()!, ...digital.jobs.map((j) => j.contract)].map((a) => a.toLowerCase()))] as `0x${string}`[];
+    void Promise.all(addresses.map(async (address) => ({
+      address,
+      amount: (await Promise.all(contracts.map((at) => readDigitalClaimable(address, at).catch(() => 0n)))).reduce((sum, v) => sum + v, 0n),
+    }))).then((list) => { if (!cancelled) setPooled(list); });
     const reviewing = digital.jobs.flatMap((job) => job.verifiers.filter((v) => mine.includes(v.toLowerCase())).map((v) => ({ job, v })));
     void Promise.all(reviewing.map(async ({ job, v }) => {
       const earned = await publicClient().readContract({
-        address: digitalWorkAddress()!,
+        address: job.contract,
         abi: digitalWorkAbi,
         functionName: "feeEarned",
         args: [BigInt(job.onchainId), v],

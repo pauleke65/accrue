@@ -32,6 +32,8 @@ export const DigitalWorkStatus = {
   needsChanges: 3,
   paid: 4,
   refunded: 5,
+  /** Rules version 2 only. */
+  cancelled: 6,
 } as const;
 
 export type DigitalJobOnChain = {
@@ -63,18 +65,46 @@ function configuredAddress(): Address {
   return address;
 }
 
-export async function readDigitalJob(id: bigint): Promise<DigitalJobOnChain> {
+/**
+ * Every helper takes the contract a job lives on. New jobs use the current
+ * deployment; a job created on an earlier one keeps being read and acted on
+ * there (digital_jobs.contract), so a new version never strands old jobs.
+ */
+const rulesCache = new Map<string, Promise<number>>();
+
+/** 1 for the original rules, 2 for pay-on-silence and cancellation. */
+export function readDigitalRulesVersion(at?: Address): Promise<number> {
+  const address = at ?? configuredAddress();
+  const key = address.toLowerCase();
+  if (!rulesCache.has(key))
+    rulesCache.set(key, publicClient()
+      .readContract({ address, abi: digitalWorkAbi, functionName: "rulesVersion" })
+      .then((v) => Number(v))
+      .catch(() => 1)); // version 1 has no such function
+  return rulesCache.get(key)!;
+}
+
+/** Which parties have agreed to cancel (version 2): bit 1 payer, bit 2 worker. */
+export async function readCancelConsents(id: bigint, at?: Address): Promise<number> {
+  const address = at ?? configuredAddress();
+  if ((await readDigitalRulesVersion(address)) < 2) return 0;
+  return Number(await publicClient().readContract({
+    address, abi: digitalWorkAbi, functionName: "cancelConsents", args: [id],
+  }));
+}
+
+export async function readDigitalJob(id: bigint, at?: Address): Promise<DigitalJobOnChain> {
   return publicClient().readContract({
-    address: configuredAddress(),
+    address: at ?? configuredAddress(),
     abi: digitalWorkAbi,
     functionName: "getJob",
     args: [id],
   }) as Promise<DigitalJobOnChain>;
 }
 
-export async function readDigitalClaimable(address: Address): Promise<bigint> {
+export async function readDigitalClaimable(address: Address, at?: Address): Promise<bigint> {
   return publicClient().readContract({
-    address: configuredAddress(),
+    address: at ?? configuredAddress(),
     abi: digitalWorkAbi,
     functionName: "claimable",
     args: [address],
@@ -85,8 +115,9 @@ export async function ensureDigitalAllowance(
   account: Account,
   amount: bigint,
   report?: (state: TransactionState) => void,
+  at?: Address,
 ): Promise<void> {
-  const spender = configuredAddress();
+  const spender = at ?? configuredAddress();
   const allowance = await publicClient().readContract({
     address: token.address, abi: approvalAbi, functionName: "allowance", args: [account.address, spender],
   });
@@ -102,13 +133,13 @@ export async function ensureDigitalAllowance(
   report?.({ status: "confirmed", hash });
 }
 
-export async function readDigitalVote(id: bigint, verifier: Address): Promise<{
+export async function readDigitalVote(id: bigint, verifier: Address, at?: Address): Promise<{
   version: number;
   pass: boolean;
   reportHash: Hash;
 }> {
   const value = await publicClient().readContract({
-    address: configuredAddress(),
+    address: at ?? configuredAddress(),
     abi: digitalWorkAbi,
     functionName: "votes",
     args: [id, verifier],
@@ -121,13 +152,15 @@ export async function sendDigitalAction(options: {
   functionName: string;
   args: readonly unknown[];
   report?: (state: TransactionState) => void;
+  /** The contract the job lives on; the current deployment if omitted. */
+  at?: Address;
 }): Promise<TransactionState & { hash?: Hash }> {
-  const { account, functionName, args, report } = options;
+  const { account, functionName, args, report, at } = options;
   report?.({ status: "awaiting-signature" });
   let hash: Hash;
   try {
     hash = await walletClient(account).writeContract({
-      address: configuredAddress(),
+      address: at ?? configuredAddress(),
       abi: digitalWorkAbi,
       functionName,
       args,

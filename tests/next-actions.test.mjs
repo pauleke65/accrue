@@ -75,3 +75,33 @@ test("milestone job: earned pay is withdrawable, even after the job closes", () 
   assert.deepEqual(owners(milestoneActions(closed, WORKER, NOW)), ["you:Withdraw your pay", "waiting:Job closed"]);
   assert.deepEqual(owners(milestoneActions(closed, PAYER, NOW)), ["you:Reclaim unearned funds"]);
 });
+
+// ---- Contract rules version 2 ----
+
+test("v2 proof job: silence at the deadline pays the worker", () => {
+  const silent = proof({ status: ProofStatus.submitted, rules: 2, failVotes: 0 });
+  assert.deepEqual(owners(proofActions(silent, WORKER, 3_001n)), ["you:Collect your pay"]);
+  assert.deepEqual(owners(proofActions(silent, PAYER, 3_001n)), ["waiting:Worker is owed the pay"]);
+  // A fail vote keeps the old refund path; version 1 always refunds.
+  assert.deepEqual(owners(proofActions({ ...silent, failVotes: 1 }, PAYER, 3_001n)), ["you:Reclaim your funds"]);
+  assert.deepEqual(owners(proofActions({ ...silent, rules: 1 }, PAYER, 3_001n)), ["you:Reclaim your funds"]);
+});
+
+test("v2 proof job: a cancellation request goes to the other side", () => {
+  const asked = proof({ status: ProofStatus.funded, rules: 2, cancelConsents: 1 });
+  assert.deepEqual(owners(proofActions(asked, WORKER, NOW)), ["you:Answer a cancellation request"]);
+  assert.deepEqual(owners(proofActions(asked, PAYER, NOW)), ["waiting:Waiting on your cancellation request"]);
+});
+
+test("v2 milestone: a lapsed review window lets the worker release payment", () => {
+  const funded = milestone({ acceptances: 7, funded: true, reserved: 100n, states: [1, 0], rules: 2, submittedAt: 100n });
+  const later = 100n + 5n * 86_400n;
+  assert.deepEqual(owners(milestoneActions(funded, WORKER, later)), ["you:Release payment for Wireframes"]);
+  assert.deepEqual(owners(milestoneActions(funded, V1, later - 1n)), ["you:Review milestone 1, Wireframes"]);
+});
+
+test("v2 milestone: a submission inside its window blocks the refund, and the approver is asked", () => {
+  const expiring = milestone({ acceptances: 7, funded: true, reserved: 100n, states: [1, 0], rules: 2, submittedAt: 4_900n });
+  assert.deepEqual(owners(milestoneActions(expiring, PAYER, 5_001n)), ["waiting:Wait for the review window"]);
+  assert.deepEqual(owners(milestoneActions(expiring, V1, 5_001n)), ["you:Review milestone 1, Wireframes"]);
+});

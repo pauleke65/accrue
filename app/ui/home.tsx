@@ -103,7 +103,7 @@ function SignedInHome({ onIntent, onCount }: { onIntent: (intent: HomeIntent) =>
     if (!pending.length) return;
     let cancelled = false;
     void Promise.all(pending.map(async (job) => {
-      const vote = await readDigitalVote(BigInt(job.onchainId), me).catch(() => null);
+      const vote = await readDigitalVote(BigInt(job.onchainId), me, job.contract).catch(() => null);
       return [job.id, vote ? vote.version === job.chain.version : false] as const;
     })).then((entries) => { if (!cancelled) setVotes(Object.fromEntries(entries)); });
     return () => { cancelled = true; };
@@ -123,6 +123,9 @@ function SignedInHome({ onIntent, onCount }: { onIntent: (intent: HomeIntent) =>
         deliveryDeadline: job.chain.deliveryDeadline,
         reviewDeadline: job.chain.reviewDeadline,
         votedCurrentVersion: job.id in votes ? votes[job.id] : null,
+        rules: job.rules,
+        failVotes: job.chain.failVotes,
+        cancelConsents: job.cancelConsents,
       }, me, now));
     }
     for (const a of live.agreements) {
@@ -146,6 +149,8 @@ function SignedInHome({ onIntent, onCount }: { onIntent: (intent: HomeIntent) =>
         workerWithdrawn: a.chain.workerWithdrawn,
         verifierEarned: a.chain.verifierEarned,
         verifierWithdrawn: a.chain.verifierWithdrawn,
+        rules: a.rules,
+        submittedAt: a.submittedAt,
       }, me, now));
     }
     return list;

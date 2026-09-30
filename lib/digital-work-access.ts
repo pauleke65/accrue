@@ -1,6 +1,6 @@
 import { getAddress, isAddress, verifyMessage, type Address, type Hash } from "viem";
 import { readDigitalJob, type DigitalJobOnChain } from "./digital-work-chain";
-import { digitalJobId, digitalWriteMessage } from "./digital-work-id";
+import { contractOfJobId, digitalJobId, digitalWriteMessage } from "./digital-work-id";
 import { verifiedAddresses, type ParticipantProof } from "./live-agreements-access";
 import { database, HttpError } from "./server";
 
@@ -18,7 +18,7 @@ export type DigitalJobRow = {
   created_at: string;
 };
 
-export { digitalJobId, digitalWriteMessage } from "./digital-work-id";
+export { contractOfJobId, digitalJobId, digitalWriteMessage } from "./digital-work-id";
 
 export async function verifyDigitalWrite(
   address: string,
@@ -37,11 +37,18 @@ export async function verifyDigitalWrite(
   if (!valid) throw new HttpError(403, "Participant signature did not verify.");
 }
 
+/**
+ * `contract` names the deployment for a job created on an earlier one. It is
+ * only a lookup key: the row must exist, and its policy must match what that
+ * contract holds, so naming an arbitrary address finds nothing.
+ */
 export async function readAuthorizedDigitalJob(
   onchainId: string,
   proofs: ParticipantProof[] | undefined,
-): Promise<{ row: DigitalJobRow; chainJob: DigitalJobOnChain; addresses: Address[] }> {
-  const id = digitalJobId(onchainId);
+  contract?: string | null,
+): Promise<{ row: DigitalJobRow; chainJob: DigitalJobOnChain; addresses: Address[]; contract: Address }> {
+  const id = digitalJobId(onchainId, contract);
+  const at = contractOfJobId(id);
   const row = await database()
     .prepare("SELECT * FROM digital_jobs WHERE id = ?")
     .bind(id)
@@ -51,8 +58,8 @@ export async function readAuthorizedDigitalJob(
   const participants = [row.payer_address, row.worker_address, row.verifier_a, row.verifier_b, row.verifier_c];
   if (!addresses.some((address) => participants.some((participant) => participant.toLowerCase() === address.toLowerCase())))
     throw new HttpError(403, "A participant signature is required to view this job.");
-  const chainJob = await readDigitalJob(BigInt(onchainId));
+  const chainJob = await readDigitalJob(BigInt(onchainId), at);
   if (chainJob.policyHash.toLowerCase() !== row.policy_hash.toLowerCase())
     throw new HttpError(409, "Readable policy does not match the contract.");
-  return { row, chainJob, addresses };
+  return { row, chainJob, addresses, contract: at };
 }

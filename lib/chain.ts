@@ -54,7 +54,12 @@ export const token = {
  * agreements in this app do not use it yet.
  */
 export const escrow = {
-  address: "0xf8c44A529cd0470597C7865d2B2473abff65d0De",
+  // New milestone jobs go here. Set NEXT_PUBLIC_ACCRUE_ESCROW_ADDRESS after
+  // deploying a new version; jobs on earlier deployments keep using the
+  // address recorded with them (live_agreements.escrow). The deployment
+  // fields below describe the original deployment.
+  address: (process.env.NEXT_PUBLIC_ACCRUE_ESCROW_ADDRESS?.trim() ||
+    "0xf8c44A529cd0470597C7865d2B2473abff65d0De") as `0x${string}`,
   deploymentTx:
     "0x6ce946bbb8c807e1b6c251869b29cf5023b9da292eff4091eedb2e1e2bcfa637",
   deployedAtBlock: 62038044,

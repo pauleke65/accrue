@@ -8,6 +8,8 @@ import {
   readMilestones,
   readCreatedId,
   readAllowance,
+  readRulesVersion,
+  readSubmittedAt,
   hashText,
   MilestoneState,
   type OnChainAgreement,
@@ -59,6 +61,10 @@ export type LiveAgreement = LiveTerms & {
   chain: OnChainAgreement;
   states: number[];
   evidence: `0x${string}`[];
+  /** 1 for the original rules; 2 adds the review window and pay-on-silence. */
+  rules: number;
+  /** Version 2: when the current milestone's evidence was submitted, in seconds (0 if none). */
+  submittedAt: bigint;
 };
 
 export type Draft = {
@@ -158,17 +164,25 @@ export function useLiveAgreements() {
     try {
       const full = await Promise.all(
         list.map(async (t) => {
-          const [chain, milestones] = await Promise.all([
-            readAgreement(BigInt(t.onchainId)),
-            readMilestones(BigInt(t.onchainId)) as Promise<
+          // Each job is read from the escrow it was created on.
+          const [chain, milestones, rules] = await Promise.all([
+            readAgreement(BigInt(t.onchainId), t.escrow),
+            readMilestones(BigInt(t.onchainId), t.escrow) as Promise<
               { state: number; evidenceHash: `0x${string}` }[]
             >,
+            readRulesVersion(t.escrow),
           ]);
+          const current = Number(chain.nextMilestone);
+          const submittedAt = rules >= 2 && milestones[current]?.state === 1
+            ? await readSubmittedAt(BigInt(t.onchainId), current, t.escrow).catch(() => 0n)
+            : 0n;
           return {
             ...t,
             chain,
             states: milestones.map((m) => m.state),
             evidence: milestones.map((m) => m.evidenceHash),
+            rules,
+            submittedAt,
           };
         }),
       );
@@ -310,6 +324,7 @@ export function useLiveAgreements() {
           functionName: "accept",
           args: [BigInt(agreement.onchainId), agreement.chain.termsHash],
           report: setProgress,
+          at: agreement.escrow,
         });
         if (state.status !== "confirmed")
           throw new Error(state.error ?? "Acceptance did not go through.");
@@ -333,18 +348,20 @@ export function useLiveAgreements() {
             `Waiting on ${missing.join(" and ")} to accept before this can be funded.`,
           );
         const deposit = agreement.chain.deposit;
-        const allowance = await readAllowance(account.address);
+        const allowance = await readAllowance(account.address, agreement.escrow);
         if (allowance < deposit)
           await approveDeposit({
             account,
             amount: deposit,
             report: setProgress,
+            at: agreement.escrow,
           });
         const state = await callEscrow({
           account,
           functionName: "fund",
           args: [BigInt(agreement.onchainId)],
           report: setProgress,
+          at: agreement.escrow,
         });
         if (state.status !== "confirmed")
           throw new Error(state.error ?? "Funding did not go through.");
@@ -354,6 +371,24 @@ export function useLiveAgreements() {
     [run, refresh, w],
   );
 
+  /**
+   * The chain keeps only a hash of evidence and feedback. The words go into
+   * the job's own thread so the other side can read them; anyone can check
+   * they match the hash. Best effort: the on-chain step already stands.
+   */
+  const postToThread = useCallback(async (agreement: LiveAgreement, body: string) => {
+    try {
+      const proofs = await w.proveParticipation();
+      await fetch("/api/job-messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ kind: "milestone", id: agreement.id, body: body.slice(0, 2000), proofs }),
+      });
+    } catch {
+      /* The thread is a courtesy copy; the chain record is what counts. */
+    }
+  }, [w]);
+
   const submit = useCallback(
     async (agreement: LiveAgreement, index: number, notes: string) =>
       run(async (account) => {
@@ -362,12 +397,33 @@ export function useLiveAgreements() {
           functionName: "submitEvidence",
           args: [BigInt(agreement.onchainId), BigInt(index), hashText(notes)],
           report: setProgress,
+          at: agreement.escrow,
         });
         if (state.status !== "confirmed")
           throw new Error(state.error ?? "The submission did not go through.");
+        await postToThread(agreement, `Submitted "${agreement.milestones[index]?.title ?? `milestone ${index + 1}`}" for review:\n${notes}`);
         await refresh();
       }),
-    [run, refresh],
+    [run, refresh, postToThread],
+  );
+
+  /** Sends a submitted milestone back to the worker with notes on what to fix. */
+  const requestChanges = useCallback(
+    async (agreement: LiveAgreement, index: number, notes: string) =>
+      run(async (account) => {
+        const state = await callEscrow({
+          account,
+          functionName: "requestChanges",
+          args: [BigInt(agreement.onchainId), BigInt(index), agreement.evidence[index], hashText(notes)],
+          report: setProgress,
+          at: agreement.escrow,
+        });
+        if (state.status !== "confirmed")
+          throw new Error(state.error ?? "Sending it back did not go through.");
+        await postToThread(agreement, `Sent "${agreement.milestones[index]?.title ?? `milestone ${index + 1}`}" back for changes:\n${notes}`);
+        await refresh();
+      }),
+    [run, refresh, postToThread],
   );
 
   const approve = useCallback(
@@ -382,6 +438,7 @@ export function useLiveAgreements() {
             agreement.evidence[index],
           ],
           report: setProgress,
+          at: agreement.escrow,
         });
         if (state.status !== "confirmed")
           throw new Error(state.error ?? "The approval did not go through.");
@@ -399,6 +456,7 @@ export function useLiveAgreements() {
           functionName: "withdraw",
           args: [BigInt(agreement.onchainId)],
           report: setProgress,
+          at: agreement.escrow,
         });
         if (state.status !== "confirmed")
           throw new Error(state.error ?? "The withdrawal did not go through.");
@@ -416,9 +474,28 @@ export function useLiveAgreements() {
           functionName: "consentCancellation",
           args: [BigInt(agreement.onchainId)],
           report: setProgress,
+          at: agreement.escrow,
         });
         if (state.status !== "confirmed")
           throw new Error(state.error ?? "Cancellation vote did not go through.");
+        await refresh();
+      }),
+    [run, refresh],
+  );
+
+  /** Version 2: releases a milestone whose approver let the review window pass. */
+  const payOnSilence = useCallback(
+    async (agreement: LiveAgreement) =>
+      run(async (account) => {
+        const state = await callEscrow({
+          account,
+          functionName: "payOnSilence",
+          args: [BigInt(agreement.onchainId)],
+          report: setProgress,
+          at: agreement.escrow,
+        });
+        if (state.status !== "confirmed")
+          throw new Error(state.error ?? "The payment did not go through.");
         await refresh();
       }),
     [run, refresh],
@@ -432,6 +509,7 @@ export function useLiveAgreements() {
           functionName: "refund",
           args: [BigInt(agreement.onchainId)],
           report: setProgress,
+          at: agreement.escrow,
         });
         if (state.status !== "confirmed")
           throw new Error(state.error ?? "Refund did not go through.");
@@ -456,6 +534,8 @@ export function useLiveAgreements() {
     approve,
     withdraw,
     consentCancellation,
+    requestChanges,
+    payOnSilence,
     refund,
     MilestoneState,
   };

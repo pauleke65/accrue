@@ -5,7 +5,7 @@ import { z } from "zod";
 import { publicClient } from "@/lib/ausd";
 import { chain, network } from "@/lib/chain";
 import { readAuthorizedDigitalJob } from "@/lib/digital-work-access";
-import { digitalWorkAbi, digitalWorkAddress, DigitalWorkStatus } from "@/lib/digital-work-chain";
+import { digitalWorkAbi, DigitalWorkStatus } from "@/lib/digital-work-chain";
 import { parseDigitalManifest, parseDigitalPolicy } from "@/lib/digital-work-policy";
 import { assessWithJev, runChecks } from "@/lib/jev-verifier";
 import { parseProofsParam, type ParticipantProof } from "@/lib/live-agreements-access";
@@ -13,6 +13,7 @@ import { authorize, database, failure, HttpError } from "@/lib/server";
 
 const requestSchema = z.object({
   onchainId: z.string().regex(/^\d{1,20}$/),
+  contract: z.string().regex(/^0x[a-fA-F0-9]{40}$/).optional(),
   version: z.number().int().min(1).max(100),
   proofs: z.array(z.object({ address: z.string(), signature: z.string() })).min(1).max(8),
 }).strict();
@@ -33,6 +34,7 @@ async function getRun(jobId: string, version: number): Promise<StoredRun | null>
 }
 
 async function submitJevVote(
+  contract: `0x${string}`,
   onchainId: string,
   evidenceHash: Hash,
   reportHash: Hash,
@@ -45,8 +47,7 @@ async function submitJevVote(
   const account = privateKeyToAccount(key as Hash);
   if (!namedVerifiers.some((address) => address.toLowerCase() === account.address.toLowerCase()))
     throw new HttpError(409, "The configured Proof Engine verifier is not named on this agreement.");
-  const address = digitalWorkAddress();
-  if (!address) throw new HttpError(503, "Digital-work contract is not configured.");
+  const address = contract;
   const jevWallet = createWalletClient({
     account, chain, transport: http(network.rpcUrls[1], { timeout: 30_000 }),
   });
@@ -68,7 +69,7 @@ export async function GET(request: Request) {
     await authorize();
     const url = new URL(request.url);
     const onchainId = url.searchParams.get("onchainId") ?? "";
-    const { row } = await readAuthorizedDigitalJob(onchainId, parseProofsParam(url));
+    const { row } = await readAuthorizedDigitalJob(onchainId, parseProofsParam(url), url.searchParams.get("contract"));
     const runs = await database().prepare(
       "SELECT version,state,report_json,report_hash,vote_tx,updated_at" +
       " FROM digital_verification_runs WHERE job_id=? ORDER BY version DESC LIMIT 20",
@@ -90,8 +91,8 @@ export async function POST(request: Request) {
   try {
     await authorize(request);
     const body = requestSchema.parse(await request.json());
-    const { row, chainJob } = await readAuthorizedDigitalJob(
-      body.onchainId, body.proofs as ParticipantProof[],
+    const { row, chainJob, contract } = await readAuthorizedDigitalJob(
+      body.onchainId, body.proofs as ParticipantProof[], body.contract,
     );
     if (chainJob.version !== body.version || chainJob.status !== DigitalWorkStatus.submitted)
       throw new HttpError(409, "There is no matching submission awaiting verification.");
@@ -108,7 +109,7 @@ export async function POST(request: Request) {
     });
     if (prior?.state === "report_ready" && prior.report_json && prior.report_hash) {
       const report = JSON.parse(prior.report_json) as { jev: { recommendation: "pass" | "fail" | "manual_review" } };
-      const voteTx = await submitJevVote(body.onchainId, chainJob.evidenceHash, prior.report_hash as Hash,
+      const voteTx = await submitJevVote(contract, body.onchainId, chainJob.evidenceHash, prior.report_hash as Hash,
         report.jev.recommendation, chainJob.verifiers);
       if (voteTx) await database().prepare(
         "UPDATE digital_verification_runs SET state='complete',vote_tx=?,updated_at=? WHERE job_id=? AND version=?",
@@ -146,7 +147,7 @@ export async function POST(request: Request) {
         "UPDATE digital_verification_runs SET state='report_ready',report_json=?,report_hash=?,updated_at=?" +
         " WHERE job_id=? AND version=?",
       ).bind(serialized, reportHash, new Date().toISOString(), row.id, body.version).run();
-      const voteTx = await submitJevVote(body.onchainId, chainJob.evidenceHash,
+      const voteTx = await submitJevVote(contract, body.onchainId, chainJob.evidenceHash,
         reportHash, jev.recommendation, chainJob.verifiers);
       if (voteTx || jev.recommendation === "manual_review") await database().prepare(
         "UPDATE digital_verification_runs SET state='complete',vote_tx=?,updated_at=?" +
