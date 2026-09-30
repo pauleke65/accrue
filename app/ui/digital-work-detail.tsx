@@ -10,6 +10,7 @@ import { useWallet } from "../wallet-context";
 import type { DigitalJob, DigitalManualVote, DigitalRun, DigitalSubmission, useDigitalWork } from "../use-digital-work";
 import { ProofEngineReport } from "./proof-engine-report";
 import { JobThread } from "./job-thread";
+import { useNames } from "../use-names";
 import { deliverableKind, type DigitalManifest } from "@/lib/digital-work-policy";
 import { proofActions } from "@/lib/next-actions";
 
@@ -30,6 +31,7 @@ export function DigitalWorkDetail({
   const [evidence, setEvidence] = useState({ commitUrl: "", deploymentUrl: "", pageUrl: "", pullRequestUrl: "", notes: "" });
   const [linkCopied, setLinkCopied] = useState(false);
   const kind = deliverableKind(job.policy);
+  const names = useNames([job.payer, job.worker, ...job.verifiers]);
   const policy = job.policy as Record<string, string | number>;
   // Only the fields this job's deliverable type accepts; the server rejects
   // evidence of the wrong kind.
@@ -147,6 +149,8 @@ export function DigitalWorkDetail({
         <section className="panel dw-policy-card">
           <div className="dw-section-head"><span>01</span><div><h2>Locked agreement</h2><p>Terms fixed before funding.</p></div></div>
           <div className="dw-key-values">
+            <div><span>Client</span><strong>{names[job.payer.toLowerCase()] ? `@${names[job.payer.toLowerCase()]}` : shortAddress(job.payer)}</strong></div>
+            <div><span>Worker</span><strong>{names[job.worker.toLowerCase()] ? <a href={`/u/${names[job.worker.toLowerCase()]}`} target="_blank" rel="noreferrer noopener">@{names[job.worker.toLowerCase()]}</a> : shortAddress(job.worker)}</strong></div>
             <div><span>Worker reward</span><strong>{formatAmount(job.chain.reward)} {token.symbol}</strong></div>
             <div><span>Verifier fees</span><strong>{formatAmount(job.chain.feePool)} {token.symbol}</strong></div>
             <div><span>Deliver by</span><strong>{formatDeadline(job.chain.deliveryDeadline)}</strong></div>
@@ -166,7 +170,11 @@ export function DigitalWorkDetail({
             {job.verifiers.map((verifier, index) => {
               const vote = votes[index];
               const voted = vote?.version === job.chain.version && job.chain.version > 0;
-              return <div key={verifier} className="dw-verifier"><span className="dw-verifier-icon">{index === 0 ? <ScanSearch size={18} /> : <ShieldCheck size={18} />}</span><div><strong>{index === 0 ? "Proof Engine · automated" : `Reviewer ${index + 1}`}</strong><small>{shortAddress(verifier)}</small></div><span className={`badge ${voted ? (vote.pass ? "dw-pass" : "dw-fail") : ""}`}>{voted ? (vote.pass ? "PASS" : "FAIL") : "Pending"}</span></div>;
+              // The engine "abstains" by not voting once its report is in.
+              const abstained = index === 0 && !voted && currentRun?.report?.jev.recommendation === "manual_review";
+              const name = names[verifier.toLowerCase()];
+              const label = voted ? (vote.pass ? "PASS" : "FAIL") : abstained ? "Abstained" : job.chain.status === DigitalWorkStatus.paid || job.chain.status === DigitalWorkStatus.refunded ? "No vote" : "Pending";
+              return <div key={verifier} className="dw-verifier"><span className="dw-verifier-icon">{index === 0 ? <ScanSearch size={18} aria-hidden /> : <ShieldCheck size={18} aria-hidden />}</span><div><strong>{index === 0 ? "Proof Engine · automated" : name ? `@${name}` : `Reviewer ${index + 1}`}</strong><small>{index === 0 ? "Runs the checks and an AI review" : name ? <a href={`/u/${name}`} target="_blank" rel="noreferrer noopener">Verified work</a> : shortAddress(verifier)}</small></div><span className={`badge ${voted ? (vote.pass ? "dw-pass" : "dw-fail") : ""}`}>{label}</span></div>;
             })}
           </div>
           <p className="fine-print">Each verifier earns one third of the fee pool on its first vote, regardless of the verdict. Unused fees return to the payer.</p>
