@@ -969,7 +969,7 @@ function Builder({
             )}
           </label>
           {takenBy && (
-            <p className="taken-by"><UserCheck size={17} aria-hidden /> <span><b>{takenBy}</b> took your hiring link and will do the work.</span></p>
+            <p className="taken-by"><UserCheck size={17} aria-hidden /> <span><b>{takenBy}</b> took your hiring link and will do the work. {takenBy.startsWith("@") && <a href={`/u/${takenBy.slice(1)}`} target="_blank" rel="noreferrer noopener">See their verified work</a>}</span></p>
           )}
           <div className="form-grid">
             {!takenBy && <TagField

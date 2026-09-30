@@ -225,7 +225,7 @@ export function DigitalWorkBuilder({
         <section className="panel dw-form-section">
           <div className="dw-section-head"><span>02</span><div><h2>Who does it?</h2><p>The worker accepts these exact terms before you fund anything.</p></div></div>
           {takenBy ? (
-            <p className="taken-by"><UserCheck size={17} aria-hidden /> <span><b>{takenBy}</b> took your hiring link. They will be asked to accept once you create the job.</span></p>
+            <p className="taken-by"><UserCheck size={17} aria-hidden /> <span><b>{takenBy}</b> took your hiring link. They will be asked to accept once you create the job. {takenBy.startsWith("@") && <a href={`/u/${takenBy.slice(1)}`} target="_blank" rel="noreferrer noopener">See their verified work</a>}</span></p>
           ) : (
             <div className="form-stack">
               <label>Worker&apos;s @name<Input value={form.worker} onChange={(e) => set({ worker: e.target.value })} placeholder="@kofi" /><small className="field-hint">Don&apos;t know who yet? Leave this empty and you&apos;ll get a hiring link to share instead.</small></label>

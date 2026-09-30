@@ -181,9 +181,13 @@ export default function Accrue() {
                 the buttons up here only split attention. */}
             {wallet.wallet && (
               <>
-                <span className="identity-chip" title={wallet.address ?? undefined}>
-                  {wallet.tags[wallet.role] ? `@${wallet.tags[wallet.role]!.tag}` : "Signed in"}
-                </span>
+                {wallet.tags[wallet.role] ? (
+                  <a className="identity-chip" href={`/u/${wallet.tags[wallet.role]!.tag}`} target="_blank" rel="noreferrer noopener" title="Your public verified-work record">
+                    @{wallet.tags[wallet.role]!.tag}
+                  </a>
+                ) : (
+                  <span className="identity-chip" title={wallet.address ?? undefined}>Signed in</span>
+                )}
                 <button className="text-button" onClick={wallet.disconnect}>Sign out</button>
               </>
             )}

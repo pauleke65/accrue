@@ -103,7 +103,7 @@ export function OfferModal({ offerToken, onClose }: { offerToken: string; onClos
           ) : (
             <>
               <h2 id="offer-title">{offer.title}</h2>
-              <p className="muted">Posted by {offer.clientTag ? `@${offer.clientTag}` : "a client"}</p>
+              <p className="muted">Posted by {offer.clientTag ? <a className="offer-client" href={`/u/${offer.clientTag}`} target="_blank" rel="noreferrer noopener">@{offer.clientTag}</a> : "a client"}</p>
               {s.brief && <p className="offer-brief">{s.brief}</p>}
               <dl className="offer-facts">
                 <div><dt>Pay</dt><dd>{s.pay}</dd></div>
