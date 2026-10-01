@@ -16,6 +16,11 @@ goes back to the client.
 
 Built for **Monad Metropolis, Track 2: Consumer Products & Payments.**
 
+**Try it:** [accrue.accrue-escrow.workers.dev](https://accrue.accrue-escrow.workers.dev)
+(on a phone, "Add to Home Screen" installs it as an app) · a judge's
+three-minute path is in [DEMO.md](./DEMO.md) · how it is built is in
+[IMPLEMENTATION.md](./IMPLEMENTATION.md).
+
 ## Two escrow flows
 
 | | Proof-checked job | Milestone job |
@@ -56,8 +61,9 @@ Running on **Monad testnet** with **AUSD**, Agora's dollar stablecoin.
 |---|---|
 | Accounts | **Mera** passkeys. One ceremony, no seed phrase, no extension, no custody backend. |
 | Money | **AUSD** transfers settling in about a second, held in escrow contracts until work is approved. |
-| Milestone escrow | [`0xf8c44A529cd0470597C7865d2B2473abff65d0De`](https://testnet.monadvision.com/address/0xf8c44A529cd0470597C7865d2B2473abff65d0De), bound at construction to AUSD. |
-| Proof-checked escrow | [`0x2Fdfa4470fB43d9432f021fDB4043d59fF8C8f07`](https://testnet.monadvision.com/address/0x2Fdfa4470fB43d9432f021fDB4043d59fF8C8f07), see [docs/DIGITAL-WORK.md](./docs/DIGITAL-WORK.md). |
+| Milestone escrow | [`0xf8c44A529cd0470597C7865d2B2473abff65d0De`](https://testnet.monadvision.com/address/0xf8c44A529cd0470597C7865d2B2473abff65d0De), bound at construction to AUSD. v1 rules, built from commit `38999ea`. |
+| Proof-checked escrow | [`0x2Fdfa4470fB43d9432f021fDB4043d59fF8C8f07`](https://testnet.monadvision.com/address/0x2Fdfa4470fB43d9432f021fDB4043d59fF8C8f07), v1 rules, built from commit `c1abd65`; see [docs/DIGITAL-WORK.md](./docs/DIGITAL-WORK.md). |
+| Next contract version | `contracts/src` holds v2 of both (silence is not a no: an undecided submission can be released to the worker). Tested, not yet deployed; see [IMPLEMENTATION.md](./IMPLEMENTATION.md#which-contract-version-is-deployed). |
 | History | **Envio** HyperSync and HyperRPC, for payment history and the activity feed across both contracts. |
 | Fees | Sponsored. A new account holds no MON, so the first network fee is paid for it. |
 | Names | Payment tags. You pay `@bola`, not a 42-character address. |
@@ -74,9 +80,10 @@ npm ci
 npm run build
 ```
 
-For a **fresh database only**, apply each migration once. On an existing
-database, apply only the ones you have not run yet; `0010_job_offers.sql`
-adds hiring links.
+Apply the migrations in order, once each. On a fresh database the loop below
+runs clean. On an existing database, apply only the ones you have not run yet;
+`0010_job_offers.sql` adds hiring links, and `0011`–`0012` the reviewer pool,
+job board and job messages.
 
 ```sh
 for m in drizzle/*.sql; do
@@ -87,7 +94,10 @@ done
 npm run dev
 ```
 
-Then open the printed loopback URL and sign in with a passkey.
+Then open the printed loopback URL and sign in with a passkey. No Cloudflare
+account is needed to run it locally: Workers AI is bound only when Wrangler is
+signed in (or `ACCRUE_REMOTE_AI=1`), and without it Proof Engine still runs its
+checks and says the AI review is unavailable.
 
 ### Optional configuration
 
@@ -117,6 +127,7 @@ node --test tests/domain.test.mjs tests/chain.test.mjs tests/next-actions.test.m
 npx tsc --noEmit
 node tests/api-smoke.mjs                 # needs the dev server
 node tests/tags-smoke.mjs                # claim, resolve, forgery, replay
+node tests/participant-visibility-smoke.mjs  # who can read a job's terms
 node tests/sponsor-smoke.mjs             # needs a funded sponsor key
 node tests/chain-live.mjs                # read-only, no key needed
 node tests/live-agreement-smoke.mjs      # funds a real testnet job end to end
