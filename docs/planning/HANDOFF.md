@@ -71,7 +71,7 @@ The initial PRD proposed Next.js + NestJS + PostgreSQL. For this prototype, the 
 | `contracts/src/AccrueEscrow.sol` | Separate non-upgradeable escrow implementation |
 | `contracts/test/`, `contracts/script/` | Foundry tests and guarded deployment preparation |
 | `tests/domain.test.mjs`, `tests/api-smoke.mjs` | Domain tests and local HTTP end-to-end test |
-| `README.md`, `IMPLEMENTATION.md` | Startup commands and detailed implementation boundaries |
+| `README.md`, `IMPLEMENTATION.md` (now `IMPLEMENTATION-SANDBOX.md`) | Startup commands and detailed implementation boundaries |
 
 An agreement is a versioned JSON aggregate in D1. A mutation validates and computes the next state, then writes with a version comparison. A racing action cannot overwrite a newer revision. Evidence bytes live in R2; D1 owns the access metadata. Sandbox money is integer cents; contract money is raw token units. Never use these interchangeably.
 
