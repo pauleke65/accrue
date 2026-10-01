@@ -154,7 +154,9 @@ try {
     { address: stranger.address, signature: validSignature },
   ]);
   assert.equal(activity.status, 200);
-  assert.equal(activity.data.configured, true);
+  // Proofs are checked before the Envio token is, so this holds either way;
+  // `configured` only says whether .dev.vars has an Envio token.
+  assert.equal(typeof activity.data.configured, "boolean");
   say("escrow-activity accepts the same proof", "no error");
 
   console.log(

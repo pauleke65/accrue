@@ -105,8 +105,11 @@ for (const bad of ["ab", "_leading", "trailing_", "Has Space", "a".repeat(40)]) 
   assert.equal(result.status, 400, `"${bad}" must be refused`);
 }
 
-// Unauthenticated access is refused.
-assert.equal((await fetch(base + `/api/tags?tag=${tag}`)).status, 401);
+// Lookup is a public directory, as the /u/<name> profile pages are: someone
+// without a session can resolve a tag, and gets the address that claimed it.
+const anonymous = await fetch(base + `/api/tags?tag=${tag}`);
+assert.equal(anonymous.status, 200);
+assert.equal((await anonymous.json()).address, owner.address);
 
 console.log(
   JSON.stringify(
@@ -121,7 +124,7 @@ console.log(
         "a signature for a different tag does not replay",
         "an existing tag cannot be reassigned",
         "malformed tags are refused",
-        "unauthenticated access is refused",
+        "lookup is a public directory",
       ],
     },
     null,
