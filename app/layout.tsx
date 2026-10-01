@@ -1,6 +1,8 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
+// Installable from the browser on a phone: the manifest and touch icon make
+// "Add to Home Screen" open Accrue full screen, like an app, at Home.
 export const metadata: Metadata = {
   title: "Accrue — Verified payments",
   description:
@@ -8,10 +10,21 @@ export const metadata: Metadata = {
   other: {
     "codex-preview": "development",
   },
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    title: "Accrue",
+    statusBarStyle: "black-translucent",
+  },
   icons: {
     icon: "/favicon.svg",
     shortcut: "/favicon.svg",
+    apple: "/apple-touch-icon.png",
   },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#0f0f12",
 };
 
 export default function RootLayout({
