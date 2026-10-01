@@ -132,7 +132,9 @@ function visibleText(html: string): string {
   return html
     .replace(/<(script|style|noscript|template)[\s\S]*?<\/\1>/gi, " ")
     // Text a visitor can't see doesn't count: hidden elements are dropped.
-    .replace(/<(\w+)[^>]*(\shidden[\s>=]|aria-hidden="true"|display\s*:\s*none|visibility\s*:\s*hidden)[^>]*>[\s\S]*?<\/\1>/gi, " ")
+    // The lookahead keeps a bare `hidden` from consuming the tag's own `>`,
+    // which let text in <div hidden> count as visible.
+    .replace(/<(\w+)\b[^>]*?(?:\shidden(?=[\s>=/])|aria-hidden\s*=\s*["']?true|display\s*:\s*none|visibility\s*:\s*hidden)[^>]*>[\s\S]*?<\/\1\s*>/gi, " ")
     .replace(/<[^>]+>/g, " ")
     .replace(/&nbsp;/g, " ")
     .replace(/&amp;/g, "&")
