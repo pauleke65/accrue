@@ -80,11 +80,15 @@ export async function POST(request: Request) {
 }
 export async function GET(request: Request) {
   try {
-    const owner = await authorize();
+    // Same identity as the upload, so whoever stored a file can read it back.
+    const owner = await authorize(request);
     const id = new URL(request.url).searchParams.get("id");
+    // Evidence is private: a file id alone is not permission to read it.
+    // Another owner gets the same answer as a missing file, so the check does
+    // not reveal that the file exists either.
     const file = await database()
-      .prepare("SELECT name,mime FROM evidence_files WHERE id=?")
-      .bind(id)
+      .prepare("SELECT name,mime FROM evidence_files WHERE id=? AND owner=?")
+      .bind(id, owner)
       .first<{ name: string; mime: string }>();
     if (!file) throw new HttpError(404, "Evidence not found.");
     const object = await bucket().get(id!);

@@ -29,7 +29,6 @@ const request = async (path, body, extra = {}) => {
     }),
   };
 };
-assert.equal((await fetch(base + "/api/agreements")).status, 401);
 const draft = {
   operationId: crypto.randomUUID(),
   title: "[API TEST] Renovation",
@@ -57,6 +56,14 @@ const draft = {
 let result = await request("/api/agreements", draft);
 assert.equal(result.status, 201, JSON.stringify(result.data));
 let a = result.data.agreement;
+// The standalone deployment serves callers without a ChatGPT session, keyed by
+// IP or account address, so a request without the cookie is not refused with
+// 401. What must hold is that it is a different owner and sees none of these.
+const anonymous = await fetch(base + "/api/agreements").then((r) => r.json());
+assert.ok(
+  !(anonymous.agreements ?? []).some((x) => x.id === a.id),
+  "Another owner must not see this agreement",
+);
 const before = await request("/api/agreements");
 const retry = await request("/api/agreements", draft);
 assert.equal(retry.status, 200, "Replayed creation must not create a second agreement");
@@ -110,7 +117,11 @@ const uploaded = await fetch(base + "/api/evidence", {
 });
 assert.equal(uploaded.status, 200);
 const file = await uploaded.json();
-assert.equal((await fetch(base + "/api/evidence?id=" + file.id)).status, 401);
+assert.equal(
+  (await fetch(base + "/api/evidence?id=" + file.id)).status,
+  404,
+  "Another owner must not download private evidence",
+);
 assert.equal(
   (await fetch(base + "/api/evidence?id=" + file.id, { headers: { cookie } }))
     .status,
