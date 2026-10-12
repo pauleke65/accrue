@@ -148,3 +148,21 @@ directory, so a tag stops resolving if the app goes away, though the account
 behind it keeps working.
 
 The product is more convincing with those stated than without.
+
+## AI tools used
+
+We built Accrue with AI coding tools, and say so plainly:
+
+- **Claude (Anthropic), through Claude Code.** It wrote and reviewed much of
+  the code, tests and documentation alongside us. Commits where it
+  contributed carry a `Co-Authored-By: Claude` trailer, so the history shows
+  exactly where.
+- **ChatGPT (OpenAI)** was also used during development.
+
+Separately, Proof Engine uses an AI model at runtime to read evidence against
+a brief. That is a product feature, not a development tool, and it is
+described above.
+
+## License
+
+[MIT](./LICENSE).
