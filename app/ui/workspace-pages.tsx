@@ -1,8 +1,103 @@
 "use client";
+import { useEffect, useState } from "react";
 import { ArrowUpRight, ShieldCheck } from "lucide-react";
 import { Status } from "./shared";
 import { token, network, explorer, shortAddress, escrow } from "@/lib/chain";
 import { useWallet } from "../wallet-context";
+type AgoraSupply = {
+  total: string;
+  circulating: string;
+  monad: { circulating: string; total: string } | null;
+  chains: number;
+};
+type AgoraCashout = { configured: boolean; reason?: string };
+
+/** Display only: Agora returns decimal strings, and a rounded figure survives a float. */
+const compact = (value: string) =>
+  new Intl.NumberFormat("en-US", {
+    notation: "compact",
+    maximumFractionDigits: 1,
+  }).format(Number(value));
+
+/**
+ * AUSD as Agora reports it right now, read through this app's /api/agora
+ * route: supply from the open metrics endpoint, and whether cash-out through
+ * the Routes API is configured on this deployment.
+ */
+function AgoraLive() {
+  const [supply, setSupply] = useState<AgoraSupply | null>(null);
+  const [cashout, setCashout] = useState<AgoraCashout | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let live = true;
+    const read = async <T,>(what: string) => {
+      const response = await fetch(`/api/agora?what=${what}`);
+      if (!response.ok) throw new Error(`Agora ${what} unavailable`);
+      return (await response.json()) as T;
+    };
+    read<AgoraSupply>("supply")
+      .then((s) => live && setSupply(s))
+      .catch(() => live && setFailed(true));
+    read<AgoraCashout>("cashout")
+      .then((c) => live && setCashout(c))
+      .catch(() => live && setCashout(null));
+    return () => {
+      live = false;
+    };
+  }, []);
+
+  const share =
+    supply?.monad && Number(supply.circulating) > 0
+      ? Math.round(
+          (Number(supply.monad.circulating) / Number(supply.circulating)) * 100,
+        )
+      : null;
+
+  return (
+    <section className="panel agora-live">
+      <Status value={failed ? "Unavailable" : "Live"} />
+      <h2>{token.symbol} right now · from Agora</h2>
+      <div className="metrics">
+        <section className="metric featured">
+          <span>Circulating supply</span>
+          <strong>{supply ? compact(supply.circulating) : "…"}</strong>
+          <small>
+            {supply
+              ? `${token.symbol} across ${supply.chains} networks`
+              : failed
+                ? "Agora's API did not answer just now."
+                : "Reading Agora's metrics…"}
+          </small>
+        </section>
+        <section className="metric">
+          <span>On Monad</span>
+          <strong>{supply?.monad ? compact(supply.monad.circulating) : "…"}</strong>
+          <small>
+            {share !== null ? `${share}% of circulating supply` : "Monad mainnet"}
+          </small>
+        </section>
+        <section className="metric">
+          <span>Cash-out to a bank</span>
+          <strong>{cashout ? (cashout.configured ? "On" : "Off") : "…"}</strong>
+          <small>
+            {cashout?.configured
+              ? `Agora Routes API · ${token.symbol} to USD`
+              : "Needs an Agora organisation key"}
+          </small>
+        </section>
+      </div>
+      <p className="muted">
+        Mainnet figures from api.agora.finance, read through this app&apos;s
+        server. The app itself moves test {token.symbol} on {network.name}.
+        Cash-out is built on Agora&apos;s Routes API ({token.symbol} to USD,
+        paid to a verified bank account) and reports itself off until Agora
+        issues an organisation key.
+      </p>
+    </section>
+  );
+}
+
 export function Connections() {
   const w = useWallet();
   return (
@@ -26,6 +121,7 @@ export function Connections() {
           off unless you turn it on below.
         </p>
       </div>
+      <AgoraLive />
       <section className="panel">
         <Status value={w.demoRoles ? "Demo" : "Product"} />
         <h2>One device, three roles</h2>
@@ -94,7 +190,7 @@ export function Connections() {
           {
             name: "Agora public API",
             status: "Active",
-            text: `Supply figures come from Agora's own public API, which needs no key: ${token.symbol} is a real stablecoin with real reserves, and Monad carries the second-largest supply of it after Ethereum. Cash-out to a bank runs through the same API's routes, which needs an organisation key and a verified bank account — built, and reported as unconfigured rather than pretended.`,
+            text: `Supply figures come from Agora's own public API, which needs no key: ${token.symbol} is a real stablecoin with real reserves, and the live figures are at the top of this page. Cash-out to a bank runs through the same API's routes, which needs an organisation key and a verified bank account — built, and reported as unconfigured rather than pretended.`,
             link: "https://docs.agora.finance/api",
             linkText: "Agora API documentation",
           },

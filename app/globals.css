@@ -1148,6 +1148,9 @@ h3 {
 .connection-grid .panel {
   margin: 0;
 }
+.agora-live .metrics {
+  margin: 18px 0 16px;
+}
 .spin {
   animation: spin 1s linear infinite;
 }
